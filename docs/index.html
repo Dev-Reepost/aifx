@@ -86,52 +86,97 @@ nav_order: 1
     <div class="card-grid">
 
       <a class="card" href="{{ '/plugins/depth_da3/' | relative_url }}">
-        <div class="card-tag tag-frame">Per-frame</div>
-        <h3 class="card-title">Depth Anything V3</h3>
-        <p class="card-desc">Monocular depth estimation from a single RGB frame. Relative or metric depth.</p>
-        <p class="card-meta">Commercial-safe (Apache variants)</p>
+        <div class="card-media">
+          <video autoplay loop muted playsinline preload="metadata" aria-hidden="true">
+            <source src="https://depth-anything-3.github.io/assets/teaser_compress.mp4" type="video/mp4">
+          </video>
+        </div>
+        <div class="card-body">
+          <div class="card-tag tag-frame">Per-frame</div>
+          <h3 class="card-title">Depth Anything V3</h3>
+          <p class="card-desc">Monocular depth estimation from a single RGB frame. Relative or metric depth.</p>
+          <p class="card-meta">Commercial-safe (Apache variants)</p>
+        </div>
       </a>
 
       <a class="card" href="{{ '/plugins/normal_crafter/' | relative_url }}">
-        <div class="card-tag tag-sequence">Sequence</div>
-        <h3 class="card-title">NormalCrafter</h3>
-        <p class="card-desc">Temporally coherent surface normal maps from a clip — relighting and shading passes without flicker.</p>
-        <p class="card-meta">Non-commercial (SVD base)</p>
+        <div class="card-media">
+          <video autoplay loop muted playsinline preload="metadata" aria-hidden="true">
+            <source src="https://normalcrafter.github.io/video/comparison/breakdance.mp4" type="video/mp4">
+          </video>
+        </div>
+        <div class="card-body">
+          <div class="card-tag tag-sequence">Sequence</div>
+          <h3 class="card-title">NormalCrafter</h3>
+          <p class="card-desc">Temporally coherent surface normal maps from a clip — relighting and shading passes without flicker.</p>
+          <p class="card-meta">Non-commercial (SVD base)</p>
+        </div>
       </a>
 
       <a class="card" href="{{ '/plugins/depth_crafter/' | relative_url }}">
-        <div class="card-tag tag-sequence">Sequence</div>
-        <h3 class="card-title">DepthCrafter</h3>
-        <p class="card-desc">Temporally consistent video depth via diffusion — no flicker, no swim.</p>
-        <p class="card-meta">Non-commercial</p>
+        <div class="card-media">
+          <img src="https://depthcrafter.github.io/img/d6_ours.png" alt="" aria-hidden="true">
+        </div>
+        <div class="card-body">
+          <div class="card-tag tag-sequence">Sequence</div>
+          <h3 class="card-title">DepthCrafter</h3>
+          <p class="card-desc">Temporally consistent video depth via diffusion — no flicker, no swim.</p>
+          <p class="card-meta">Non-commercial</p>
+        </div>
       </a>
 
       <a class="card" href="{{ '/plugins/segmentation_sam3/' | relative_url }}">
-        <div class="card-tag tag-sequence">Sequence</div>
-        <h3 class="card-title">SAM3 Segmentation</h3>
-        <p class="card-desc">Text or click-prompted mask propagation across an entire clip.</p>
-        <p class="card-meta">Commercial-safe with conditions</p>
+        <div class="card-media">
+          <img src="https://raw.githubusercontent.com/facebookresearch/sam3/main/assets/dog.gif" alt="" aria-hidden="true">
+        </div>
+        <div class="card-body">
+          <div class="card-tag tag-sequence">Sequence</div>
+          <h3 class="card-title">SAM3 Segmentation</h3>
+          <p class="card-desc">Text or click-prompted mask propagation across an entire clip.</p>
+          <p class="card-meta">Commercial-safe with conditions</p>
+        </div>
       </a>
 
       <a class="card" href="{{ '/plugins/matte_mama/' | relative_url }}">
-        <div class="card-tag tag-sequence">Sequence</div>
-        <h3 class="card-title">MaMa Matting</h3>
-        <p class="card-desc">Diffusion-based high-quality video alpha — hair, edges, transparency.</p>
-        <p class="card-meta">Non-commercial</p>
+        <div class="card-media">
+          <video autoplay loop muted playsinline preload="metadata" aria-hidden="true">
+            <source src="https://cvlab-kaist.github.io/VideoMaMa/comparison/basket_mask.mp4" type="video/mp4">
+          </video>
+        </div>
+        <div class="card-body">
+          <div class="card-tag tag-sequence">Sequence</div>
+          <h3 class="card-title">MaMa Matting</h3>
+          <p class="card-desc">Diffusion-based high-quality video alpha — hair, edges, transparency.</p>
+          <p class="card-meta">Non-commercial</p>
+        </div>
       </a>
 
       <a class="card" href="{{ '/plugins/matte_ma2/' | relative_url }}">
-        <div class="card-tag tag-sequence">Sequence</div>
-        <h3 class="card-title">MatAnyone2 Matting</h3>
-        <p class="card-desc">Fast recurrent video alpha — the throughput counterpart to MaMa.</p>
-        <p class="card-meta">Non-commercial</p>
+        <div class="card-media">
+          <video autoplay loop muted playsinline preload="metadata" aria-hidden="true">
+            <source src="https://pq-yang.github.io/projects/MatAnyone2/assets/videos_mat/mixkit-man-breakdancing-452-full-hd_78_pha_sm.mp4" type="video/mp4">
+          </video>
+        </div>
+        <div class="card-body">
+          <div class="card-tag tag-sequence">Sequence</div>
+          <h3 class="card-title">MatAnyone2 Matting</h3>
+          <p class="card-desc">Fast recurrent video alpha — the throughput counterpart to MaMa.</p>
+          <p class="card-meta">Non-commercial</p>
+        </div>
       </a>
 
       <a class="card" href="{{ '/plugins/upscale_seedvr2/' | relative_url }}">
-        <div class="card-tag tag-sequence">Sequence</div>
-        <h3 class="card-title">SeedVR2 Upscaler</h3>
-        <p class="card-desc">Diffusion-transformer video super-resolution — generative detail, temporally coherent.</p>
-        <p class="card-meta">Commercial-safe</p>
+        <div class="card-media">
+          <video autoplay loop muted playsinline preload="metadata" aria-hidden="true">
+            <source src="https://huggingface.co/datasets/Iceclear/SeedVR_VideoDemos/resolve/main/seedvr2_videos/1_1_hq.mp4" type="video/mp4">
+          </video>
+        </div>
+        <div class="card-body">
+          <div class="card-tag tag-sequence">Sequence</div>
+          <h3 class="card-title">SeedVR2 Upscaler</h3>
+          <p class="card-desc">Diffusion-transformer video super-resolution — generative detail, temporally coherent.</p>
+          <p class="card-meta">Commercial-safe</p>
+        </div>
       </a>
 
     </div>
