@@ -199,11 +199,17 @@ code {
   vertical-align: middle;
   border-radius: 3px;
 }
-/* Modifier: invert color for logos that are dark-on-transparent and would
-   otherwise disappear into the black hero. MaGMa's 'icon-light' file is
-   the dark version intended for light backgrounds, so we flip it. */
+/* Modifier: force-recolor logos that are dark-on-transparent so they're
+   visible on the black hero. MaGMa's 'icon-light' file is the dark version
+   intended for light backgrounds.
+   The brightness(0) invert(1) trick: brightness(0) drives all visible
+   pixels to pure black (alpha unchanged), invert(1) flips that to pure
+   white. Result: any non-transparent pixel renders white, regardless of
+   the original color or how faint it was. Stronger than plain invert(1)
+   for dark-gray icons that would otherwise invert to a barely-visible
+   light gray. */
 .hero-byline-logo--invert {
-  filter: invert(1) brightness(1.2);
+  filter: brightness(0) invert(1);
 }
 .hero-byline-sep {
   font-size: 0.85rem;
