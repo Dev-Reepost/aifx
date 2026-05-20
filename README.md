@@ -102,5 +102,6 @@ The plugins are bridges to upstream models built by other teams. Each plugin's
 documentation page credits the original authors and links to their papers,
 code, and project pages. Without their work, this project would not exist.
 
-The plugins build on the [OpenFX](https://github.com/AcademySoftwareFoundation/openfx)
-specification maintained by the Academy Software Foundation.
+The plugins build on the [OpenFX specification](https://openeffects.org/)
+([source on GitHub](https://github.com/AcademySoftwareFoundation/openfx)),
+maintained by the Academy Software Foundation.

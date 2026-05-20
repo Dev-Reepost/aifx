@@ -93,9 +93,10 @@ Each is referenced from the relevant plugin documentation page.
 
 ## OpenFX
 
-The plugins implement the [OpenFX](https://github.com/AcademySoftwareFoundation/openfx)
-specification maintained by the Academy Software Foundation. License:
-BSD-3-Clause.
+The plugins implement the [OpenFX specification](https://openeffects.org/),
+maintained by the Academy Software Foundation
+([openfx on GitHub](https://github.com/AcademySoftwareFoundation/openfx)).
+License: BSD-3-Clause.
 
 ## Funding
 

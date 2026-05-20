@@ -6,8 +6,9 @@ nav_order: 2
 # Installation
 
 AIFX ships as a set of OpenFX plugin bundles (`.ofx.bundle` directories).
-Any application implementing the OpenFX 1.4 standard or later will discover and
-load them from the standard plugin directory for your operating system.
+Any application implementing the [OpenFX](https://openeffects.org/) 1.4
+standard or later will discover and load them from the standard plugin
+directory for your operating system.
 
 This page covers installing the plugins. The companion document
 [ComfyUI server setup](comfyui-server-setup.md) covers the model server side,

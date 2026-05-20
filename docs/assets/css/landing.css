@@ -454,6 +454,36 @@ code {
   color: #ffffff;
   text-decoration-color: rgba(255, 255, 255, 0.7);
 }
+/* Funding block: CNC logo + tagline. The CNC SVG is black; on the dark
+   footer it gets inverted to white via CSS filter so it sits cleanly
+   against the background. */
+.footer-funding {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0 0 2rem;
+}
+.footer-funding a {
+  border: none;
+  text-decoration: none;
+}
+.footer-funding a:hover { text-decoration: none; }
+.cnc-logo {
+  height: 56px;
+  width: auto;
+  display: block;
+  filter: invert(1) brightness(2);
+  opacity: 0.85;
+  transition: opacity 0.15s ease;
+}
+.footer-funding a:hover .cnc-logo { opacity: 1; }
+.footer-funding-text {
+  margin: 0;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
 .footer-meta {
   font-size: 0.8rem;
   color: rgba(255, 255, 255, 0.5);

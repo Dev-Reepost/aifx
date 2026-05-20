@@ -36,8 +36,11 @@ developers contributing new plugins to the suite.
 ### Plugin runtime (host side)
 
 Each plugin is an OFX `.ofx.bundle` that the host loads via the standard OFX
-plugin discovery. The plugin code is built on the OpenFX C++ Support library,
-which provides the `ImageEffect` base class and parameter primitives.
+plugin discovery. The plugin code is built on the OpenFX C++ Support library
+(see [openeffects.org](https://openeffects.org/) for the standard, and
+[openfx on GitHub](https://github.com/AcademySoftwareFoundation/openfx) for
+the reference implementation), which provides the `ImageEffect` base class
+and parameter primitives.
 
 All plugins inherit from a shared `ComfyUIBasePlugin` class that handles:
 
