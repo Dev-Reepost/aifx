@@ -143,15 +143,22 @@ code {
   line-height: 0;
 }
 .hero-status-cnc a:hover { text-decoration: none; }
+/* The CNC SVG has no intrinsic width constraint and rendered at full size in
+   the browser. Lock both dimensions explicitly, use !important to defeat any
+   inherited img rules, and add max-* as a belt-and-suspenders fallback.
+   Invert + brighten because the SVG is black and the hero is black. */
 .hero-status-cnc-logo {
-  height: 18px;
-  width: auto;
-  filter: invert(1) brightness(2);
-  opacity: 0.65;
-  display: block;
+  height: 18px !important;
+  width: auto !important;
+  max-height: 18px !important;
+  max-width: 56px !important;
+  filter: invert(1) brightness(1.4);
+  opacity: 0.7;
+  display: inline-block;
+  vertical-align: middle;
   transition: opacity 0.15s ease;
 }
-.hero-status-cnc a:hover .hero-status-cnc-logo { opacity: 0.95; }
+.hero-status-cnc a:hover .hero-status-cnc-logo { opacity: 1; }
 
 /* Byline: 'Julien Martin (MaGMa) for Reepost Studio' with small logos,
    sitting at the bottom of hero-inner under the status line. */
@@ -166,10 +173,10 @@ code {
 .hero-byline-link {
   display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
+  gap: 0.5rem;
   color: rgba(255, 255, 255, 0.75);
   text-decoration: none;
-  font-size: 0.92rem;
+  font-size: 0.95rem;
   font-weight: 500;
   letter-spacing: 0.01em;
   transition: color 0.15s ease;
@@ -178,12 +185,25 @@ code {
   color: #ffffff;
   text-decoration: none;
 }
+/* Hard size lock — defeats any intrinsic img dimensions and any cascade
+   from other img rules. Both dimensions explicit, both max-* set, and
+   !important everywhere because the previous unforced version rendered
+   the Reepost PNG at its full 320×320 intrinsic size. */
 .hero-byline-logo {
-  height: 26px;
-  width: 26px;
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.04);
-  display: block;
+  height: 24px !important;
+  width: 24px !important;
+  max-height: 24px !important;
+  max-width: 24px !important;
+  object-fit: contain;
+  display: inline-block !important;
+  vertical-align: middle;
+  border-radius: 3px;
+}
+/* Modifier: invert color for logos that are dark-on-transparent and would
+   otherwise disappear into the black hero. MaGMa's 'icon-light' file is
+   the dark version intended for light backgrounds, so we flip it. */
+.hero-byline-logo--invert {
+  filter: invert(1) brightness(1.2);
 }
 .hero-byline-sep {
   font-size: 0.85rem;
@@ -613,8 +633,10 @@ code {
 }
 .footer-funding a:hover { text-decoration: none; }
 .cnc-logo {
-  height: 56px;
-  width: auto;
+  height: 56px !important;
+  width: auto !important;
+  max-height: 56px !important;
+  max-width: 180px !important;
   display: block;
   filter: invert(1) brightness(2);
   opacity: 0.85;
