@@ -94,8 +94,8 @@ verify_macos() {
 
 get_openfx_root() {
     local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    OFX_ROOT="$(cd "$script_dir/../.." && pwd)"
-    cd "$OFX_ROOT"
+    REPO_ROOT="$(cd "$script_dir/.." && pwd)"
+    cd "$REPO_ROOT"
 }
 
 parse_arguments() {
@@ -164,7 +164,7 @@ install_conan_dependencies() {
         -s arch="$arch" \
         -pr:b=default \
         --build=missing \
-        -o "&:build_comfyui_plugins=True" \
+        \
         -of="$build_dir" 2>&1; then
 
         log_error "Failed to install $arch_name dependencies via Conan"
@@ -176,7 +176,7 @@ install_conan_dependencies() {
             -s arch="$arch" \
             -pr:b=default \
             --build="*" \
-            -o "&:build_comfyui_plugins=True" \
+            \
             -of="$build_dir"
     fi
 }
@@ -371,7 +371,7 @@ main() {
     get_openfx_root
 
     log_info "Building universal binary for: $PLUGIN_NAME"
-    log_info "OpenFX root: $OFX_ROOT"
+    log_info "OpenFX root: $REPO_ROOT"
 
     clean_build_directories
 
