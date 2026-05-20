@@ -64,6 +64,20 @@ Plus the standard ComfyUI base parameters.
 ![DepthCrafter overview — long-video temporally-consistent depth estimation.](https://depthcrafter.github.io/img/overview.jpg)
 *DepthCrafter overview figure. © Hu et al., Tencent AI Lab, CVPR 2025 Highlight. Source: [depthcrafter.github.io](https://depthcrafter.github.io/). Reproduced under fair-use citation; Tencent code/weights non-commercial.*
 
+### Input → output
+
+<div class="io-pair" markdown="0">
+  <figure>
+    <img src="https://depthcrafter.github.io/img/img01.jpg" alt="Input frame from open-world video">
+    <figcaption>Input frame</figcaption>
+  </figure>
+  <figure>
+    <img src="https://depthcrafter.github.io/img/d6_ours.png" alt="DepthCrafter depth estimate">
+    <figcaption>DepthCrafter depth output</figcaption>
+  </figure>
+</div>
+*Side-by-side: input RGB frame and DepthCrafter's per-pixel depth result. © Hu et al., Tencent AI Lab, CVPR 2025; reproduced under fair-use citation.*
+
 The strongest argument for a temporally-consistent depth model is visual.
 The upstream sources show side-by-side reels against per-frame methods:
 

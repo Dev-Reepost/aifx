@@ -76,6 +76,24 @@ Plus the standard ComfyUI base parameters.
 ![SeedVR2 — low-res input vs restored high-res output.](https://iceclear.github.io/projects/seedvr2/images/result1.png)
 *SeedVR2 result comparison. © Wang et al., ByteDance Seed, ICLR 2026. Source: [iceclear.github.io/projects/seedvr2](https://iceclear.github.io/projects/seedvr2/). Reproduced under Apache 2.0 attribution.*
 
+### Input → output
+
+<div class="io-pair" markdown="0">
+  <figure>
+    <video autoplay loop muted playsinline preload="metadata">
+      <source src="https://huggingface.co/datasets/Iceclear/SeedVR_VideoDemos/resolve/main/seedvr2_videos/1_1_zoomed.mp4" type="video/mp4">
+    </video>
+    <figcaption>Low-resolution input (zoomed-in detail)</figcaption>
+  </figure>
+  <figure>
+    <video autoplay loop muted playsinline preload="metadata">
+      <source src="https://huggingface.co/datasets/Iceclear/SeedVR_VideoDemos/resolve/main/seedvr2_videos/1_1_hq.mp4" type="video/mp4">
+    </video>
+    <figcaption>SeedVR2 high-resolution output</figcaption>
+  </figure>
+</div>
+*One-step diffusion video super-resolution result. © Wang et al., ByteDance Seed, ICLR 2026. Source clips hosted on [Hugging Face datasets/Iceclear/SeedVR_VideoDemos](https://huggingface.co/datasets/Iceclear/SeedVR_VideoDemos). Reproduced under Apache 2.0 attribution.*
+
 - **Project page** — [iceclear.github.io/projects/seedvr2](https://iceclear.github.io/projects/seedvr2/) — side-by-side LR input / SeedVR2 / multi-step baselines (RealBasicVSR, Upscale-A-Video, VEnhancer).
 - **GitHub README** — [ByteDance-Seed/SeedVR](https://github.com/ByteDance-Seed/SeedVR) — degraded real-world plates restored to high resolution. Repository assets are Apache 2.0 (redistributable with NOTICE preserved).
 

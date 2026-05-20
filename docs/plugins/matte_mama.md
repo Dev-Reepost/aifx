@@ -62,6 +62,24 @@ Plus the standard ComfyUI base parameters.
 ![VideoMaMa architecture and teaser — mask-guided video matting via generative prior.](https://cvlab-kaist.github.io/VideoMaMa/assets/videomama.png)
 *VideoMaMa pipeline. © Lim et al., KAIST CVLab / Korea University / Adobe Research, CVPR 2026. Source: [cvlab-kaist.github.io/VideoMaMa](https://cvlab-kaist.github.io/VideoMaMa/). Reproduced under fair-use citation; weights non-commercial (CC BY-NC 4.0 + SVD).*
 
+### Input → output
+
+<div class="io-pair" markdown="0">
+  <figure>
+    <video autoplay loop muted playsinline preload="metadata">
+      <source src="https://cvlab-kaist.github.io/VideoMaMa/comparison/basket_rgb.mp4" type="video/mp4">
+    </video>
+    <figcaption>Input clip</figcaption>
+  </figure>
+  <figure>
+    <video autoplay loop muted playsinline preload="metadata">
+      <source src="https://cvlab-kaist.github.io/VideoMaMa/comparison/basket_mask.mp4" type="video/mp4">
+    </video>
+    <figcaption>Refined alpha matte</figcaption>
+  </figure>
+</div>
+*Mask-guided video matting result. © Lim et al., CVPR 2026, [cvlab-kaist.github.io/VideoMaMa](https://cvlab-kaist.github.io/VideoMaMa/). Fair-use citation.*
+
 - **Project page** — [cvlab-kaist.github.io/VideoMaMa](https://cvlab-kaist.github.io/VideoMaMa/) — side-by-side input mask vs. refined alpha on hair-heavy subjects, comparison reels vs. MatAnyone and RVM.
 - **Hugging Face Space demo** — [SammyLim/VideoMaMa](https://huggingface.co/spaces/SammyLim/VideoMaMa) — try the model on your own clips.
 - **arXiv paper figures** — [arxiv.org/html/2601.14255v1](https://arxiv.org/html/2601.14255v1) — qualitative before/after grids.

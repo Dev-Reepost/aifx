@@ -1,0 +1,53 @@
+/* Plugin-page media layouts.
+   Loaded on every page via _includes/head_custom.html, but only the
+   per-plugin pages actually use the .io-pair class. Keeping styles
+   small and scoped — no overrides of just-the-docs defaults. */
+
+.io-pair {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin: 1rem 0;
+}
+
+.io-pair > figure {
+  flex: 1 1 280px;
+  min-width: 280px;
+  margin: 0;
+}
+
+.io-pair video,
+.io-pair img {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 4px;
+}
+
+.io-pair figcaption {
+  text-align: center;
+  font-size: 0.85rem;
+  color: #666;
+  margin-top: 0.5rem;
+}
+
+/* Single-asset wrapper for plugin pages that have one combined demo
+   instead of an input/output pair. Keeps width sane. */
+.single-demo {
+  margin: 1rem 0;
+}
+.single-demo video,
+.single-demo img {
+  width: 100%;
+  height: auto;
+  max-width: 720px;
+  display: block;
+  border-radius: 4px;
+  margin: 0 auto;
+}
+.single-demo figcaption {
+  text-align: center;
+  font-size: 0.85rem;
+  color: #666;
+  margin-top: 0.5rem;
+}

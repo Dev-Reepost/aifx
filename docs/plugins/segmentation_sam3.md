@@ -64,6 +64,11 @@ Plus the standard ComfyUI base parameters.
 ![SAM 3 model architecture — promptable concept and instance segmentation.](https://raw.githubusercontent.com/facebookresearch/sam3/main/assets/model_diagram.png)
 *SAM 3 model architecture diagram. © Meta Platforms, Inc. Source: [facebookresearch/sam3](https://github.com/facebookresearch/sam3). Reproduced under SAM License with attribution.*
 
+### Input → output
+
+![SAM 3 mask propagation through a clip — dog example.](https://raw.githubusercontent.com/facebookresearch/sam3/main/assets/dog.gif)
+*Animated demo: text/click prompt → propagated mask across a clip. © Meta Platforms, Inc., SAM License.*
+
 - **Project page** — [ai.meta.com/sam3](https://ai.meta.com/sam3/) — Meta's official demos and capability overview.
 - **Blog post** — [ai.meta.com/blog/segment-anything-model-3](https://ai.meta.com/blog/segment-anything-model-3/) — release announcement with hero illustrations and worked examples.
 - **Interactive demo** — [segment-anything.com](https://segment-anything.com/) — try it on your own images.

@@ -63,6 +63,16 @@ name, workflow path).
 ![NormalCrafter pipeline: video-to-normal-map diffusion architecture.](https://normalcrafter.github.io/img/pipeline.png)
 *NormalCrafter pipeline diagram. © Bin et al., ICCV 2025. Source: [normalcrafter.github.io](https://normalcrafter.github.io/). Used for documentation under MIT attribution.*
 
+### Input → output
+
+<figure class="single-demo" markdown="0">
+  <video autoplay loop muted playsinline preload="metadata">
+    <source src="https://normalcrafter.github.io/video/comparison/breakdance.mp4" type="video/mp4">
+  </video>
+  <figcaption>Input clip and the NormalCrafter normal-map result (upstream side-by-side reel)</figcaption>
+</figure>
+*Comparison reel. © Bin et al., ICCV 2025, [normalcrafter.github.io](https://normalcrafter.github.io/). Reproduced under MIT attribution; cite [arXiv:2504.11427](https://arxiv.org/abs/2504.11427).*
+
 To see what this model produces, the upstream sources have the most
 authoritative demos:
 

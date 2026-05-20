@@ -65,6 +65,16 @@ paths, project name, workflow path) plus:
 ![Depth Anything 3 vs prior depth/geometry models — teaser comparison.](https://depth-anything-3.github.io/assets/teaser.png)
 *Performance comparison teaser. © Lin et al., ByteDance Seed, 2025. Source: [depth-anything-3.github.io](https://depth-anything-3.github.io/). Used for documentation under Apache 2.0 attribution.*
 
+### Input → output
+
+<figure class="single-demo" markdown="0">
+  <video autoplay loop muted playsinline preload="metadata">
+    <source src="https://depth-anything-3.github.io/assets/teaser_compress.mp4" type="video/mp4">
+  </video>
+  <figcaption>DA3 depth and geometry results on real-world clips</figcaption>
+</figure>
+*Hero teaser reel. © ByteDance Seed, 2025; reproduced for documentation purposes under Apache 2.0 attribution. Source: [depth-anything-3.github.io](https://depth-anything-3.github.io/).*
+
 To see what this model produces, the upstream sources have the most
 authoritative demos:
 
