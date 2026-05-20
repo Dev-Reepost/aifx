@@ -56,6 +56,9 @@ name, workflow path).
 
 ## Demos & comparisons
 
+![NormalCrafter pipeline: video-to-normal-map diffusion architecture.](https://normalcrafter.github.io/img/pipeline.png)
+*NormalCrafter pipeline diagram. © Bin et al., ICCV 2025. Source: [normalcrafter.github.io](https://normalcrafter.github.io/). Used for documentation under MIT attribution.*
+
 To see what this model produces, the upstream sources have the most
 authoritative demos:
 

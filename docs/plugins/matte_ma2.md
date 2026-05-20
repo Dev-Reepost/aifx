@@ -57,6 +57,9 @@ Plus the standard ComfyUI base parameters.
 
 ## Demos & comparisons
 
+![MatAnyone 1 vs MatAnyone 2 — alpha matte quality comparison.](https://pq-yang.github.io/projects/MatAnyone2/assets/figures/matanyone1vs2.png)
+*Side-by-side v1 vs v2 comparison. © Yang et al., S-Lab @ NTU + SenseTime, CVPR 2025/2026. Source: [pq-yang.github.io/projects/MatAnyone2](https://pq-yang.github.io/projects/MatAnyone2/). Reproduced under fair-use citation; weights non-commercial (NTU S-Lab License 1.0).*
+
 - **MatAnyone2 project page** — [pq-yang.github.io/projects/MatAnyone2](https://pq-yang.github.io/projects/MatAnyone2/) — teaser, hair/edge demonstrations, v1-vs-v2 comparisons.
 - **MatAnyone (v1) project page** — [pq-yang.github.io/projects/MatAnyone](https://pq-yang.github.io/projects/MatAnyone/) — extensive demo gallery on difficult shots.
 - **GitHub** — [pq-yang/MatAnyone2](https://github.com/pq-yang/MatAnyone2) — code and pretrained checkpoint.

@@ -62,6 +62,9 @@ paths, project name, workflow path) plus:
 
 ## Demos & comparisons
 
+![Depth Anything 3 vs prior depth/geometry models — teaser comparison.](https://depth-anything-3.github.io/assets/teaser.png)
+*Performance comparison teaser. © Lin et al., ByteDance Seed, 2025. Source: [depth-anything-3.github.io](https://depth-anything-3.github.io/). Used for documentation under Apache 2.0 attribution.*
+
 To see what this model produces, the upstream sources have the most
 authoritative demos:
 

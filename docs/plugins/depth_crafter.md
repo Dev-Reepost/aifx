@@ -61,6 +61,9 @@ Plus the standard ComfyUI base parameters.
 
 ## Demos & comparisons
 
+![DepthCrafter overview — long-video temporally-consistent depth estimation.](https://depthcrafter.github.io/img/overview.jpg)
+*DepthCrafter overview figure. © Hu et al., Tencent AI Lab, CVPR 2025 Highlight. Source: [depthcrafter.github.io](https://depthcrafter.github.io/). Reproduced under fair-use citation; Tencent code/weights non-commercial.*
+
 The strongest argument for a temporally-consistent depth model is visual.
 The upstream sources show side-by-side reels against per-frame methods:
 
