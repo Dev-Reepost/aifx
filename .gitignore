@@ -1,5 +1,6 @@
 # CMake / Conan build outputs ------------------------------------------------
 build/
+dist/
 CMakeCache.txt
 CMakeFiles/
 CMakeUserPresets.json

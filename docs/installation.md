@@ -27,18 +27,39 @@ after installing or updating plugins.
 
 ## Installing prebuilt bundles
 
-> Prebuilt binaries are not yet published. Until V1.0.0 is tagged, install
-> from source — see below.
+Prebuilt binaries are published on the
+[GitHub Releases](https://github.com/Dev-Reepost/aifx/releases) page,
+organized per operating system.
 
-When prebuilt bundles are available, the install procedure is:
+| Platform | Asset | Built? |
+|---|---|---|
+| **macOS (universal: arm64 + x86_64)** | `aifx-<version>-macos-universal.tar.gz` | ✅ Available from v0.1.0 |
+| **Linux (x86_64)** | `aifx-<version>-linux-x86_64.tar.gz` | ⏳ Not yet — build from source for now |
+| **Windows (x86_64)** | `aifx-<version>-windows-x86_64.zip` | ⏳ Not yet — build from source for now |
 
-1. Download the archive for your OS from the
-   [GitHub Releases](https://github.com/Dev-Reepost/aifx/releases) page.
-2. Extract the `*.ofx.bundle` directories.
-3. Move each `.ofx.bundle` into one of the plugin directories from the table
-   above. Use the system-wide directory if all users on the machine should see
-   the plugins, or the per-user directory otherwise.
-4. Restart your host application.
+### macOS
+
+1. Download `aifx-<version>-macos-universal.tar.gz` from the latest release.
+2. Extract it. You will get a directory containing seven `.ofx.bundle`
+   directories.
+3. Move all seven `.ofx.bundle` directories into one of the standard OFX
+   plugin paths from the table above
+   (`~/Library/OFX/Plugins/` is the safest choice — per-user, no `sudo`).
+4. If macOS quarantines the bundles (because they were downloaded from the
+   internet), clear the quarantine bit:
+
+   ```bash
+   xattr -dr com.apple.quarantine ~/Library/OFX/Plugins/*.ofx.bundle
+   ```
+
+5. Restart your OFX host. The plugins appear under the **AIFX** category.
+
+### Linux & Windows
+
+Prebuilt bundles are not yet published. Build from source —
+see [Building from source](#building-from-source) below. The new repo will
+publish Linux and Windows binaries via GitHub Releases once we have those
+build machines wired into CI.
 
 ## Building from source
 
