@@ -18,9 +18,6 @@ url: "https://Dev-Reepost.github.io"
 
 repository: "Dev-Reepost/aifx"
 
-# Source content lives in /docs (this repo layout).
-source: docs
-
 # Use just-the-docs as the remote theme for GitHub Pages compatibility.
 remote_theme: just-the-docs/just-the-docs
 plugins:
@@ -64,18 +61,8 @@ heading_anchors: true
 last_edit_timestamp: true
 last_edit_time_format: "%b %e %Y at %I:%M %p"
 
-# Exclude these paths from the build.
 exclude:
-  - _research/
-  - RELEASE_SPEC.md
-  - MIGRATION.md
-  - CHANGELOG.md
-  - CONTRIBUTING.md
-  - CODE_OF_CONDUCT.md
-  - LICENSE
-  - README.md
   - vendor/
   - Gemfile
   - Gemfile.lock
   - node_modules/
-  - script/
