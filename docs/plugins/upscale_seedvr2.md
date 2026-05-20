@@ -118,6 +118,7 @@ and AInVFX (Adrien Toupet).
 
 ### Citation
 
+{% raw %}
 ```bibtex
 @inproceedings{wang2026seedvr2,
   author    = {Wang, Jianyi and Lin, Shanchuan and Lin, Zhijie and Ren, Yuxi and
@@ -139,3 +140,4 @@ and AInVFX (Adrien Toupet).
   note      = {Highlight}
 }
 ```
+{% endraw %}

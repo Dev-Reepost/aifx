@@ -111,6 +111,7 @@ ComfyUI wrapper by [spiritform](https://github.com/spiritform/comfy-matanyone2).
 
 ### Citation
 
+{% raw %}
 ```bibtex
 @InProceedings{yang2026matanyone2,
   title     = {{MatAnyone 2}: Scaling Video Matting via a Learned Quality Evaluator},
@@ -126,3 +127,4 @@ ComfyUI wrapper by [spiritform](https://github.com/spiritform/comfy-matanyone2).
   year      = {2025}
 }
 ```
+{% endraw %}

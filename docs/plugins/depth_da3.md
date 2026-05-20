@@ -97,6 +97,7 @@ ComfyUI node by [PozzettiAndrea](https://github.com/PozzettiAndrea/ComfyUI-Depth
 
 ### Citation
 
+{% raw %}
 ```bibtex
 @article{depthanything3,
   title   = {Depth Anything 3: Recovering the Visual Space from Any Views},
@@ -106,3 +107,4 @@ ComfyUI node by [PozzettiAndrea](https://github.com/PozzettiAndrea/ComfyUI-Depth
   year    = {2025}
 }
 ```
+{% endraw %}

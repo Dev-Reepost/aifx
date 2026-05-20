@@ -90,6 +90,7 @@ ComfyUI wrapper by [AIWarper](https://github.com/AIWarper/ComfyUI-NormalCrafterW
 
 ### Citation
 
+{% raw %}
 ```bibtex
 @inproceedings{bin2025normalcrafter,
   author    = {Bin, Yanrui and Hu, Wenbo and Wang, Haoyuan and Chen, Xinya and Wang, Bing},
@@ -100,3 +101,4 @@ ComfyUI wrapper by [AIWarper](https://github.com/AIWarper/ComfyUI-NormalCrafterW
   archivePrefix = {arXiv}
 }
 ```
+{% endraw %}

@@ -104,6 +104,7 @@ ComfyUI wrapper by [okdalto](https://github.com/okdalto/ComfyUI-VideoMaMa).
 
 ### Citation
 
+{% raw %}
 ```bibtex
 @article{lim2026videomama,
   title   = {VideoMaMa: Mask-Guided Video Matting via Generative Prior},
@@ -113,3 +114,4 @@ ComfyUI wrapper by [okdalto](https://github.com/okdalto/ComfyUI-VideoMaMa).
   year    = {2026}
 }
 ```
+{% endraw %}

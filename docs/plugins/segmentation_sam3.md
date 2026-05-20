@@ -105,6 +105,7 @@ ComfyUI node by [PozzettiAndrea](https://github.com/PozzettiAndrea/ComfyUI-SAM3)
 
 ### Citation
 
+{% raw %}
 ```bibtex
 @misc{carion2025sam3segmentconcepts,
   title         = {SAM 3: Segment Anything with Concepts},
@@ -121,3 +122,4 @@ ComfyUI node by [PozzettiAndrea](https://github.com/PozzettiAndrea/ComfyUI-SAM3)
   url           = {https://arxiv.org/abs/2511.16719}
 }
 ```
+{% endraw %}

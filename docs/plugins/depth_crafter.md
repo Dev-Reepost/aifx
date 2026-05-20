@@ -110,6 +110,7 @@ ComfyUI port by [akatz-ai](https://github.com/akatz-ai/ComfyUI-DepthCrafter-Node
 
 ### Citation
 
+{% raw %}
 ```bibtex
 @inproceedings{hu2025depthcrafter,
   author    = {Hu, Wenbo and Gao, Xiangjun and Li, Xiaoyu and Zhao, Sijie and
@@ -122,3 +123,4 @@ ComfyUI port by [akatz-ai](https://github.com/akatz-ai/ComfyUI-DepthCrafter-Node
   archivePrefix = {arXiv}
 }
 ```
+{% endraw %}
