@@ -131,6 +131,65 @@ code {
   color: rgba(255, 255, 255, 0.55);
   letter-spacing: 0.04em;
 }
+.hero-status-cnc {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  vertical-align: middle;
+}
+.hero-status-cnc a {
+  border: none;
+  text-decoration: none;
+  line-height: 0;
+}
+.hero-status-cnc a:hover { text-decoration: none; }
+.hero-status-cnc-logo {
+  height: 18px;
+  width: auto;
+  filter: invert(1) brightness(2);
+  opacity: 0.65;
+  display: block;
+  transition: opacity 0.15s ease;
+}
+.hero-status-cnc a:hover .hero-status-cnc-logo { opacity: 0.95; }
+
+/* Byline: 'Julien Martin (MaGMa) for Reepost Studio' with small logos,
+   sitting at the bottom of hero-inner under the status line. */
+.hero-byline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+  margin-top: 1.5rem;
+}
+.hero-byline-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: rgba(255, 255, 255, 0.75);
+  text-decoration: none;
+  font-size: 0.92rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  transition: color 0.15s ease;
+}
+.hero-byline-link:hover {
+  color: #ffffff;
+  text-decoration: none;
+}
+.hero-byline-logo {
+  height: 26px;
+  width: 26px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.04);
+  display: block;
+}
+.hero-byline-sep {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.5);
+  font-style: italic;
+}
 
 /* -------------------------------------------------------- BUTTONS */
 
