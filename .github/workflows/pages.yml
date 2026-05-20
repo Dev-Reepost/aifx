@@ -23,14 +23,21 @@ concurrency:
   group: pages
   cancel-in-progress: false
 
+# Force Node 24 runtime for the JavaScript actions below. GitHub is
+# deprecating Node 20 in mid-2026; opting in now silences the deprecation
+# warning without needing to track which action major versions have shipped
+# Node-24 builds.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Configure Pages
-        uses: actions/configure-pages@v4
+        uses: actions/configure-pages@v5
 
       - name: Build with Jekyll
         uses: actions/jekyll-build-pages@v1
@@ -39,7 +46,7 @@ jobs:
           destination: ./_site
 
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v4
 
   deploy:
     needs: build
