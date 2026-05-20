@@ -14,7 +14,7 @@ Seven plugins that bridge an OFX host to a ComfyUI server:
 | Plugin | What it does |
 |---|---|
 | **Depth Anything V3** (`depth_da3`) | Per-frame monocular depth estimation. |
-| **NormalCrafter** (`normal_crafter`) | Per-frame surface normal map estimation. |
+| **NormalCrafter** (`normal_crafter`) | Temporally coherent surface normal maps from a clip (diffusion video prior). |
 | **DepthCrafter** (`depth_crafter`) | Temporally consistent video depth (diffusion). |
 | **SAM3 Segmentation** (`segmentation_sam3`) | Text/click-prompted mask propagation through a clip. |
 | **MaMa Matting** (`matte_mama`) | Diffusion-based high-quality video alpha matting. |

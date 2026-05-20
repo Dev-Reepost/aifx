@@ -15,7 +15,7 @@ as a quick selector.
 | Plugin | Mode | Function | Commercial-safe? |
 |---|---|---|---|
 | [Depth Anything V3](depth_da3.md) | Per-frame | Monocular depth | ✅ Yes (with Apache variants) |
-| [NormalCrafter](normal_crafter.md) | Per-frame | Surface normals | ❌ No (SVD base) |
+| [NormalCrafter](normal_crafter.md) | Sequence | Surface normals (temporally coherent) | ❌ No (SVD base) |
 | [DepthCrafter](depth_crafter.md) | Sequence | Temporally-consistent depth | ❌ No |
 | [SAM3 Segmentation](segmentation_sam3.md) | Sequence | Text/click-prompted mask propagation | ✅ With conditions |
 | [MaMa Matting](matte_mama.md) | Sequence | Diffusion-based alpha matting | ❌ No |

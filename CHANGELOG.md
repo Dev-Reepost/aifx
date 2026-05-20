@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial public release of seven OpenFX plugins:
   - `depth_da3` — Depth Anything V3 monocular depth estimation.
-  - `normal_crafter` — NormalCrafter surface normal map estimation.
+  - `normal_crafter` — NormalCrafter temporally consistent surface normal maps.
   - `depth_crafter` — DepthCrafter temporally consistent video depth.
   - `segmentation_sam3` — SAM3 text/click-prompted mask propagation.
   - `matte_mama` — VideoMaMa diffusion-based video alpha matting.

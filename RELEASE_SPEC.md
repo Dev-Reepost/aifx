@@ -37,7 +37,7 @@ Seven OFX plugins that bridge to ComfyUI:
 | Plugin | Mode | Model | Function |
 |---|---|---|---|
 | `depth_da3` | Per-frame | Depth Anything V3 | Monocular depth estimation |
-| `normal_crafter` | Per-frame | NormalCrafter | Surface normal map estimation |
+| `normal_crafter` | Sequence | NormalCrafter | Temporally consistent surface normals (diffusion video prior) |
 | `depth_crafter` | Sequence | DepthCrafter | Temporally consistent depth (diffusion) |
 | `segmentation_sam3` | Sequence | SAM3 | Text/click-prompted mask propagation |
 | `matte_mama` | Sequence | SAM3 + VideoMaMa | High-quality alpha matting (diffusion) |

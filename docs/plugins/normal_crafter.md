@@ -6,10 +6,13 @@ nav_order: 2
 
 # NormalCrafter (`normal_crafter`)
 
-**Per-frame · Surface normal map estimation**
+**Sequence · Surface normal map estimation (diffusion video prior)**
 
-Estimate per-pixel surface normals from a single RGB frame, encoded as RGB
-where the channels map to the X/Y/Z components of the unit normal vector.
+Estimate per-pixel surface normals across a clip, encoded as RGB where the
+channels map to the X/Y/Z components of the unit normal vector. The plugin
+loads a contiguous window of frames into ComfyUI in one job so the upstream
+SVD-based sliding-window sampler can produce temporally coherent normals
+across time.
 
 ## What you give it
 
@@ -48,6 +51,7 @@ production** without engaging Stability AI for a commercial license.
 
 | Parameter | Meaning |
 |---|---|
+| **Image Load Cap** | Number of frames loaded into ComfyUI per sequence job. Sets the upstream sliding-window context. Larger window = better temporal consistency, more VRAM. |
 | **Process Resolution** | Internal processing resolution (`max_res_dimension`). Higher = more detail and more VRAM. |
 | _Wrapper-disabled knobs_ | `fps_for_time_ids`, `motion_bucket_id`, `noise_aug_strength` were observed by the wrapper author to have minimal effect and are hardcoded — not exposed as parameters. |
 
@@ -71,11 +75,9 @@ See the [credits page](../assets/credits.md).
 
 ## Limitations
 
-- **Per-frame invocation:** the upstream model is sequence-aware via a sliding
-  window. The OFX plugin invokes it one frame at a time, so temporal flicker
-  between frames is expected. For shots where stability dominates, run the
-  upstream pipeline directly with full window context outside the plugin and
-  bring the result in as a clip.
+- **Window-scale drift:** on very long clips processed in multiple sliding
+  windows, scale/orientation drift can occur at window joins. Use a larger
+  `Image Load Cap` when VRAM allows so the whole shot fits in one pass.
 - **Failure modes:** transparent / refractive surfaces, mirrors, strong
   speculars, very low-light footage with crushed blacks, fine subpixel
   structures (hair, foliage edges), and heavy motion blur all degrade output.
