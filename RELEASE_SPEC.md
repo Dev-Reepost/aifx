@@ -10,9 +10,15 @@
 
 ## 1. Mission
 
-Make state-of-the-art ComfyUI-based AI image and sequence processing models usable
-inside any OpenFX-compatible host as first-class plugins, so VFX artists can
-work without leaving their compositor, editor, or color grading tool.
+> We believe the future of visual effects is operator augmentation,
+> not replacement. So we've been building integrations of cutting-edge
+> AI models into the traditional workflows and DCCs human operators
+> already know and love.
+
+Concretely: make state-of-the-art ComfyUI-based AI image and sequence
+processing models usable inside any OpenFX-compatible host as first-class
+plugins, so VFX artists can work without leaving their compositor, editor,
+or color grading tool.
 
 The bridge runs as a thin OFX plugin in the host and a ComfyUI server (local or
 networked) that loads the heavy AI models. The plugin marshals frames over a

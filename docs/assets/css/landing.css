@@ -173,6 +173,33 @@ code {
   border-color: var(--accent);
 }
 
+/* -------------------------------------------------------- MANIFESTO */
+
+/* A short positioning statement right under the hero. Quiet, centered,
+   larger type, no section heading. Sets the project's frame before any
+   features get listed. */
+
+.section-manifesto {
+  padding: 4rem 1.5rem 2rem;
+}
+.manifesto-inner {
+  max-width: 760px;
+  margin: 0 auto;
+  text-align: center;
+}
+.manifesto-inner p {
+  margin: 0;
+  font-size: 1.25rem;
+  line-height: 1.55;
+  color: var(--text);
+  font-weight: 400;
+  letter-spacing: -0.005em;
+}
+@media (max-width: 720px) {
+  .section-manifesto { padding: 3rem 1rem 1.5rem; }
+  .manifesto-inner p { font-size: 1.1rem; }
+}
+
 /* -------------------------------------------------------- SECTIONS */
 
 .section {
