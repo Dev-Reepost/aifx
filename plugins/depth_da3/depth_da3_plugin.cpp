@@ -188,12 +188,17 @@ json DepthDA3Plugin::buildHardcodedWorkflow(int frame, const std::string& inputP
     // Build workflow JSON matching Depth_Any3_video_multiview_ofx_api.json structure
     json workflow = {
 
-        // Node 77: Load EXR input sequence
+        // Node 77: Load a single input frame. Depth Anything V3 is a
+        // per-frame image model (paper: "Recovering the Visual Space from
+        // Any Views" describes multi-view stereo, not temporal video), so
+        // we only need the one frame the host is currently rendering. For
+        // temporally consistent video depth, use the DepthCrafter plugin
+        // instead.
         {"77", {
             {"inputs", {
                 {"filepath", comfyInputPath},
                 {"tonemap", "linear"},
-                {"image_load_cap", 10},
+                {"image_load_cap", 1},
                 {"skip_first_images", 0},
                 {"select_every_nth", 1}
             }},

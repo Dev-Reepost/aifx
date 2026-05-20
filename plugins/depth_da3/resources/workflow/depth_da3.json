@@ -3,7 +3,7 @@
     "inputs": {
       "filepath": "${INPUT_PATH}",
       "tonemap": "linear",
-      "image_load_cap": 10,
+      "image_load_cap": 1,
       "skip_first_images": 0,
       "select_every_nth": 1
     },
