@@ -3,25 +3,31 @@
    reference pages underneath. */
 
 :root {
+  /* Reepost-inspired black-and-white palette.
+     Color is kept as a single muted-slate accent used sparingly for
+     interactive states and the Sequence tag; semantic ok/no greens and reds
+     are preserved in the commercial-use table because they carry meaning. */
   --bg: #ffffff;
-  --bg-alt: #f7f9fb;
-  --text: #1a202c;
-  --text-muted: #4a5568;
-  --text-faint: #718096;
-  --border: #e1e4e8;
-  --accent: #5b21b6;
-  --accent-hover: #4c1d95;
-  --accent-soft: #ede9fe;
-  --hero-from: #1a202c;
-  --hero-to: #2d3748;
-  --hero-accent: #c4b5fd;
-  --ok: #16a34a;
-  --no: #dc2626;
-  --code-bg: #f1f5f9;
-  --shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 4px 12px rgba(0, 0, 0, 0.04);
-  --shadow-hover: 0 4px 6px rgba(0, 0, 0, 0.07), 0 10px 24px rgba(0, 0, 0, 0.08);
+  --bg-alt: #fafafa;
+  --text: #0a0a0a;
+  --text-muted: #525252;
+  --text-faint: #737373;
+  --border: #e5e5e5;
+  --accent: #1a1a1a;          /* primary "accent" is just near-black */
+  --accent-hover: #000000;
+  --accent-soft: #f5f5f5;
+  --secondary: #475569;       /* the one retained color — muted slate */
+  --secondary-soft: #f1f5f9;
+  --hero-from: #000000;
+  --hero-to: #1a1a1a;
+  --hero-accent: #d4d4d4;     /* light gray gradient text instead of purple */
+  --ok: #16a34a;              /* semantic — kept */
+  --no: #dc2626;              /* semantic — kept */
+  --code-bg: #f5f5f5;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 2px 6px rgba(0, 0, 0, 0.04);
+  --shadow-hover: 0 2px 4px rgba(0, 0, 0, 0.06), 0 8px 20px rgba(0, 0, 0, 0.08);
   --max-width: 1080px;
-  --radius: 8px;
+  --radius: 6px;
 }
 
 * { box-sizing: border-box; }
@@ -41,11 +47,16 @@ body {
 }
 
 a {
-  color: var(--accent);
+  color: var(--secondary);
   text-decoration: none;
   transition: color 0.15s ease;
 }
-a:hover { color: var(--accent-hover); text-decoration: underline; }
+a:hover {
+  color: var(--text);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
 
 code {
   font-family: "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono",
@@ -67,12 +78,15 @@ code {
   overflow: hidden;
 }
 .hero::before {
+  /* Subtle non-color noise / vignette to lift the flat black, without
+     introducing chromatic accents that would clash with the monochrome
+     identity. */
   content: "";
   position: absolute;
   inset: 0;
   background-image:
-    radial-gradient(circle at 20% 30%, rgba(91, 33, 182, 0.25) 0%, transparent 40%),
-    radial-gradient(circle at 80% 70%, rgba(14, 165, 233, 0.18) 0%, transparent 40%);
+    radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.06) 0%, transparent 50%),
+    radial-gradient(circle at 80% 70%, rgba(71, 85, 105, 0.18) 0%, transparent 50%);
   pointer-events: none;
 }
 .hero-inner {
@@ -216,7 +230,7 @@ code {
 .card:hover {
   box-shadow: var(--shadow-hover);
   transform: translateY(-2px);
-  border-color: var(--accent);
+  border-color: var(--secondary);
   text-decoration: none;
 }
 .card-tag {
@@ -229,8 +243,18 @@ code {
   border-radius: 100px;
   margin-bottom: 0.75rem;
 }
-.tag-frame { background: #dbeafe; color: #1e40af; }
-.tag-sequence { background: var(--accent-soft); color: var(--accent); }
+/* Tags differentiate per-frame vs sequence via inversion rather than hue:
+   per-frame is light/neutral (outlined), sequence is filled near-black, with
+   the muted slate accent used only for sequence text on hover. */
+.tag-frame {
+  background: var(--bg);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+.tag-sequence {
+  background: var(--text);
+  color: var(--bg);
+}
 .card-title {
   font-size: 1.2rem;
   font-weight: 600;
@@ -388,15 +412,15 @@ code {
   transition: all 0.15s ease;
 }
 .link-card:hover {
-  border-color: var(--accent);
-  background: var(--accent-soft);
+  border-color: var(--secondary);
+  background: var(--secondary-soft);
   text-decoration: none;
 }
 .link-card h4 {
   margin: 0 0 0.3rem;
   font-size: 1rem;
   font-weight: 600;
-  color: var(--accent);
+  color: var(--text);
 }
 .link-card p {
   margin: 0;
