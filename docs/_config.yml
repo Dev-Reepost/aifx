@@ -18,6 +18,12 @@ url: "https://Dev-Reepost.github.io"
 
 repository: "Dev-Reepost/aifx"
 
+# Pretty permalinks: render /plugins/depth_crafter.md as
+# /plugins/depth_crafter/index.html (rather than /plugins/depth_crafter.html)
+# so the trailing-slash URLs used in the landing page and theme nav resolve
+# correctly.
+permalink: pretty
+
 # Use just-the-docs as the remote theme for GitHub Pages compatibility.
 remote_theme: just-the-docs/just-the-docs
 plugins:
