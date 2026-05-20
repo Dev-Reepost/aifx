@@ -1,0 +1,46 @@
+{
+  "1": {
+    "inputs": {
+      "filepath": "${INPUT_PATH}",
+      "tonemap": "linear",
+      "image_load_cap": "${IMAGE_LOAD_CAP}",
+      "skip_first_images": 0,
+      "select_every_nth": 1
+    },
+    "class_type": "LoadEXR",
+    "_meta": {
+      "title": "Load EXR"
+    }
+  },
+  "2": {
+    "inputs": {
+      "seed": "${SEED}",
+      "max_res_dimension": "${MAX_RES_DIMENSION}",
+      "window_size": "${WINDOW_SIZE}",
+      "time_step_size": "${TIME_STEP_SIZE}",
+      "decode_chunk_size": "${DECODE_CHUNK_SIZE}",
+      "offload_pipe_to_cpu_on_finish": "${OFFLOAD_PIPE_TO_CPU_ON_FINISH}",
+      "use_xformers": "${USE_XFORMERS}",
+      "images": ["1", 0]
+    },
+    "class_type": "NormalCrafterNode",
+    "_meta": {
+      "title": "NormalCrafter (Process Video)"
+    }
+  },
+  "4": {
+    "inputs": {
+      "filename_prefix": "${OUTPUT_PREFIX}",
+      "tonemap": "linear",
+      "version": -1,
+      "start_frame": "${FRAME}",
+      "frame_pad": 4,
+      "save_workflow": "none",
+      "images": ["2", 0]
+    },
+    "class_type": "SaveEXR",
+    "_meta": {
+      "title": "Save EXR"
+    }
+  }
+}

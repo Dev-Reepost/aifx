@@ -1,0 +1,55 @@
+{
+  "22": {
+    "inputs": {
+      "filepath": "${INPUT_PATH}",
+      "tonemap": "linear",
+      "image_load_cap": "${IMAGE_LOAD_CAP}",
+      "skip_first_images": 0,
+      "select_every_nth": 1
+    },
+    "class_type": "LoadEXR",
+    "_meta": {
+      "title": "Load EXR"
+    }
+  },
+  "26": {
+    "inputs": {
+      "enable_model_cpu_offload": "${ENABLE_MODEL_CPU_OFFLOAD}",
+      "enable_sequential_cpu_offload": "${ENABLE_SEQUENTIAL_CPU_OFFLOAD}"
+    },
+    "class_type": "DownloadAndLoadDepthCrafterModel",
+    "_meta": {
+      "title": "DownloadAndLoadDepthCrafterModel"
+    }
+  },
+  "24": {
+    "inputs": {
+      "force_size": "${FORCE_SIZE}",
+      "num_inference_steps": "${NUM_INFERENCE_STEPS}",
+      "guidance_scale": "${GUIDANCE_SCALE}",
+      "window_size": "${WINDOW_SIZE}",
+      "overlap": "${OVERLAP}",
+      "depthcrafter_model": ["26", 0],
+      "images": ["22", 0]
+    },
+    "class_type": "DepthCrafter",
+    "_meta": {
+      "title": "DepthCrafter"
+    }
+  },
+  "23": {
+    "inputs": {
+      "filename_prefix": "${OUTPUT_PREFIX}",
+      "tonemap": "linear",
+      "version": -1,
+      "start_frame": "${FRAME}",
+      "frame_pad": 4,
+      "save_workflow": "none",
+      "images": ["24", 0]
+    },
+    "class_type": "SaveEXR",
+    "_meta": {
+      "title": "Save EXR"
+    }
+  }
+}

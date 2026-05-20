@@ -1,0 +1,25 @@
+{
+  "server": {
+    "serverAddress": "192.168.1.211",
+    "serverPort": 8388,
+    "macMountPath": "/Volumes/silo2/002_COMFYUI",
+    "winMountPath": "\\\\192.168.1.110\\silo2\\002_COMFYUI",
+    "linuxMountPath": "/mnt/silo2/002_COMFYUI",
+    "macComfyUIInputDir": "/Volumes/silo2/002_COMFYUI/in",
+    "winComfyUIInputDir": "\\\\192.168.1.110\\silo2\\002_COMFYUI\\in",
+    "linuxComfyUIInputDir": "/mnt/silo2/002_COMFYUI/in",
+    "comfyUIInputDir": "/Volumes/silo2/002_COMFYUI/in"
+  },
+  "controls": {
+    "enableProcessing": false,
+    "enableCache": true,
+    "timeout": 600,
+    "asyncMode": 1,
+    "placeholderMode": 1
+  },
+  "project": {
+    "workflowName": "matte_mama",
+    "workflowFile": "resources/workflow/matte_mama.json",
+    "outputVersion": "v001"
+  }
+}

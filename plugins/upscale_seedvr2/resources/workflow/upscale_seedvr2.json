@@ -1,0 +1,77 @@
+{
+  "41": {
+    "inputs": {
+      "model": "${VAE_MODEL}",
+      "device": "${VAE_DEVICE}",
+      "encode_tiled": "${ENCODE_TILED}",
+      "encode_tile_size": "${ENCODE_TILE_SIZE}",
+      "encode_tile_overlap": "${ENCODE_TILE_OVERLAP}",
+      "decode_tiled": "${DECODE_TILED}",
+      "decode_tile_size": "${DECODE_TILE_SIZE}",
+      "decode_tile_overlap": "${DECODE_TILE_OVERLAP}",
+      "tile_debug": "${TILE_DEBUG}",
+      "offload_device": "${OFFLOAD_VAE}",
+      "cache_model": "${CACHE_VAE_MODEL}"
+    },
+    "class_type": "SeedVR2LoadVAEModel",
+    "_meta": { "title": "SeedVR2 Load VAE Model" }
+  },
+  "42": {
+    "inputs": {
+      "model": "${DIT_MODEL}",
+      "device": "${DIT_DEVICE}",
+      "blocks_to_swap": "${BLOCKS_TO_SWAP}",
+      "swap_io_components": "${SWAP_IO_COMPONENTS}",
+      "offload_device": "${OFFLOAD_DIT}",
+      "cache_model": "${CACHE_DIT_MODEL}",
+      "attention_mode": "${ATTENTION_MODE}"
+    },
+    "class_type": "SeedVR2LoadDiTModel",
+    "_meta": { "title": "SeedVR2 Load DiT Model" }
+  },
+  "43": {
+    "inputs": {
+      "filepath": "${INPUT_PATH}",
+      "tonemap": "linear",
+      "image_load_cap": "${IMAGE_LOAD_CAP}",
+      "skip_first_images": 0,
+      "select_every_nth": 1
+    },
+    "class_type": "LoadEXR",
+    "_meta": { "title": "Load EXR" }
+  },
+  "44": {
+    "inputs": {
+      "seed": "${SEED}",
+      "resolution": "${RESOLUTION}",
+      "max_resolution": "${MAX_RESOLUTION}",
+      "batch_size": "${BATCH_SIZE}",
+      "uniform_batch_size": "${UNIFORM_BATCH_SIZE}",
+      "color_correction": "${COLOR_CORRECTION}",
+      "temporal_overlap": "${TEMPORAL_OVERLAP}",
+      "prepend_frames": "${PREPEND_FRAMES}",
+      "input_noise_scale": "${INPUT_NOISE_SCALE}",
+      "latent_noise_scale": "${LATENT_NOISE_SCALE}",
+      "offload_device": "${OFFLOAD_UPSCALER}",
+      "enable_debug": "${ENABLE_DEBUG}",
+      "image": ["43", 0],
+      "dit":   ["42", 0],
+      "vae":   ["41", 0]
+    },
+    "class_type": "SeedVR2VideoUpscaler",
+    "_meta": { "title": "SeedVR2 Video Upscaler" }
+  },
+  "45": {
+    "inputs": {
+      "filename_prefix": "${OUTPUT_PREFIX}",
+      "tonemap": "linear",
+      "version": -1,
+      "start_frame": "${FRAME}",
+      "frame_pad": 4,
+      "save_workflow": "none",
+      "images": ["44", 0]
+    },
+    "class_type": "SaveEXR",
+    "_meta": { "title": "Save EXR" }
+  }
+}

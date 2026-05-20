@@ -1,0 +1,32 @@
+# Dockerfile for building OpenFX plugins on Linux
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright OpenFX and contributors to the OpenFX project.
+
+FROM ubuntu:22.04
+
+# Avoid interactive prompts during build
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    cmake \
+    git \
+    python3 \
+    python3-pip \
+    pkg-config \
+    libgl1-mesa-dev \
+    libglu1-mesa-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Conan
+RUN pip3 install --no-cache-dir 'conan>=2.0.0,<3.0.0'
+
+# Set up Conan profile
+RUN conan profile detect --force
+
+# Set working directory
+WORKDIR /build
+
+# The actual build will be done by mounting the source directory
+# and running the build script from the host

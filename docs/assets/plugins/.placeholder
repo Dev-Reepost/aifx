@@ -1,0 +1,44 @@
+Per-plugin asset directories for locally-hosted images live here:
+
+  docs/assets/plugins/depth_da3/
+  docs/assets/plugins/normal_crafter/
+  docs/assets/plugins/depth_crafter/
+  docs/assets/plugins/segmentation_sam3/
+  docs/assets/plugins/matte_mama/
+  docs/assets/plugins/matte_ma2/
+  docs/assets/plugins/upscale_seedvr2/
+
+CURRENT IMAGERY STRATEGY
+========================
+
+The plugin documentation pages reference upstream project pages, papers, and
+GitHub repositories for demos and example imagery, with full attribution
+recorded in:
+
+  docs/assets/credits.md
+
+Reusing those images for documentation purposes — with citation and license
+recall — is a standard fair-use / fair-dealing practice for technical writing
+about academic ML work.
+
+For each plugin page, the "Demos & comparisons" section currently links out
+to upstream sources. To embed images directly:
+
+1. Pick the desired image from the upstream source.
+2. Either:
+   (a) Hot-link to the upstream URL with attribution caption, OR
+   (b) Mirror the image into the per-plugin directory below with the
+       source URL preserved in the file name or alt text.
+3. Update the relevant docs/plugins/<plugin>.md page with the markdown image
+   embed, plus a one-line caption containing source / authors / year /
+   license / paper citation.
+4. Ensure the credits page (docs/assets/credits.md) lists the image with
+   the same metadata.
+
+When self-generated screenshots are eventually produced from the plugins,
+they become preferable for:
+- Parameter panel screenshots from a host UI.
+- Before/after frames from CC0 or owned plates.
+- Workflow JSON node graphs.
+
+Save those into the relevant subdirectory.

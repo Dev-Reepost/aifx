@@ -1,0 +1,256 @@
+---
+layout: null
+title: AIFX
+description: >-
+  Open-source OpenFX plugins that bring state-of-the-art ComfyUI AI models
+  into any OFX-compatible compositor, editor, or color grading tool.
+nav_order: 1
+---
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AIFX — AI-powered OpenFX plugins</title>
+  <meta name="description" content="{{ page.description }}">
+  <link rel="stylesheet" href="{{ '/assets/css/landing.css' | relative_url }}">
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <h1 class="hero-title">AIFX</h1>
+    <p class="hero-tagline">
+      AI-powered OpenFX plugins for any compositor, editor, or color grading tool.
+    </p>
+    <p class="hero-subtagline">
+      Depth, normals, segmentation, alpha matting, and video super-resolution —
+      bridged from ComfyUI into your DCC.
+    </p>
+    <div class="hero-ctas">
+      <a class="btn btn-primary" href="#quickstart">Get started</a>
+      <a class="btn btn-secondary" href="https://github.com/Dev-Reepost/aifx">View on GitHub</a>
+    </div>
+    <p class="hero-status">
+      Pre-release · BSD-3-Clause · Supported by CNC
+    </p>
+  </div>
+</header>
+
+<main>
+
+<section class="section" id="plugins">
+  <div class="section-inner">
+    <h2 class="section-title">Seven plugins, one bridge</h2>
+    <p class="section-lede">
+      Each plugin appears as a native effect in your OFX host. The model
+      runs on a ComfyUI server (local or networked); the plugin marshals
+      frames in and out.
+    </p>
+
+    <div class="card-grid">
+
+      <a class="card" href="{{ '/plugins/depth_da3/' | relative_url }}">
+        <div class="card-tag tag-frame">Per-frame</div>
+        <h3 class="card-title">Depth Anything V3</h3>
+        <p class="card-desc">Monocular depth estimation from a single RGB frame. Relative or metric depth.</p>
+        <p class="card-meta">Commercial-safe (Apache variants)</p>
+      </a>
+
+      <a class="card" href="{{ '/plugins/normal_crafter/' | relative_url }}">
+        <div class="card-tag tag-frame">Per-frame</div>
+        <h3 class="card-title">NormalCrafter</h3>
+        <p class="card-desc">Per-frame surface normal map estimation for relighting and shading passes.</p>
+        <p class="card-meta">Non-commercial (SVD base)</p>
+      </a>
+
+      <a class="card" href="{{ '/plugins/depth_crafter/' | relative_url }}">
+        <div class="card-tag tag-sequence">Sequence</div>
+        <h3 class="card-title">DepthCrafter</h3>
+        <p class="card-desc">Temporally consistent video depth via diffusion — no flicker, no swim.</p>
+        <p class="card-meta">Non-commercial</p>
+      </a>
+
+      <a class="card" href="{{ '/plugins/segmentation_sam3/' | relative_url }}">
+        <div class="card-tag tag-sequence">Sequence</div>
+        <h3 class="card-title">SAM3 Segmentation</h3>
+        <p class="card-desc">Text or click-prompted mask propagation across an entire clip.</p>
+        <p class="card-meta">Commercial-safe with conditions</p>
+      </a>
+
+      <a class="card" href="{{ '/plugins/matte_mama/' | relative_url }}">
+        <div class="card-tag tag-sequence">Sequence</div>
+        <h3 class="card-title">MaMa Matting</h3>
+        <p class="card-desc">Diffusion-based high-quality video alpha — hair, edges, transparency.</p>
+        <p class="card-meta">Non-commercial</p>
+      </a>
+
+      <a class="card" href="{{ '/plugins/matte_ma2/' | relative_url }}">
+        <div class="card-tag tag-sequence">Sequence</div>
+        <h3 class="card-title">MatAnyone2 Matting</h3>
+        <p class="card-desc">Fast recurrent video alpha — the throughput counterpart to MaMa.</p>
+        <p class="card-meta">Non-commercial</p>
+      </a>
+
+      <a class="card" href="{{ '/plugins/upscale_seedvr2/' | relative_url }}">
+        <div class="card-tag tag-sequence">Sequence</div>
+        <h3 class="card-title">SeedVR2 Upscaler</h3>
+        <p class="card-desc">Diffusion-transformer video super-resolution — generative detail, temporally coherent.</p>
+        <p class="card-meta">Commercial-safe</p>
+      </a>
+
+    </div>
+
+    <p class="section-cta">
+      <a class="btn btn-secondary" href="{{ '/plugins/' | relative_url }}">All plugins →</a>
+    </p>
+  </div>
+</section>
+
+<section class="section section-alt" id="architecture">
+  <div class="section-inner">
+    <h2 class="section-title">How it works</h2>
+    <p class="section-lede">
+      Your host machine doesn't need a GPU. One ComfyUI server can drive
+      many workstations. Image data flows through a shared filesystem
+      as EXR files; orchestration goes over HTTP.
+    </p>
+
+    <div class="architecture">
+      <div class="arch-box arch-host">
+        <h4>OFX host</h4>
+        <p>Flame, Nuke, Resolve, Fusion, or any other OFX 1.4+ compositor / editor.</p>
+        <p class="arch-detail">AIFX plugin (.ofx bundle)</p>
+      </div>
+      <div class="arch-arrow">
+        <span class="arch-arrow-label">HTTP + WebSocket</span>
+        <span class="arch-arrow-line">⇄</span>
+        <span class="arch-arrow-label">Shared EXR I/O</span>
+      </div>
+      <div class="arch-box arch-server">
+        <h4>ComfyUI server</h4>
+        <p>Local or networked. GPU machine recommended.</p>
+        <p class="arch-detail">Custom nodes + model weights</p>
+      </div>
+    </div>
+
+    <p class="section-cta">
+      <a class="btn btn-secondary" href="{{ '/architecture/' | relative_url }}">Read the architecture →</a>
+    </p>
+  </div>
+</section>
+
+<section class="section" id="quickstart">
+  <div class="section-inner">
+    <h2 class="section-title">Quick start</h2>
+    <ol class="steps">
+      <li>
+        <h3>Install the plugins in your OFX host</h3>
+        <p>Drop the <code>.ofx.bundle</code> directories into the standard OFX plugin directory for your OS. Any OFX-compatible host picks them up at next launch.</p>
+        <p><a href="{{ '/installation/' | relative_url }}">Full installation guide →</a></p>
+      </li>
+      <li>
+        <h3>Set up a ComfyUI server</h3>
+        <p>Install ComfyUI, the required custom nodes for the plugins you want, and the model weights. Configure a shared input/output folder that both the host and the server can read and write.</p>
+        <p><a href="{{ '/comfyui-server-setup/' | relative_url }}">ComfyUI setup guide →</a></p>
+      </li>
+      <li>
+        <h3>Apply a plugin and render</h3>
+        <p>Plugins appear under the <strong>AIFX</strong> category in your host. Point the plugin at your server URL and shared-folder paths. Render.</p>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<section class="section section-alt" id="commercial-use">
+  <div class="section-inner">
+    <h2 class="section-title">Commercial use: read this first</h2>
+    <p class="section-lede">
+      The <strong>plugin code</strong> is BSD-3-Clause — freely usable for
+      any purpose. The <strong>AI model weights</strong> that ComfyUI loads
+      have their own upstream licenses, and several are restricted to
+      non-commercial use. Verify each before shipping a paid project.
+    </p>
+
+    <table class="commercial-table">
+      <thead>
+        <tr><th>Plugin</th><th>Weights license</th><th>Paid production?</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Depth Anything V3</td><td>Apache 2.0 (BASE / SMALL / METRIC-LARGE / MONO-LARGE)</td><td class="ok">Yes</td></tr>
+        <tr><td>SAM3 Segmentation</td><td>SAM License</td><td class="ok">Yes, with conditions</td></tr>
+        <tr><td>SeedVR2 Upscaler</td><td>Apache 2.0</td><td class="ok">Yes</td></tr>
+        <tr><td>NormalCrafter</td><td>Stability AI Non-Commercial (SVD base)</td><td class="no">No</td></tr>
+        <tr><td>DepthCrafter</td><td>Tencent + Stability AI Non-Commercial</td><td class="no">No</td></tr>
+        <tr><td>MaMa Matting</td><td>CC BY-NC 4.0 + Stability AI Non-Commercial</td><td class="no">No</td></tr>
+        <tr><td>MatAnyone2 Matting</td><td>NTU S-Lab License 1.0 (non-commercial)</td><td class="no">No</td></tr>
+      </tbody>
+    </table>
+
+    <p class="section-fine">
+      The project ships <em>no</em> weights — users download from upstream
+      directly. R&amp;D, evaluation, and personal use are permitted across
+      all plugins. Each plugin page lists exact license terms and citations.
+    </p>
+  </div>
+</section>
+
+<section class="section" id="learn-more">
+  <div class="section-inner">
+    <h2 class="section-title">Learn more</h2>
+    <div class="link-grid">
+      <a class="link-card" href="{{ '/installation/' | relative_url }}">
+        <h4>Installation</h4>
+        <p>Per-OS plugin install and bundle paths.</p>
+      </a>
+      <a class="link-card" href="{{ '/comfyui-server-setup/' | relative_url }}">
+        <h4>ComfyUI server setup</h4>
+        <p>The full guide to the model server side.</p>
+      </a>
+      <a class="link-card" href="{{ '/workflow-customization/' | relative_url }}">
+        <h4>Workflow customization</h4>
+        <p>Replace or extend the ComfyUI workflows.</p>
+      </a>
+      <a class="link-card" href="{{ '/troubleshooting/' | relative_url }}">
+        <h4>Troubleshooting</h4>
+        <p>Common errors and fixes.</p>
+      </a>
+      <a class="link-card" href="{{ '/architecture/' | relative_url }}">
+        <h4>Architecture</h4>
+        <p>For contributors and advanced users.</p>
+      </a>
+      <a class="link-card" href="{{ '/plugins/' | relative_url }}">
+        <h4>Plugin reference</h4>
+        <p>One page per plugin with parameters and citations.</p>
+      </a>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="footer">
+  <div class="footer-inner">
+    <p>
+      Plugin code is BSD-3-Clause. Model weights are subject to their
+      upstream licenses — see each plugin page. Images from upstream model
+      authors are reproduced for documentation purposes under fair-use /
+      fair-dealing provisions with attribution; see the
+      <a href="{{ '/assets/credits/' | relative_url }}">credits page</a>.
+    </p>
+    <p>
+      Supported by <strong>CNC</strong> (Centre national du cinéma et de
+      l'image animée).
+      Built on the <a href="https://github.com/AcademySoftwareFoundation/openfx">OpenFX</a>
+      specification by the Academy Software Foundation.
+    </p>
+    <p class="footer-meta">
+      <a href="https://github.com/Dev-Reepost/aifx">GitHub</a> ·
+      <a href="https://github.com/Dev-Reepost/aifx/issues">Issues</a> ·
+      <a href="{{ '/assets/credits/' | relative_url }}">Credits</a>
+    </p>
+  </div>
+</footer>
+
+</body>
+</html>

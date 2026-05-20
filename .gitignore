@@ -1,0 +1,35 @@
+# CMake / Conan build outputs ------------------------------------------------
+build/
+CMakeCache.txt
+CMakeFiles/
+CMakeUserPresets.json
+cmake_install.cmake
+install_manifest.txt
+Testing/
+compile_commands.json
+
+# Conan local cache (should never be checked in) -----------------------------
+.conan/
+.conan2/
+conan_provider.cmake
+
+# FetchContent / external sources (when written outside build/) --------------
+_deps/
+
+# Jekyll / GitHub Pages build artifacts --------------------------------------
+_site/
+.jekyll-cache/
+.jekyll-metadata
+.bundle/
+vendor/
+Gemfile.lock
+
+# OS / editor cruft ----------------------------------------------------------
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE state — intentionally not ignored at repo level; let contributors
+# manage their own .vscode/.idea via global gitignore.

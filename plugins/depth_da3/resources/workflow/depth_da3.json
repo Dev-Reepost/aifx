@@ -1,0 +1,55 @@
+{
+  "77": {
+    "inputs": {
+      "filepath": "${INPUT_PATH}",
+      "tonemap": "linear",
+      "image_load_cap": 10,
+      "skip_first_images": 0,
+      "select_every_nth": 1
+    },
+    "class_type": "LoadEXR",
+    "_meta": {
+      "title": "Load EXR"
+    }
+  },
+  "84": {
+    "inputs": {
+      "model": "${DA3_MODEL}",
+      "precision": "${PRECISION}",
+      "attention": "${ATTENTION}"
+    },
+    "class_type": "DownloadAndLoadDepthAnythingV3Model",
+    "_meta": {
+      "title": "Load Depth Anything V3 Model"
+    }
+  },
+  "79": {
+    "inputs": {
+      "normalization_mode": "${NORMALIZATION_MODE}",
+      "resize_method": "${RESIZE_METHOD}",
+      "invert_depth": "${INVERT_DEPTH}",
+      "keep_model_size": "${KEEP_MODEL_SIZE}",
+      "da3_model": ["84", 0],
+      "images": ["77", 0]
+    },
+    "class_type": "DepthAnything_V3",
+    "_meta": {
+      "title": "Depth Anything V3"
+    }
+  },
+  "83": {
+    "inputs": {
+      "filename_prefix": "${OUTPUT_PREFIX}",
+      "tonemap": "linear",
+      "version": -1,
+      "start_frame": "${FRAME}",
+      "frame_pad": 4,
+      "save_workflow": "none",
+      "images": ["79", 0]
+    },
+    "class_type": "SaveEXR",
+    "_meta": {
+      "title": "Save EXR"
+    }
+  }
+}

@@ -1,0 +1,140 @@
+cff-version: 1.2.0
+title: "AIFX"
+message: >-
+  If you use these plugins in research or production, please cite both this
+  work and the upstream models the plugins bridge to. See each plugin page
+  for the model-specific citations.
+type: software
+authors:
+  - given-names: Julien
+    family-names: Martin
+    email: julien.pierre.martin@gmail.com
+abstract: >-
+  An open-source suite of OpenFX plugins that bring ComfyUI-hosted AI models
+  for depth estimation, surface normals, segmentation, video alpha matting,
+  and video super-resolution into any OFX-compatible compositor, editor, or
+  color grading tool.
+keywords:
+  - openfx
+  - ofx
+  - vfx
+  - comfyui
+  - depth-estimation
+  - segmentation
+  - matting
+  - super-resolution
+license: BSD-3-Clause
+repository-code: "https://github.com/Dev-Reepost/aifx"
+url: "https://Dev-Reepost.github.io/aifx/"
+references:
+  - type: article
+    authors:
+      - given-names: Haotong
+        family-names: Lin
+      - given-names: Sili
+        family-names: Chen
+      - given-names: Jun Hao
+        family-names: Liew
+      - given-names: Donny Y.
+        family-names: Chen
+      - given-names: Zhenyu
+        family-names: Li
+      - given-names: Guang
+        family-names: Shi
+      - given-names: Jiashi
+        family-names: Feng
+      - given-names: Bingyi
+        family-names: Kang
+    title: "Depth Anything 3: Recovering the Visual Space from Any Views"
+    journal: arXiv preprint arXiv:2511.10647
+    year: 2025
+  - type: conference-paper
+    authors:
+      - given-names: Wenbo
+        family-names: Hu
+      - given-names: Xiangjun
+        family-names: Gao
+      - given-names: Xiaoyu
+        family-names: Li
+      - given-names: Sijie
+        family-names: Zhao
+      - given-names: Xiaodong
+        family-names: Cun
+      - given-names: Yong
+        family-names: Zhang
+      - given-names: Long
+        family-names: Quan
+      - given-names: Ying
+        family-names: Shan
+    title: "DepthCrafter: Generating Consistent Long Depth Sequences for Open-world Videos"
+    conference:
+      name: IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)
+    year: 2025
+  - type: conference-paper
+    authors:
+      - given-names: Yanrui
+        family-names: Bin
+      - given-names: Wenbo
+        family-names: Hu
+      - given-names: Haoyuan
+        family-names: Wang
+      - given-names: Xinya
+        family-names: Chen
+      - given-names: Bing
+        family-names: Wang
+    title: "NormalCrafter: Learning Temporally Consistent Normals from Video Diffusion Priors"
+    conference:
+      name: IEEE/CVF International Conference on Computer Vision (ICCV)
+    year: 2025
+  - type: article
+    authors:
+      - given-names: Nicolas
+        family-names: Carion
+      - given-names: Laura
+        family-names: Gustafson
+    title: "SAM 3: Segment Anything with Concepts"
+    journal: arXiv preprint arXiv:2511.16719
+    year: 2025
+  - type: article
+    authors:
+      - given-names: Sangbeom
+        family-names: Lim
+      - given-names: Seoung Wug
+        family-names: Oh
+      - given-names: Jiahui
+        family-names: Huang
+      - given-names: Heeji
+        family-names: Yoon
+      - given-names: Seungryong
+        family-names: Kim
+      - given-names: Joon-Young
+        family-names: Lee
+    title: "VideoMaMa: Mask-Guided Video Matting via Generative Prior"
+    journal: arXiv preprint arXiv:2601.14255
+    year: 2026
+  - type: conference-paper
+    authors:
+      - given-names: Peiqing
+        family-names: Yang
+      - given-names: Shangchen
+        family-names: Zhou
+      - given-names: Kai
+        family-names: Hao
+      - given-names: Qingyi
+        family-names: Tao
+    title: "MatAnyone 2: Scaling Video Matting via a Learned Quality Evaluator"
+    conference:
+      name: IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)
+    year: 2026
+  - type: conference-paper
+    authors:
+      - given-names: Jianyi
+        family-names: Wang
+      - given-names: Shanchuan
+        family-names: Lin
+      - given-names: Zhijie
+        family-names: Lin
+    title: "SeedVR2: One-Step Video Restoration via Diffusion Adversarial Post-Training"
+    conference:
+      name: International Conference on Learning Representations (ICLR)
+    year: 2026

@@ -1,0 +1,93 @@
+{
+  "93": {
+    "inputs": {
+      "filepath": "${INPUT_PATH}",
+      "tonemap": "linear",
+      "image_load_cap": "${SAM3_IMAGE_LOAD_CAP}",
+      "skip_first_images": 0,
+      "select_every_nth": 1
+    },
+    "class_type": "LoadEXR",
+    "_meta": { "title": "Load EXR (SAM3 reference)" }
+  },
+  "94": {
+    "inputs": {
+      "model_path": "${SAM3_MODEL_PATH}"
+    },
+    "class_type": "LoadSAM3Model",
+    "_meta": { "title": "(down)Load SAM3 Model" }
+  },
+  "91": {
+    "inputs": {
+      "prompt_mode": "text",
+      "text_prompt": "${TEXT_PROMPT}",
+      "frame_idx": "${FRAME_IDX}",
+      "score_threshold": "${SCORE_THRESHOLD}",
+      "video_frames": ["93", 0]
+    },
+    "class_type": "SAM3VideoSegmentation",
+    "_meta": { "title": "SAM3 Video Segmentation" }
+  },
+  "89": {
+    "inputs": {
+      "start_frame": 0,
+      "end_frame": -1,
+      "direction": "${DIRECTION}",
+      "offload_model": "${OFFLOAD_SAM3_MODEL}",
+      "sam3_model": ["94", 0],
+      "video_state": ["91", 0]
+    },
+    "class_type": "SAM3Propagate",
+    "_meta": { "title": "SAM3 Propagate" }
+  },
+  "88": {
+    "inputs": {
+      "obj_id": "${OBJ_ID}",
+      "plot_all_masks": "${PLOT_ALL_MASKS}",
+      "masks":       ["89", 0],
+      "video_state": ["89", 2],
+      "scores":      ["89", 1]
+    },
+    "class_type": "SAM3VideoOutput",
+    "_meta": { "title": "SAM3 Video Output" }
+  },
+  "171": {
+    "inputs": {
+      "filepath": "${INPUT_PATH}",
+      "tonemap": "linear",
+      "image_load_cap": "${IMAGE_LOAD_CAP}",
+      "skip_first_images": 0,
+      "select_every_nth": 1
+    },
+    "class_type": "LoadEXR",
+    "_meta": { "title": "Load EXR (MatAnyone2 full sequence)" }
+  },
+  "166": {
+    "inputs": {
+      "mask_frame": "${MASK_FRAME}",
+      "n_warmup": "${N_WARMUP}",
+      "r_erode": "${R_ERODE}",
+      "r_dilate": "${R_DILATE}",
+      "max_internal_size": "${MAX_INTERNAL_SIZE}",
+      "max_mem_frames": "${MAX_MEM_FRAMES}",
+      "use_long_term": "${USE_LONG_TERM}",
+      "src_video":       ["171", 0],
+      "foreground_MASK": ["88", 0]
+    },
+    "class_type": "MatAnyone2",
+    "_meta": { "title": "MatAnyone2" }
+  },
+  "172": {
+    "inputs": {
+      "filename_prefix": "${OUTPUT_PREFIX}",
+      "tonemap": "linear",
+      "version": -1,
+      "start_frame": "${FRAME}",
+      "frame_pad": 4,
+      "save_workflow": "none",
+      "images": ["166", 0]
+    },
+    "class_type": "SaveEXR",
+    "_meta": { "title": "SAVE_MATTE" }
+  }
+}
