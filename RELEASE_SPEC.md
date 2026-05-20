@@ -132,13 +132,14 @@ model redistribution (upstream's terms).
 upstream model's authors and link to their official sources (paper, project
 page, GitHub). See per-plugin pages under `docs/plugins/` for citations.
 
-**Funding acknowledgement:**
+**Authors & funding acknowledgement:**
 
-> This work was supported by **CNC (Centre national du cinéma et de l'image
-> animée)**.
+> AIFX was developed by **Julien Martin** ([MaGMa](https://www.linkedin.com/company/ma-g-ma/))
+> for **[Reepost Studio](https://www.reepoststudio.fr/)**, with funding from
+> **CNC (Centre national du cinéma et de l'image animée)**.
 >
-> _(Placeholder text — refine once final program name and required wording are
-> available.)_
+> _(Funding wording will be refined once the final program name and any
+> required attribution form from CNC are available.)_
 
 ## 6. Repository layout (for the new repo)
 

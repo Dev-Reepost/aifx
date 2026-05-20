@@ -108,7 +108,10 @@ maintained by the Academy Software Foundation
 ([openfx on GitHub](https://github.com/AcademySoftwareFoundation/openfx)).
 License: BSD-3-Clause.
 
-## Funding
+## Authors & funding
 
-This work was supported by **CNC (Centre national du cinéma et de l'image
-animée)**.
+AIFX was developed by
+[Julien Martin](https://www.linkedin.com/in/julienpierremartin/)
+([MaGMa](https://www.linkedin.com/company/ma-g-ma/))
+for [Reepost Studio](https://www.reepoststudio.fr/), with funding from
+**CNC (Centre national du cinéma et de l'image animée)**.
