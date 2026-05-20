@@ -175,6 +175,10 @@ In your OFX host, apply a plugin to a clip and set:
 Trigger a render. Watch the ComfyUI console — you should see a workflow
 submitted and executed.
 
+**For a permanent setup**, don't enter these values per-clip — pre-fill
+them in each plugin's `defaults.json` so every clip starts with the right
+server and paths. See [Configuration & defaults](configuration.md).
+
 ## Health check
 
 A quick way to confirm everything is wired up correctly:

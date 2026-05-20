@@ -54,6 +54,13 @@ organized per operating system.
 
 5. Restart your OFX host. The plugins appear under the **AIFX** category.
 
+6. **Configure for your network.** The shipped bundles include a
+   `defaults.json` per plugin with the Reepost studio's server address
+   and shared-folder paths baked in. These won't work on any other
+   network. See [Configuration & defaults](configuration.md) for the
+   three ways to override them — the quickest is editing the plugin
+   parameters in your host's UI on first use.
+
 ### Linux & Windows
 
 Prebuilt bundles are not yet published. Build from source —
