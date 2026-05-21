@@ -1,0 +1,10 @@
+{
+  "project": {
+    "workflowName": "depth_da3",
+    "workflowFile": "resources/workflow/depth_da3.json",
+    "outputVersion": "v001"
+  },
+  "controls": {
+    "timeout": 300
+  }
+}

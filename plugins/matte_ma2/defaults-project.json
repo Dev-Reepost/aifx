@@ -1,0 +1,7 @@
+{
+  "project": {
+    "workflowName": "matte_ma2",
+    "workflowFile": "resources/workflow/matte_ma2.json",
+    "outputVersion": "v001"
+  }
+}

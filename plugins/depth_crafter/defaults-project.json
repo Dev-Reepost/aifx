@@ -1,0 +1,7 @@
+{
+  "project": {
+    "workflowName": "depth_crafter",
+    "workflowFile": "resources/workflow/depth_crafter.json",
+    "outputVersion": "v001"
+  }
+}

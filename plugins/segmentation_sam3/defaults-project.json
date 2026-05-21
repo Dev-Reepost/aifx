@@ -1,0 +1,10 @@
+{
+  "project": {
+    "workflowName": "segmentation_sam3",
+    "workflowFile": "resources/workflow/segmentation_sam3.json",
+    "outputVersion": "v001"
+  },
+  "controls": {
+    "timeout": 300
+  }
+}

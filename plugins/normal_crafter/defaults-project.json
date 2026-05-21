@@ -1,0 +1,7 @@
+{
+  "project": {
+    "workflowName": "normal_crafter",
+    "workflowFile": "resources/workflow/normal_crafter.json",
+    "outputVersion": "v001"
+  }
+}

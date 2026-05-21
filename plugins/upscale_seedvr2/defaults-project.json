@@ -1,0 +1,7 @@
+{
+  "project": {
+    "workflowName": "upscale_seedvr2",
+    "workflowFile": "resources/workflow/upscale_seedvr2.json",
+    "outputVersion": "v001"
+  }
+}

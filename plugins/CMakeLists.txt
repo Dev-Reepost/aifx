@@ -14,6 +14,34 @@ endif()
 
 message(STATUS "Building AIFX plugins")
 
+# --- Build-time defaults.json merge ---------------------------------------
+#
+# Each plugin's bundle ships a Contents/Resources/config/defaults.json that
+# seeds the OFX parameter panel on first instantiation (ComfyUI server URL,
+# mount paths, controls, project info). The server + controls blocks are
+# studio-wide and live in a single source of truth at config/defaults-base.json
+# at the repo root; each plugin owns only its project-specific block (plus
+# any per-plugin override, e.g. a shorter controls.timeout) in its own
+# defaults-project.json. The merge happens at build time so the bundle ends
+# up with a single, complete defaults.json — no run-time file lookups.
+#
+# aifx_merge_defaults(TARGET BUNDLE_RESOURCES_DIR) writes the merged file to
+# ${BUNDLE_RESOURCES_DIR}/config/defaults.json as a POST_BUILD step.
+find_package(Python3 COMPONENTS Interpreter REQUIRED)
+
+function(aifx_merge_defaults TARGET BUNDLE_RESOURCES_DIR)
+    add_custom_command(TARGET ${TARGET} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${BUNDLE_RESOURCES_DIR}/config"
+        COMMAND ${Python3_EXECUTABLE}
+            "${CMAKE_SOURCE_DIR}/tools/merge-defaults.py"
+            "${CMAKE_SOURCE_DIR}/config/defaults-base.json"
+            "${CMAKE_CURRENT_SOURCE_DIR}/defaults-project.json"
+            "${BUNDLE_RESOURCES_DIR}/config/defaults.json"
+        COMMENT "Merging defaults.json into ${TARGET} bundle"
+        VERBATIM
+    )
+endfunction()
+
 # --- Shared infrastructure -------------------------------------------------
 
 add_library(ComfyUICommon STATIC

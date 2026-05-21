@@ -63,6 +63,9 @@ if(APPLE)
             "${RESOURCES_DIR}"
         COMMENT "Creating NormalCrafter.ofx.bundle structure with resources"
     )
+
+
+aifx_merge_defaults(NormalCrafter "${RESOURCES_DIR}")
 endif()
 
 if(UNIX AND NOT APPLE)
@@ -78,6 +81,32 @@ if(UNIX AND NOT APPLE)
             "${RESOURCES_DIR}"
         COMMENT "Creating NormalCrafter.ofx.bundle structure with resources (Linux)"
     )
+
+aifx_merge_defaults(NormalCrafter "${RESOURCES_DIR}")
+endif()
+
+# Windows: create .ofx.bundle structure at build time. Mirrors the Linux
+# block above with Win64-${ARCH} as the OS-specific binary directory.
+# Assumes a single-config generator (Ninja/Makefile via the Conan preset);
+# for Visual Studio multi-config builds, BUNDLE_DIR would need to be
+# wrapped with $<CONFIG> to land in the right per-config output folder.
+if(WIN32)
+    set(BUNDLE_DIR "${CMAKE_BINARY_DIR}/NormalCrafter.ofx.bundle/Contents/Win64-${CMAKE_SYSTEM_PROCESSOR}")
+    set(RESOURCES_DIR "${CMAKE_BINARY_DIR}/NormalCrafter.ofx.bundle/Resources")
+
+    add_custom_command(TARGET NormalCrafter POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${BUNDLE_DIR}"
+        COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:NormalCrafter> "${BUNDLE_DIR}/"
+
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${RESOURCES_DIR}"
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${CMAKE_CURRENT_SOURCE_DIR}/resources"
+            "${RESOURCES_DIR}"
+
+        COMMENT "Creating NormalCrafter.ofx.bundle structure with resources (Windows)"
+    )
+
+    aifx_merge_defaults(NormalCrafter "${RESOURCES_DIR}")
 endif()
 
 message(STATUS "ComfyUI NormalCrafter plugin configured with bundled resources")

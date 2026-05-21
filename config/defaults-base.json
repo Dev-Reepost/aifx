@@ -16,10 +16,5 @@
     "timeout": 600,
     "asyncMode": 1,
     "placeholderMode": 1
-  },
-  "project": {
-    "workflowName": "matte_ma2",
-    "workflowFile": "resources/workflow/matte_ma2.json",
-    "outputVersion": "v001"
   }
 }
