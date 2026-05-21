@@ -694,9 +694,13 @@ code {
   display: block;
 }
 .footer-funding-row a:hover { text-decoration: none; }
-.footer-funding-row .footer-funding-text {
+.footer-funding-row .footer-credit-text {
   margin: 0;
-  max-width: 460px;
+  /* No max-width: the credit caption ('Built by ...' / 'Supported by ...')
+     fills whatever the row gives it, capped only by .footer-inner's overall
+     max-width. The previous 460 px cap was making the Reepost row's
+     'Built by Julien Martin (MaGMa) for Reepost Studio.' wrap awkwardly
+     into a narrow column. */
 }
 
 /* Reepost logo in the footer: matches CNC height. Source PNG is already
@@ -723,7 +727,7 @@ code {
   transition: opacity 0.15s ease;
 }
 .footer-funding-row a:hover .cnc-logo { opacity: 1; }
-.footer-funding-text {
+.footer-credit-text {
   margin: 0;
   font-size: 0.85rem;
   color: rgba(255, 255, 255, 0.6);
