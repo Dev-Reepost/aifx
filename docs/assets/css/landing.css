@@ -663,14 +663,10 @@ code {
   color: #ffffff;
   text-decoration-color: rgba(255, 255, 255, 0.7);
 }
-/* Funding block: CNC logo + tagline. The CNC SVG is black; on the dark
-   footer it gets inverted to white via CSS filter so it sits cleanly
-   against the background. */
+/* Funding block: holds one .footer-funding-row per entity (Reepost first,
+   CNC below). The rows manage their own vertical rhythm via margin, so
+   no flex gap here. */
 .footer-funding {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.6rem;
   margin: 0 0 2rem;
 }
 .footer-funding a {
@@ -678,22 +674,30 @@ code {
   text-decoration: none;
 }
 .footer-funding a:hover { text-decoration: none; }
-/* Funding logos row: Reepost (left) and CNC (right) side-by-side at the
-   same visual height. Sits above the funding-text paragraph. */
-.footer-funding-logos {
+/* Funding rows: one per entity, stacked. Reepost on top, CNC below.
+   Each row shows the entity's logo on the left and its one-line caption
+   on the right. Wraps to two-line stacked layout on narrow viewports. */
+.footer-funding-row {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 2.5rem;
+  gap: 1.25rem;
   flex-wrap: wrap;
+  margin: 0 0 1rem;
+  text-align: left;
 }
-.footer-funding-logos a {
+.footer-funding-row:last-child { margin-bottom: 0; }
+.footer-funding-row a {
   border: none;
   text-decoration: none;
   line-height: 0;
   display: block;
 }
-.footer-funding-logos a:hover { text-decoration: none; }
+.footer-funding-row a:hover { text-decoration: none; }
+.footer-funding-row .footer-funding-text {
+  margin: 0;
+  max-width: 460px;
+}
 
 /* Reepost logo in the footer: matches CNC height. Source PNG is already
    white-on-dark, so no filter; sits on the black footer naturally. */
@@ -706,7 +710,7 @@ code {
   opacity: 0.85;
   transition: opacity 0.15s ease;
 }
-.footer-funding-logos a:hover .footer-reepost-logo { opacity: 1; }
+.footer-funding-row a:hover .footer-reepost-logo { opacity: 1; }
 
 .cnc-logo {
   height: 56px !important;
@@ -718,7 +722,7 @@ code {
   opacity: 0.85;
   transition: opacity 0.15s ease;
 }
-.footer-funding a:hover .cnc-logo { opacity: 1; }
+.footer-funding-row a:hover .cnc-logo { opacity: 1; }
 .footer-funding-text {
   margin: 0;
   font-size: 0.85rem;
