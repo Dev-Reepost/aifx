@@ -211,6 +211,17 @@ code {
 .hero-byline-logo--invert {
   filter: brightness(0) invert(1);
 }
+
+/* Modifier: slightly larger byline logo. Used for Reepost Studio so its
+   logo gets the visual weight of the project sponsor in the hero, while
+   MaGMa (the author) stays at the base 24px size. Same defensive
+   sizing pattern as the base class. */
+.hero-byline-logo--lg {
+  height: 34px !important;
+  width: 34px !important;
+  max-height: 34px !important;
+  max-width: 34px !important;
+}
 .hero-byline-sep {
   font-size: 0.85rem;
   color: rgba(255, 255, 255, 0.5);
@@ -667,6 +678,36 @@ code {
   text-decoration: none;
 }
 .footer-funding a:hover { text-decoration: none; }
+/* Funding logos row: Reepost (left) and CNC (right) side-by-side at the
+   same visual height. Sits above the funding-text paragraph. */
+.footer-funding-logos {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2.5rem;
+  flex-wrap: wrap;
+}
+.footer-funding-logos a {
+  border: none;
+  text-decoration: none;
+  line-height: 0;
+  display: block;
+}
+.footer-funding-logos a:hover { text-decoration: none; }
+
+/* Reepost logo in the footer: matches CNC height. Source PNG is already
+   white-on-dark, so no filter; sits on the black footer naturally. */
+.footer-reepost-logo {
+  height: 56px !important;
+  width: auto !important;
+  max-height: 56px !important;
+  max-width: 80px !important;
+  display: block;
+  opacity: 0.85;
+  transition: opacity 0.15s ease;
+}
+.footer-funding-logos a:hover .footer-reepost-logo { opacity: 1; }
+
 .cnc-logo {
   height: 56px !important;
   width: auto !important;
