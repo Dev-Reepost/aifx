@@ -742,19 +742,19 @@ code {
 }
 .footer-funding a:hover { text-decoration: none; }
 /* Funding rows: one per entity, stacked. Reepost on top, CNC below.
-   Within each row the logo sits above its caption, both centered.
-   The row itself is centered horizontally on the page via
-   `width: fit-content; margin: 0 auto` so the entire block (not just
-   its contents) sits in the middle of the footer. */
+   Within each row the logo and its caption sit on the same line
+   (logo left, caption right). The row is sized to its content via
+   `width: fit-content` and centered on the page with `margin: 0 auto`,
+   so the logo+caption pair reads as a single centered unit. */
 .footer-funding-row {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: 0.75rem;
+  gap: 1rem;
   width: fit-content;
   max-width: 100%;
-  margin: 0 auto 2rem;
-  text-align: center;
+  margin: 0 auto 1.25rem;
+  text-align: left;
 }
 .footer-funding-row:last-child { margin-bottom: 0; }
 .footer-funding-row a {
@@ -762,13 +762,14 @@ code {
   text-decoration: none;
   line-height: 0;
   display: block;
-  align-self: center;
+  flex: 0 0 auto;
 }
 .footer-funding-row a:hover { text-decoration: none; }
 .footer-funding-row .footer-credit-text {
   margin: 0;
   max-width: none;
-  align-self: center;
+  /* Keep the caption on a single line beside the logo — no wrapping. */
+  white-space: nowrap;
 }
 
 /* Reepost logo in the footer: matches CNC height. Source PNG is already
