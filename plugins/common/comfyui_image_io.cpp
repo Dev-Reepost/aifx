@@ -223,11 +223,20 @@ void writeEXR(const std::string& filename, const ImageData& image) {
 
     exr_image.num_channels = 4;
 
+    // Channels MUST be supplied in alphabetical order (A, B, G, R) — the
+    // EXR file format stores channels alphabetically and TinyEXR reorders
+    // the *name* list to comply, but it does NOT reshuffle the matching
+    // data-pointer array. Giving the names in B,G,R,A order with data
+    // pointers b,g,r,a paired them by index, but after the alphabetic sort
+    // index 0 became "A" with our b[] data, index 3 became "R" with our
+    // a[] data (alpha = 1.0 opaque), producing an input EXR whose "R"
+    // channel was a constant 1.0 (red-saturated) for every pixel — exactly
+    // the cast SeedVR2 then propagated into its upscaled output.
     std::vector<float*> image_ptr(4);
-    image_ptr[0] = &b[0]; // B
-    image_ptr[1] = &g[0]; // G
-    image_ptr[2] = &r[0]; // R
-    image_ptr[3] = &a[0]; // A
+    image_ptr[0] = &a[0]; // A
+    image_ptr[1] = &b[0]; // B
+    image_ptr[2] = &g[0]; // G
+    image_ptr[3] = &r[0]; // R
 
     exr_image.images = (unsigned char**)image_ptr.data();
     exr_image.width = image.width;
@@ -236,11 +245,10 @@ void writeEXR(const std::string& filename, const ImageData& image) {
     header.num_channels = 4;
     header.channels = (EXRChannelInfo*)malloc(sizeof(EXRChannelInfo) * 4);
 
-    // Must be in BGRA order for EXR
-    strncpy(header.channels[0].name, "B", 255);
-    strncpy(header.channels[1].name, "G", 255);
-    strncpy(header.channels[2].name, "R", 255);
-    strncpy(header.channels[3].name, "A", 255);
+    strncpy(header.channels[0].name, "A", 255);
+    strncpy(header.channels[1].name, "B", 255);
+    strncpy(header.channels[2].name, "G", 255);
+    strncpy(header.channels[3].name, "R", 255);
 
     header.pixel_types = (int*)malloc(sizeof(int) * 4);
     header.requested_pixel_types = (int*)malloc(sizeof(int) * 4);
