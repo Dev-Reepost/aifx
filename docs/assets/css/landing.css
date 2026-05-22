@@ -742,19 +742,15 @@ code {
 }
 .footer-funding a:hover { text-decoration: none; }
 /* Funding rows: one per entity, stacked. Reepost on top, CNC below.
-   Each row shows the entity's logo on the left and its caption filling
-   the rest of the row width. Wraps to two-line stacked layout on narrow
-   viewports via flex-wrap. */
+   Within each row the logo sits above its caption, both centered.
+   Vertical rhythm between the two rows is controlled by row margin. */
 .footer-funding-row {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  /* justify-content removed: logo anchors to the start and the <p> below
-     uses `flex: 1` to consume the remaining width, so the caption
-     visually owns the row instead of sitting compact in the middle. */
-  gap: 1.25rem;
-  flex-wrap: wrap;
-  margin: 0 0 1rem;
-  text-align: left;
+  gap: 0.75rem;
+  margin: 0 auto 2rem;
+  text-align: center;
 }
 .footer-funding-row:last-child { margin-bottom: 0; }
 .footer-funding-row a {
@@ -762,19 +758,10 @@ code {
   text-decoration: none;
   line-height: 0;
   display: block;
-  /* Don't grow — let the logo keep its natural width. */
-  flex: 0 0 auto;
 }
 .footer-funding-row a:hover { text-decoration: none; }
 .footer-funding-row .footer-credit-text {
   margin: 0;
-  /* Take all remaining row width after the logo. Combined with the
-     row's `flex-wrap: wrap` this collapses below the logo on viewports
-     too narrow to hold both side-by-side. min-width: 0 lets the flex
-     item shrink past its content size when needed (prevents overflow
-     for the longer CNC caption). */
-  flex: 1 1 0;
-  min-width: 0;
   max-width: none;
 }
 
