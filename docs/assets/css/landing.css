@@ -122,19 +122,22 @@ code {
   text-decoration: none;
 }
 .hero-standards-logo {
-  height: 22px !important;
+  height: 18px !important;
   width: auto !important;
-  max-height: 22px !important;
-  max-width: 90px !important;
+  max-height: 18px !important;
+  max-width: 72px !important;
   display: block;
-  filter: brightness(0) invert(1);
+  /* Force black SVG icons (simpleicons fill=#000) to white on the dark
+     hero. brightness(0) flattens any color to black first; invert(1)
+     flips to white. !important so no later rule can re-color them. */
+  filter: brightness(0) invert(1) !important;
 }
 /* OpenFX is the standard the suite implements — slightly taller so it reads
    as the anchor of the row before the DCC list. */
 .hero-standards-logo--standard {
-  height: 28px !important;
-  max-height: 28px !important;
-  max-width: 110px !important;
+  height: 24px !important;
+  max-height: 24px !important;
+  max-width: 96px !important;
 }
 .hero-standards-sep {
   color: rgba(255, 255, 255, 0.3);
