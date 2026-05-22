@@ -32,6 +32,12 @@ public:
     bool isSequencePlugin() const override { return true; }
     int  getImageLoadCap()  const override;
 
+    // Predicted output scale: SeedVR2 rescales the input so its short side
+    // matches the "Resolution" parameter while preserving aspect. Returned
+    // as a uniform scale factor (x == y) so the source RoD becomes the
+    // upscaled output RoD in BasePlugin::getRegionOfDefinition.
+    OfxPointD getPredictedOutputScale(double time) const override;
+
     static void describeInContext(OFX::ImageEffectDescriptor &desc,
                                   OFX::ContextEnum context,
                                   const json* configDefaults = nullptr);

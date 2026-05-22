@@ -5,6 +5,8 @@
 #include <sstream>
 #include <fstream>
 #include <ctime>
+#include <algorithm>  // std::min
+#include <cmath>      // std::abs
 
 namespace ComfyUI {
 
@@ -69,6 +71,44 @@ int UpscaleSeedVR2Plugin::getImageLoadCap() const {
     int cap = 0;
     if (_imageLoadCap) _imageLoadCap->getValue(cap);
     return cap;
+}
+
+OfxPointD UpscaleSeedVR2Plugin::getPredictedOutputScale(double time) const
+{
+    // Identity if we can't predict yet — the source RoD will be passed through.
+    OfxPointD identity = { 1.0, 1.0 };
+
+    if (!_srcClip || !_srcClip->isConnected() || !_resolution) {
+        return identity;
+    }
+
+    int targetShortSide = 0;
+    _resolution->getValueAtTime(time, targetShortSide);
+    if (targetShortSide <= 0) return identity;
+
+    // _srcClip->getRegionOfDefinition is non-const in the OFX Support API,
+    // so cast away const on the cached clip pointer (we don't mutate it).
+    OFX::Clip* src = const_cast<OFX::Clip*>(_srcClip);
+    OfxRectD srcRod = src->getRegionOfDefinition(time);
+
+    const double w = srcRod.x2 - srcRod.x1;
+    const double h = srcRod.y2 - srcRod.y1;
+    if (w <= 0.0 || h <= 0.0) return identity;
+
+    // SeedVR2 fits the SHORT side to `resolution` and preserves aspect, so
+    // the same scale factor applies to both axes.
+    const double shortSide = std::min(w, h);
+    const double scale = static_cast<double>(targetShortSide) / shortSide;
+
+    // Don't pretend to scale by tiny amounts — anything within a pixel of
+    // the source short side is treated as a no-op so we don't churn the
+    // host's canvas for round-trip floating-point drift.
+    if (std::abs(scale - 1.0) * shortSide < 1.0) {
+        return identity;
+    }
+
+    OfxPointD out = { scale, scale };
+    return out;
 }
 
 std::string UpscaleSeedVR2Plugin::getColorCorrectionName() const

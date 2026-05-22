@@ -152,6 +152,34 @@ public:
     // Returns false for specialized plugins (SAMSegmentation) where workflow is fixed
     virtual bool includeWorkflowInBasename() const { return false; }
 
+    /**
+     * @brief Predicted output spatial scale, relative to the source clip RoD.
+     *
+     * Plugins whose ComfyUI workflow changes the output resolution (upscalers,
+     * downscalers, croppers, format changers) override this so the OFX host
+     * can size the downstream canvas correctly before the first frame has been
+     * rendered to disk. The base implementation returns identity scale
+     * ({1, 1}), which is correct for any plugin whose output matches the
+     * source resolution.
+     *
+     * The base getRegionOfDefinition() applies this scale to the source RoD
+     * whenever no rendered output is available yet on disk. Once an output
+     * EXR exists, its actual dimensions take precedence — the predicted scale
+     * is purely a first-frame / parameter-change hint to the host.
+     *
+     * Implementations must be cheap (no disk I/O, no ComfyUI calls). For
+     * non-uniform scaling, return distinct x/y factors. For uniform scaling
+     * (e.g. an upscaler that preserves aspect), return the same value for both.
+     *
+     * @param time OFX timeline time of the request.
+     * @return Scale factors {x, y} where 1.0 = no change.
+     */
+    virtual OfxPointD getPredictedOutputScale(double time) const {
+        (void)time;
+        OfxPointD identity = { 1.0, 1.0 };
+        return identity;
+    }
+
     // Sequence plugin support
     // Returns true for plugins that process the full frame sequence as one ComfyUI job.
     // Frame-based plugins (depth_da3, segmentation, anycomfy) leave this as false.

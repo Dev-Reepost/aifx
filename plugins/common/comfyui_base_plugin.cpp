@@ -542,11 +542,17 @@ void BasePlugin::changedParam(const OFX::InstanceChangedArgs &args,
         }
     }
 
-    // Invalidate RoD cache when parameters affecting output path change
-    // This ensures canvas resizes correctly when switching between instances
+    // Invalidate RoD cache when parameters affecting output path or output
+    // dimensions change.
+    //   - Path-affecting params (project/workflow/version/mount) move the
+    //     cached file to a different on-disk location.
+    //   - Dimension-affecting params (e.g. SeedVR2 'resolution',
+    //     'maxResolution') keep the path the same but invalidate the cached
+    //     width/height — the next render will produce different sized output.
     if (paramName == "projectName" || paramName == "workflowName" ||
         paramName == "outputVersion" || paramName == "workflowFilePath" ||
-        paramName == "macMountPath"  || paramName == "winMountPath") {
+        paramName == "macMountPath"  || paramName == "winMountPath" ||
+        paramName == "resolution"    || paramName == "maxResolution") {
         std::lock_guard<std::mutex> lock(_cacheMutex);
         if (!_cacheDimensions.empty() || !_cacheFileExists.empty()) {
             if (_logger) {
@@ -1098,15 +1104,35 @@ bool BasePlugin::getRegionOfDefinition(const OFX::RegionOfDefinitionArguments &a
         }
     }
 
-    // No output yet - use source RoD as default
+    // No output yet - use source RoD as default, with optional predicted
+    // scale applied so resolution-changing plugins (e.g. SeedVR2 upscaler)
+    // can report the correct downstream canvas size before any frame has
+    // been rendered to disk.
     if (_srcClip && _srcClip->isConnected()) {
         rod = _srcClip->getRegionOfDefinition(args.time);
 
+        OfxPointD scale = getPredictedOutputScale(args.time);
+        const bool scaled = (scale.x != 1.0 || scale.y != 1.0)
+                            && scale.x > 0.0 && scale.y > 0.0;
+        if (scaled) {
+            const double w = rod.x2 - rod.x1;
+            const double h = rod.y2 - rod.y1;
+            rod.x2 = rod.x1 + w * scale.x;
+            rod.y2 = rod.y1 + h * scale.y;
+        }
+
         if (_logger) {
-            _logger->debug("Frame {}: RoD from source: {}x{}",
-                          frame,
-                          static_cast<int>(rod.x2 - rod.x1),
-                          static_cast<int>(rod.y2 - rod.y1));
+            if (scaled) {
+                _logger->debug("Frame {}: RoD from source × predicted scale ({:.3f},{:.3f}): {}x{}",
+                              frame, scale.x, scale.y,
+                              static_cast<int>(rod.x2 - rod.x1),
+                              static_cast<int>(rod.y2 - rod.y1));
+            } else {
+                _logger->debug("Frame {}: RoD from source: {}x{}",
+                              frame,
+                              static_cast<int>(rod.x2 - rod.x1),
+                              static_cast<int>(rod.y2 - rod.y1));
+            }
         }
         return true;
     }
