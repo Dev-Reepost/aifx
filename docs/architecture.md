@@ -97,11 +97,11 @@ plugin architecture makes the choice explicit at compile time:
 ```cpp
 class MyPlugin : public ComfyUIBasePlugin {
   // Per-frame plugins inherit the default:
-  //   bool isSequencePlugin() const override { return false; }
+  bool isSequencePlugin() const override { return false; }
 
   // Sequence plugins override to return true:
-  //   bool isSequencePlugin() const override { return true; }
-  //   int  getImageLoadCap()  const override;
+  bool isSequencePlugin() const override { return true; }
+  int  getImageLoadCap()  const override;
 };
 ```
 
