@@ -742,12 +742,15 @@ code {
 }
 .footer-funding a:hover { text-decoration: none; }
 /* Funding rows: one per entity, stacked. Reepost on top, CNC below.
-   Each row shows the entity's logo on the left and its one-line caption
-   on the right. Wraps to two-line stacked layout on narrow viewports. */
+   Each row shows the entity's logo on the left and its caption filling
+   the rest of the row width. Wraps to two-line stacked layout on narrow
+   viewports via flex-wrap. */
 .footer-funding-row {
   display: flex;
   align-items: center;
-  justify-content: center;
+  /* justify-content removed: logo anchors to the start and the <p> below
+     uses `flex: 1` to consume the remaining width, so the caption
+     visually owns the row instead of sitting compact in the middle. */
   gap: 1.25rem;
   flex-wrap: wrap;
   margin: 0 0 1rem;
@@ -759,15 +762,20 @@ code {
   text-decoration: none;
   line-height: 0;
   display: block;
+  /* Don't grow — let the logo keep its natural width. */
+  flex: 0 0 auto;
 }
 .footer-funding-row a:hover { text-decoration: none; }
 .footer-funding-row .footer-credit-text {
   margin: 0;
-  /* No max-width: the credit caption ('Built by ...' / 'Supported by ...')
-     fills whatever the row gives it, capped only by .footer-inner's overall
-     max-width. The previous 460 px cap was making the Reepost row's
-     'Built by MaGMa for Reepost Studio.' wrap awkwardly
-     into a narrow column. */
+  /* Take all remaining row width after the logo. Combined with the
+     row's `flex-wrap: wrap` this collapses below the logo on viewports
+     too narrow to hold both side-by-side. min-width: 0 lets the flex
+     item shrink past its content size when needed (prevents overflow
+     for the longer CNC caption). */
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: none;
 }
 
 /* Reepost logo in the footer: matches CNC height. Source PNG is already
