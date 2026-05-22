@@ -95,34 +95,52 @@ code {
   margin: 0 auto;
 }
 
-/* Inline OpenFX logo in the hero tagline, replacing the word 'OpenFX' in
-   'AI-powered OpenFX plugins for any …'. Sized to ~1em of the tagline
-   text so it sits naturally on the baseline, force-flattened to white
-   via brightness(0) invert(1) (the official SVG is multi-colored, would
-   clash with the monochrome hero), and slightly translated up because
-   the wordmark's optical center sits above true baseline. */
-.hero-tagline-logo-link {
-  display: inline-block;
+/* Standards & compatibility row in the hero, between the subtagline and the
+   CTAs. Visually signals 'implements OpenFX standard; tested on these hosts'
+   at first glance. OpenFX is the anchor (left of a small separator dot);
+   the DCC logos follow. All flattened to white via brightness(0) invert(1)
+   for monochrome consistency with the rest of the hero. */
+.hero-standards {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  margin: 0 auto 1.75rem;
+  max-width: 640px;
+}
+.hero-standards-link {
+  display: inline-flex;
+  align-items: center;
   line-height: 0;
-  vertical-align: -0.15em;
   text-decoration: none;
-  margin: 0 0.05em;
-}
-.hero-tagline-logo-link:hover {
-  text-decoration: none;
-}
-.hero-tagline-logo {
-  height: 1.1em !important;
-  width: auto !important;
-  max-height: 1.1em !important;
-  max-width: 4em !important;
-  display: inline-block;
-  filter: brightness(0) invert(1);
-  opacity: 0.92;
+  opacity: 0.6;
   transition: opacity 0.15s ease;
 }
-.hero-tagline-logo-link:hover .hero-tagline-logo {
+.hero-standards-link:hover {
   opacity: 1;
+  text-decoration: none;
+}
+.hero-standards-logo {
+  height: 22px !important;
+  width: auto !important;
+  max-height: 22px !important;
+  max-width: 90px !important;
+  display: block;
+  filter: brightness(0) invert(1);
+}
+/* OpenFX is the standard the suite implements — slightly taller so it reads
+   as the anchor of the row before the DCC list. */
+.hero-standards-logo--standard {
+  height: 28px !important;
+  max-height: 28px !important;
+  max-width: 110px !important;
+}
+.hero-standards-sep {
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 1rem;
+  line-height: 1;
+  user-select: none;
 }
 .hero-title {
   font-size: 4.5rem;
