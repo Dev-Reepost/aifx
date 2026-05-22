@@ -6,11 +6,8 @@ message: >-
   for the model-specific citations.
 type: software
 authors:
-  - given-names: Julien
-    family-names: Martin
-    email: julien.pierre.martin@gmail.com
-    affiliation: MaGMa
-    website: "https://www.linkedin.com/in/julienpierremartin/"
+  - name: MaGMa
+    website: "https://www.linkedin.com/company/ma-g-ma/"
 abstract: >-
   An open-source suite of OpenFX plugins that bring ComfyUI-hosted AI models
   for depth estimation, surface normals, segmentation, video alpha matting,

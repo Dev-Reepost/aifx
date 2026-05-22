@@ -1,7 +1,7 @@
 # AIFX — Public Release Specification
 
 **Status:** Draft — pre-publication
-**Owner:** Julien Martin
+**Owner:** MaGMa
 **Last updated:** 2026-05-07
 **Target distribution:** Public GitHub repository (separate from current internal/fork repo), MIT-style open-source release
 **License:** BSD-3-Clause (matches OpenFX upstream)
@@ -140,7 +140,7 @@ page, GitHub). See per-plugin pages under `docs/plugins/` for citations.
 
 **Authors & funding acknowledgement:**
 
-> AIFX was developed by **Julien Martin** ([MaGMa](https://www.linkedin.com/company/ma-g-ma/))
+> AIFX was developed by **[MaGMa](https://www.linkedin.com/company/ma-g-ma/)**
 > for **[Reepost Studio](https://www.reepoststudio.fr/)**, with funding from
 > **CNC (Centre national du cinéma et de l'image animée)**.
 >

@@ -105,7 +105,7 @@ See the documentation:
 
 Plugin code:   BSD-3-Clause.
 Model weights: per upstream, see each plugin page.
-Authors:       Julien Martin (MaGMa) for Reepost Studio
+Authors:       MaGMa for Reepost Studio
                https://www.reepoststudio.fr/
 Funding:       CNC (Centre national du cinema et de l'image animee).
 

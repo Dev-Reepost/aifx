@@ -208,7 +208,7 @@ code {
 }
 .hero-status-cnc a:hover .hero-status-cnc-logo { opacity: 1; }
 
-/* Byline: 'Julien Martin (MaGMa) for Reepost Studio' with small logos,
+/* Byline: 'MaGMa for Reepost Studio' with small logos,
    sitting at the bottom of hero-inner under the status line. */
 .hero-byline {
   display: flex;
@@ -761,7 +761,7 @@ code {
   /* No max-width: the credit caption ('Built by ...' / 'Supported by ...')
      fills whatever the row gives it, capped only by .footer-inner's overall
      max-width. The previous 460 px cap was making the Reepost row's
-     'Built by Julien Martin (MaGMa) for Reepost Studio.' wrap awkwardly
+     'Built by MaGMa for Reepost Studio.' wrap awkwardly
      into a narrow column. */
 }
 
@@ -791,8 +791,13 @@ code {
 .footer-funding-row a:hover .cnc-logo { opacity: 1; }
 .footer-credit-text {
   margin: 0;
-  font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.6);
+  font-size: 1.05rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.85);
+  /* No width cap. The row's flex layout gives the <p> its natural width
+     and wraps the whole row (logo above text) on narrow viewports via
+     the row's flex-wrap. */
+  max-width: none;
 }
 
 .footer-meta {
