@@ -96,10 +96,11 @@ code {
 }
 
 /* Standards & compatibility row in the hero, between the subtagline and the
-   CTAs. Visually signals 'implements OpenFX standard; tested on these hosts'
-   at first glance. OpenFX is the anchor (left of a small separator dot);
-   the DCC logos follow. All flattened to white via brightness(0) invert(1)
-   for monochrome consistency with the rest of the hero. */
+   CTAs. Visually signals 'implements OpenFX, bridges to ComfyUI, runs in
+   these DCCs' at first glance. The two platform wordmarks (OpenFX,
+   ComfyUI) anchor the left of the row; a separator dot follows; then the
+   DCC icons. All flattened to white via brightness(0) invert(1) for
+   monochrome consistency with the rest of the hero. */
 .hero-standards {
   display: flex;
   align-items: center;
@@ -132,12 +133,13 @@ code {
      flips to white. !important so no later rule can re-color them. */
   filter: brightness(0) invert(1) !important;
 }
-/* OpenFX is the standard the suite implements — slightly taller so it reads
-   as the anchor of the row before the DCC list. */
+/* OpenFX (the plugin standard) and ComfyUI (the model host) are platform
+   anchors — rendered as wordmarks, slightly taller than the DCC icons so
+   they read as the lead-in of the row. */
 .hero-standards-logo--standard {
   height: 24px !important;
   max-height: 24px !important;
-  max-width: 96px !important;
+  max-width: 110px !important;
 }
 .hero-standards-sep {
   color: rgba(255, 255, 255, 0.3);
