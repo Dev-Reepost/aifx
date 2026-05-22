@@ -393,6 +393,18 @@ public:
      */
     void setMaxPollAttempts(int maxPolls);
 
+    /**
+     * @brief Set the wall-clock deadline (in seconds since job submission)
+     *
+     * Independent of poll count — guarantees that a long-running but
+     * progressing ComfyUI job (e.g. a slow diffusion upscaler) doesn't get
+     * killed just because polling went fast. Mirrors the user-facing
+     * "Timeout (s)" parameter from the plugin UI.
+     *
+     * @param seconds Max job duration (<= 0 disables the elapsed-time check)
+     */
+    void setMaxJobDurationSec(int seconds);
+
 private:
     // ========================================================================
     // Internal Methods
@@ -465,6 +477,7 @@ private:
     std::atomic<double> _slowPollingInterval;      // Seconds between polls when idle (default: 5.0)
     std::atomic<double> _jobRetentionTime;         // Seconds to keep completed jobs (default: 300)
     std::atomic<int> _maxPollAttempts;             // Max polls before timeout (default: 600)
+    std::atomic<int> _maxJobDurationSec;           // Wall-clock timeout in seconds (<=0 disables; default: -1)
 };
 
 } // namespace ComfyUI

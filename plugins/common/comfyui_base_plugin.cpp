@@ -697,8 +697,16 @@ void BasePlugin::executePendingCollect()
             _jobManager->setCompletionCallback([this](int f, bool ok){ onJobComplete(f, ok); });
             _jobManager->setStatusUpdateCallback([this](){ updateJobStatusDisplay(); });
             _jobManager->setAdaptivePollingIntervals(0.5, 5.0);
-            _jobManager->setMaxPollAttempts(300);
+            // Wall-clock cap covers the user-visible "Timeout (s)" param —
+            // keep the poll-count cap as a final runaway-loop guard (well
+            // above 1h at the fast 0.5s cadence).
+            _jobManager->setMaxPollAttempts(7200);
             _jobManager->setJobRetentionTime(300);
+        }
+        // Apply the live timeout value at every submit so user param changes
+        // take effect without recreating the AsyncJobManager.
+        if (_jobManager && _timeout) {
+            _jobManager->setMaxJobDurationSec(_timeout->getValue());
         }
 
         std::string mountPath, project, workflowName, version, serverAddress;
@@ -2747,6 +2755,11 @@ void BasePlugin::renderAsync(const OFX::RenderArguments &args)
         });
         if (_logger) _logger->info("AsyncJobManager initialized successfully");
     }
+    // Apply the user's "Timeout (s)" on every render entry so per-instance
+    // adjustments take effect immediately (no plugin reinit required).
+    if (_jobManager && _timeout) {
+        _jobManager->setMaxJobDurationSec(_timeout->getValue());
+    }
 
     // STEP 2 (sequence plugins only): manage the single sequence-wide job
     if (isSequencePlugin() && _jobManager) {
@@ -2990,6 +3003,10 @@ void BasePlugin::renderAsync(const OFX::RenderArguments &args)
             _jobManager->setStatusUpdateCallback([this]() {
                 this->updateJobStatusDisplay();
             });
+        }
+        // Push the live user timeout into the (possibly fresh) manager.
+        if (_jobManager && _timeout) {
+            _jobManager->setMaxJobDurationSec(_timeout->getValue());
         }
 
         // Submit job asynchronously (TRULY NON-BLOCKING!)

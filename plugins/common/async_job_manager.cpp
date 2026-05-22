@@ -23,6 +23,7 @@ AsyncJobManager::AsyncJobManager(Client* comfyClient, std::shared_ptr<spdlog::lo
     , _slowPollingInterval(5.0)    // Slow: 5s when idle (reduced overhead)
     , _jobRetentionTime(300.0)     // Keep completed jobs for 5 minutes
     , _maxPollAttempts(300)        // 10 minutes max (300 * 2s)
+    , _maxJobDurationSec(-1)       // Wall-clock timeout disabled until plugin sets it
 {
     if (_logger) {
         _logger->info("========================================");
@@ -603,6 +604,18 @@ void AsyncJobManager::setMaxPollAttempts(int maxPolls)
     if (_logger) _logger->info("AsyncJobManager: Max poll attempts set to {}", maxPolls);
 }
 
+void AsyncJobManager::setMaxJobDurationSec(int seconds)
+{
+    _maxJobDurationSec = seconds;
+    if (_logger) {
+        if (seconds > 0) {
+            _logger->info("AsyncJobManager: Wall-clock job timeout set to {} seconds", seconds);
+        } else {
+            _logger->info("AsyncJobManager: Wall-clock job timeout disabled");
+        }
+    }
+}
+
 // ============================================================================
 // Internal Methods - Background Monitoring
 // ============================================================================
@@ -774,7 +787,29 @@ bool AsyncJobManager::checkJobCompletion(AsyncJob& job)
 {
     job.pollCount++;
 
-    // Check for timeout (too many poll attempts)
+    // Primary timeout: wall-clock elapsed since submission. Decouples the
+    // user-facing "Timeout (s)" setting from the polling cadence — a slow
+    // diffusion job is no longer killed early just because fast polling
+    // burned through 300 attempts in 150 seconds.
+    const int maxDurationSec = _maxJobDurationSec.load();
+    if (maxDurationSec > 0) {
+        const auto elapsedSec =
+            std::chrono::duration<double>(std::chrono::steady_clock::now() - job.submittedTime).count();
+        if (elapsedSec > maxDurationSec) {
+            if (_logger) {
+                _logger->error("AsyncJobManager: Frame {} timed out after {:.1f}s (limit: {}s)",
+                              job.frame, elapsedSec, maxDurationSec);
+            }
+            job.status = JobStatus::FAILED;
+            job.errorMessage = "Job timed out after " + std::to_string((int)elapsedSec)
+                              + " seconds (limit: " + std::to_string(maxDurationSec) + "s)";
+            return true;
+        }
+    }
+
+    // Safety net: poll-count cap catches runaway loops independently of
+    // elapsed time (and protects callers that haven't called
+    // setMaxJobDurationSec).
     if (job.pollCount > _maxPollAttempts.load()) {
         if (_logger) {
             _logger->error("AsyncJobManager: Frame {} timed out after {} polls",
@@ -858,16 +893,52 @@ bool AsyncJobManager::checkJobCompletion(AsyncJob& job)
                         return true;
                     }
                 } else if (statusStr == "error") {
-                    // Error during execution
+                    // Error during execution. ComfyUI returns `messages` as an
+                    // array of `[name, payload]` tuples; the useful info lives
+                    // in the `execution_error` payload (exception_type,
+                    // exception_message, node_type, node_id). Pull those out so
+                    // the UI shows "DepthCrafter node 24: torch.OutOfMemoryError —
+                    // Allocation on device" instead of an ~80 KB JSON dump that
+                    // includes the full input tensor.
                     job.status = JobStatus::FAILED;
-                    if (status.contains("messages")) {
-                        job.errorMessage = status["messages"].dump();
-                    } else {
-                        job.errorMessage = "ComfyUI execution error";
+                    std::string concise;
+                    if (status.contains("messages") && status["messages"].is_array()) {
+                        for (const auto& msg : status["messages"]) {
+                            if (!msg.is_array() || msg.size() < 2) continue;
+                            if (!msg[0].is_string() || msg[0].get<std::string>() != "execution_error") continue;
+                            const auto& payload = msg[1];
+                            std::string nodeType = payload.value("node_type", std::string{});
+                            std::string nodeId   = payload.value("node_id",   std::string{});
+                            std::string excType  = payload.value("exception_type",    std::string{});
+                            std::string excMsg   = payload.value("exception_message", std::string{});
+                            // Strip trailing newlines that ComfyUI sometimes appends.
+                            while (!excMsg.empty() && (excMsg.back() == '\n' || excMsg.back() == '\r')) {
+                                excMsg.pop_back();
+                            }
+                            concise = "ComfyUI execution error";
+                            if (!nodeType.empty() || !nodeId.empty()) {
+                                concise += " at node " + nodeId + " (" + nodeType + ")";
+                            }
+                            if (!excType.empty()) concise += ": " + excType;
+                            if (!excMsg.empty())  concise += " — " + excMsg;
+                            break;
+                        }
                     }
+                    if (concise.empty()) {
+                        // Fall back to the raw dump only when no execution_error
+                        // event was present (unusual). The full payload still
+                        // goes to the logger for offline diagnosis.
+                        concise = status.contains("messages")
+                                  ? std::string("ComfyUI execution error (raw): ") + status["messages"].dump()
+                                  : std::string("ComfyUI execution error");
+                    }
+                    job.errorMessage = concise;
                     if (_logger) {
-                        _logger->error("AsyncJobManager: Frame {} failed: {}",
-                                      job.frame, job.errorMessage);
+                        _logger->error("AsyncJobManager: Frame {} failed: {}", job.frame, concise);
+                        if (status.contains("messages")) {
+                            _logger->debug("AsyncJobManager: Frame {} full ComfyUI messages payload: {}",
+                                           job.frame, status["messages"].dump());
+                        }
                     }
                     return true;
                 }
