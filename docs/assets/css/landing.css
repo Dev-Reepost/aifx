@@ -94,6 +94,32 @@ code {
   max-width: 760px;
   margin: 0 auto;
 }
+
+/* OpenFX over-mark immediately above the AIFX title. Establishes 'this is
+   an OpenFX plug-in suite' at first glance. The official OpenFX SVG is
+   multi-colored; we flatten it to white via the brightness(0) invert(1)
+   trick to fit the monochrome hero, and dim slightly so it stays
+   secondary to the AIFX title below it. */
+.hero-standard {
+  display: block;
+  margin: 0 auto 1.25rem;
+  text-align: center;
+  line-height: 0;
+  opacity: 0.7;
+  transition: opacity 0.15s ease;
+}
+.hero-standard:hover {
+  opacity: 1;
+  text-decoration: none;
+}
+.hero-standard-logo {
+  height: 32px !important;
+  width: auto !important;
+  max-height: 32px !important;
+  max-width: 140px !important;
+  display: inline-block;
+  filter: brightness(0) invert(1);
+}
 .hero-title {
   font-size: 4.5rem;
   font-weight: 800;
