@@ -95,30 +95,34 @@ code {
   margin: 0 auto;
 }
 
-/* OpenFX over-mark immediately above the AIFX title. Establishes 'this is
-   an OpenFX plug-in suite' at first glance. The official OpenFX SVG is
-   multi-colored; we flatten it to white via the brightness(0) invert(1)
-   trick to fit the monochrome hero, and dim slightly so it stays
-   secondary to the AIFX title below it. */
-.hero-standard {
-  display: block;
-  margin: 0 auto 1.25rem;
-  text-align: center;
+/* Inline OpenFX logo in the hero tagline, replacing the word 'OpenFX' in
+   'AI-powered OpenFX plugins for any …'. Sized to ~1em of the tagline
+   text so it sits naturally on the baseline, force-flattened to white
+   via brightness(0) invert(1) (the official SVG is multi-colored, would
+   clash with the monochrome hero), and slightly translated up because
+   the wordmark's optical center sits above true baseline. */
+.hero-tagline-logo-link {
+  display: inline-block;
   line-height: 0;
-  opacity: 0.7;
-  transition: opacity 0.15s ease;
+  vertical-align: -0.15em;
+  text-decoration: none;
+  margin: 0 0.05em;
 }
-.hero-standard:hover {
-  opacity: 1;
+.hero-tagline-logo-link:hover {
   text-decoration: none;
 }
-.hero-standard-logo {
-  height: 32px !important;
+.hero-tagline-logo {
+  height: 1.1em !important;
   width: auto !important;
-  max-height: 32px !important;
-  max-width: 140px !important;
+  max-height: 1.1em !important;
+  max-width: 4em !important;
   display: inline-block;
   filter: brightness(0) invert(1);
+  opacity: 0.92;
+  transition: opacity 0.15s ease;
+}
+.hero-tagline-logo-link:hover .hero-tagline-logo {
+  opacity: 1;
 }
 .hero-title {
   font-size: 4.5rem;
