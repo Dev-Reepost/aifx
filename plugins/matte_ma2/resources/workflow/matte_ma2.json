@@ -1,55 +1,26 @@
 {
-  "93": {
+  "166": {
     "inputs": {
-      "filepath": "${INPUT_PATH}",
-      "tonemap": "linear",
-      "image_load_cap": "${SAM3_IMAGE_LOAD_CAP}",
-      "skip_first_images": 0,
-      "select_every_nth": 1
+      "mask_frame": "${MASK_FRAME}",
+      "n_warmup": "${N_WARMUP}",
+      "r_erode": "${R_ERODE}",
+      "r_dilate": "${R_DILATE}",
+      "max_internal_size": "${MAX_INTERNAL_SIZE}",
+      "max_mem_frames": "${MAX_MEM_FRAMES}",
+      "use_long_term": "${USE_LONG_TERM}",
+      "src_video": [
+        "171",
+        0
+      ],
+      "foreground_MASK": [
+        "185",
+        0
+      ]
     },
-    "class_type": "LoadEXR",
-    "_meta": { "title": "Load EXR (SAM3 reference)" }
-  },
-  "94": {
-    "inputs": {
-      "model_path": "${SAM3_MODEL_PATH}"
-    },
-    "class_type": "LoadSAM3Model",
-    "_meta": { "title": "(down)Load SAM3 Model" }
-  },
-  "91": {
-    "inputs": {
-      "prompt_mode": "text",
-      "text_prompt": "${TEXT_PROMPT}",
-      "frame_idx": "${FRAME_IDX}",
-      "score_threshold": "${SCORE_THRESHOLD}",
-      "video_frames": ["93", 0]
-    },
-    "class_type": "SAM3VideoSegmentation",
-    "_meta": { "title": "SAM3 Video Segmentation" }
-  },
-  "89": {
-    "inputs": {
-      "start_frame": 0,
-      "end_frame": -1,
-      "direction": "${DIRECTION}",
-      "offload_model": "${OFFLOAD_SAM3_MODEL}",
-      "sam3_model": ["94", 0],
-      "video_state": ["91", 0]
-    },
-    "class_type": "SAM3Propagate",
-    "_meta": { "title": "SAM3 Propagate" }
-  },
-  "88": {
-    "inputs": {
-      "obj_id": "${OBJ_ID}",
-      "plot_all_masks": "${PLOT_ALL_MASKS}",
-      "masks":       ["89", 0],
-      "video_state": ["89", 2],
-      "scores":      ["89", 1]
-    },
-    "class_type": "SAM3VideoOutput",
-    "_meta": { "title": "SAM3 Video Output" }
+    "class_type": "MatAnyone2",
+    "_meta": {
+      "title": "MatAnyone2"
+    }
   },
   "171": {
     "inputs": {
@@ -60,34 +31,125 @@
       "select_every_nth": 1
     },
     "class_type": "LoadEXR",
-    "_meta": { "title": "Load EXR (MatAnyone2 full sequence)" }
-  },
-  "166": {
-    "inputs": {
-      "mask_frame": "${MASK_FRAME}",
-      "n_warmup": "${N_WARMUP}",
-      "r_erode": "${R_ERODE}",
-      "r_dilate": "${R_DILATE}",
-      "max_internal_size": "${MAX_INTERNAL_SIZE}",
-      "max_mem_frames": "${MAX_MEM_FRAMES}",
-      "use_long_term": "${USE_LONG_TERM}",
-      "src_video":       ["171", 0],
-      "foreground_MASK": ["88", 0]
-    },
-    "class_type": "MatAnyone2",
-    "_meta": { "title": "MatAnyone2" }
+    "_meta": {
+      "title": "Load EXR"
+    }
   },
   "172": {
     "inputs": {
       "filename_prefix": "${OUTPUT_PREFIX}",
       "tonemap": "linear",
-      "version": -1,
+      "version": 0,
       "start_frame": "${FRAME}",
       "frame_pad": 4,
       "save_workflow": "none",
-      "images": ["166", 0]
+      "create_path_if_missing": true,
+      "images": [
+        "166",
+        0
+      ]
     },
     "class_type": "SaveEXR",
-    "_meta": { "title": "SAVE_MATTE" }
+    "_meta": {
+      "title": "SAVE_MATTE"
+    }
+  },
+  "179": {
+    "inputs": {
+      "select": "${FRAME_SELECT}",
+      "frames": [
+        "171",
+        0
+      ]
+    },
+    "class_type": "Frame Select",
+    "_meta": {
+      "title": "Frame Select"
+    }
+  },
+  "183": {
+    "inputs": {
+      "ckpt_name": "${SAM3_CKPT_NAME}"
+    },
+    "class_type": "CheckpointLoaderSimple",
+    "_meta": {
+      "title": "Load Checkpoint"
+    }
+  },
+  "184": {
+    "inputs": {
+      "text": "${TEXT_PROMPT}",
+      "clip": [
+        "183",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Prompt)"
+    }
+  },
+  "185": {
+    "inputs": {
+      "object_indices": "${OBJECT_INDICES}",
+      "track_data": [
+        "186",
+        0
+      ]
+    },
+    "class_type": "SAM3_TrackToMask",
+    "_meta": {
+      "title": "SAM3 Track to Mask"
+    }
+  },
+  "186": {
+    "inputs": {
+      "detection_threshold": "${DETECTION_THRESHOLD}",
+      "max_objects": "${MAX_OBJECTS}",
+      "detect_interval": "${DETECT_INTERVAL}",
+      "images": [
+        "171",
+        0
+      ],
+      "model": [
+        "183",
+        0
+      ],
+      "initial_mask": [
+        "187",
+        0
+      ],
+      "conditioning": [
+        "184",
+        0
+      ]
+    },
+    "class_type": "SAM3_VideoTrack",
+    "_meta": {
+      "title": "SAM3 Video Track"
+    }
+  },
+  "187": {
+    "inputs": {
+      "threshold": "${DETECTION_THRESHOLD}",
+      "refine_iterations": "${REFINE_ITERATIONS}",
+      "individual_masks": "${INDIVIDUAL_MASKS}",
+      "model": [
+        "183",
+        0
+      ],
+      "image": [
+        "179",
+        0
+      ],
+      "conditioning": [
+        "184",
+        0
+      ]
+    },
+    "class_type": "SAM3_Detect",
+    "_meta": {
+      "title": "SAM3 Detect"
+    }
   }
 }

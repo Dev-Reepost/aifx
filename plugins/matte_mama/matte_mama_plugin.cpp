@@ -8,7 +8,6 @@
 
 namespace ComfyUI {
 
-static const char* kDirections[]    = { "forward", "backward", "both", nullptr };
 static const char* kPrecisions[]    = { "bf16", "fp16", "fp32", nullptr };
 static const char* kAttentionModes[]= { "auto", "sdpa", "xformers", nullptr };
 
@@ -18,9 +17,10 @@ static const char* kAttentionModes[]= { "auto", "sdpa", "xformers", nullptr };
 
 MatteMaMaPlugin::MatteMaMaPlugin(OfxImageEffectHandle handle)
     : BasePlugin(handle)
-    , _textPrompt(nullptr), _scoreThreshold(nullptr), _frameIdx(nullptr)
-    , _direction(nullptr), _plotAllMasks(nullptr), _objId(nullptr)
-    , _sam3ModelPath(nullptr), _offloadSam3Model(nullptr)
+    , _textPrompt(nullptr), _scoreThreshold(nullptr), _sam3CheckpointName(nullptr)
+    , _objectIndices(nullptr), _detectionThreshold(nullptr), _maxObjects(nullptr)
+    , _detectInterval(nullptr), _refineIterations(nullptr), _individualMasks(nullptr)
+    , _referenceBatchIndex(nullptr)
     , _seed(nullptr), _maxResolution(nullptr), _fps(nullptr)
     , _motionBucketId(nullptr), _noiseAugStrength(nullptr), _imageLoadCap(nullptr)
     , _baseModelPath(nullptr), _unetCheckpointPath(nullptr)
@@ -30,12 +30,14 @@ MatteMaMaPlugin::MatteMaMaPlugin(OfxImageEffectHandle handle)
 {
     _textPrompt           = fetchStringParam("textPrompt");
     _scoreThreshold       = fetchDoubleParam("scoreThreshold");
-    _frameIdx             = fetchIntParam("frameIdx");
-    _direction            = fetchChoiceParam("direction");
-    _plotAllMasks         = fetchBooleanParam("plotAllMasks");
-    _objId                = fetchIntParam("objId");
-    _sam3ModelPath        = fetchStringParam("sam3ModelPath");
-    _offloadSam3Model     = fetchBooleanParam("offloadSam3Model");
+    _sam3CheckpointName   = fetchStringParam("sam3CheckpointName");
+    _objectIndices        = fetchStringParam("objectIndices");
+    _detectionThreshold   = fetchDoubleParam("detectionThreshold");
+    _maxObjects           = fetchIntParam("maxObjects");
+    _detectInterval       = fetchIntParam("detectInterval");
+    _refineIterations     = fetchIntParam("refineIterations");
+    _individualMasks      = fetchBooleanParam("individualMasks");
+    _referenceBatchIndex  = fetchIntParam("referenceBatchIndex");
 
     _seed                 = fetchIntParam("seed");
     _maxResolution        = fetchIntParam("maxResolution");
@@ -62,29 +64,9 @@ int MatteMaMaPlugin::getImageLoadCap() const {
     return cap;
 }
 
-void MatteMaMaPlugin::changedParam(const OFX::InstanceChangedArgs &args,
-                                    const std::string &paramName)
-{
-    BasePlugin::changedParam(args, paramName);
-
-    if (paramName == "plotAllMasks") {
-        bool plotAll;
-        _plotAllMasks->getValueAtTime(args.time, plotAll);
-        _objId->setEnabled(!plotAll);
-        _objId->setIsSecret(plotAll);
-    }
-}
-
 // ============================================================================
 // Helper: index → string
 // ============================================================================
-
-std::string MatteMaMaPlugin::getDirectionName() const
-{
-    int idx; _direction->getValue(idx);
-    if (idx >= 0 && kDirections[idx]) return kDirections[idx];
-    return "forward";
-}
 
 std::string MatteMaMaPlugin::getPrecisionName() const
 {
@@ -145,19 +127,21 @@ json MatteMaMaPlugin::buildHardcodedWorkflow(int frame, const std::string& input
     if (_logger) _logger->info("Building hardcoded MatteMaMa workflow");
 
     // SAM3 params
-    std::string textPrompt, sam3ModelPath, direction;
-    double scoreThreshold;
-    int frameIdx, objId, imageLoadCap;
-    bool plotAllMasks, offloadSam3Model;
+    std::string textPrompt, sam3CheckpointName, objectIndices;
+    double scoreThreshold, detectionThreshold;
+    int    maxObjects, detectInterval, refineIterations, referenceBatchIndex, imageLoadCap;
+    bool   individualMasks;
 
     _textPrompt->getValue(textPrompt);
     _scoreThreshold->getValue(scoreThreshold);
-    _frameIdx->getValue(frameIdx);
-    direction = getDirectionName();
-    _plotAllMasks->getValue(plotAllMasks);
-    _objId->getValue(objId);
-    _sam3ModelPath->getValue(sam3ModelPath);
-    _offloadSam3Model->getValue(offloadSam3Model);
+    _sam3CheckpointName->getValue(sam3CheckpointName);
+    _objectIndices->getValue(objectIndices);
+    _detectionThreshold->getValue(detectionThreshold);
+    _maxObjects->getValue(maxObjects);
+    _detectInterval->getValue(detectInterval);
+    _refineIterations->getValue(refineIterations);
+    _individualMasks->getValue(individualMasks);
+    _referenceBatchIndex->getValue(referenceBatchIndex);
     _imageLoadCap->getValue(imageLoadCap);
 
     // VideoMaMa sampler params
@@ -203,9 +187,15 @@ json MatteMaMaPlugin::buildHardcodedWorkflow(int frame, const std::string& input
     if (_logger) {
         _logger->info("MatteMaMa parameters:");
         _logger->info("  SAM3 prompt: {}", textPrompt);
-        _logger->info("  SAM3 threshold: {}", scoreThreshold);
-        _logger->info("  SAM3 frame idx: {}", frameIdx);
-        _logger->info("  SAM3 direction: {}", direction);
+        _logger->info("  SAM3 checkpoint: {}", sam3CheckpointName);
+        _logger->info("  SAM3 score threshold: {}", scoreThreshold);
+        _logger->info("  SAM3 detection threshold: {}", detectionThreshold);
+        _logger->info("  SAM3 object indices: {}", objectIndices);
+        _logger->info("  SAM3 reference batch index: {}", referenceBatchIndex);
+        _logger->info("  SAM3 max objects: {}", maxObjects);
+        _logger->info("  SAM3 detect interval: {}", detectInterval);
+        _logger->info("  SAM3 refine iterations: {}", refineIterations);
+        _logger->info("  SAM3 individual masks: {}", individualMasks);
         _logger->info("  MaMa seed: {}", effectiveSeed);
         _logger->info("  MaMa max resolution: {}", maxResolution);
         _logger->info("  MaMa fps: {}", fps);
@@ -228,55 +218,77 @@ json MatteMaMaPlugin::buildHardcodedWorkflow(int frame, const std::string& input
             {"_meta", {{"title", "Load EXR"}}}
         }},
 
-        // Node 55: Load SAM3 model
-        {"55", {
-            {"inputs", {{"model_path", sam3ModelPath}}},
-            {"class_type", "LoadSAM3Model"},
-            {"_meta", {{"title", "(down)Load SAM3 Model"}}}
-        }},
-
-        // Node 52: SAM3 initial segmentation
-        {"52", {
+        // Node 85: CheckpointLoaderSimple (SAM3 checkpoint)
+        {"85", {
             {"inputs", {
-                {"prompt_mode", "text"},
-                {"text_prompt", textPrompt},
-                {"frame_idx", frameIdx},
-                {"score_threshold", scoreThreshold},
-                {"video_frames", json::array({"44", 0})}
+                {"ckpt_name", sam3CheckpointName}
             }},
-            {"class_type", "SAM3VideoSegmentation"},
-            {"_meta", {{"title", "SAM3 Video Segmentation"}}}
+            {"class_type", "CheckpointLoaderSimple"},
+            {"_meta", {{"title", "Load Checkpoint"}}}
         }},
 
-        // Node 53: SAM3 propagate
-        {"53", {
+        // Node 86: CLIPTextEncode (text prompt)
+        {"86", {
             {"inputs", {
-                {"start_frame", 0},
-                {"end_frame", -1},
-                {"direction", direction},
-                {"offload_model", offloadSam3Model},
-                {"sam3_model", json::array({"55", 0})},
-                {"video_state", json::array({"52", 0})}
+                {"text", textPrompt},
+                {"clip", json::array({"85", 1})}
             }},
-            {"class_type", "SAM3Propagate"},
-            {"_meta", {{"title", "SAM3 Propagate"}}}
+            {"class_type", "CLIPTextEncode"},
+            {"_meta", {{"title", "CLIP Text Encode (Prompt)"}}}
         }},
 
-        // Node 54: SAM3 video output (mask extraction)
-        {"54", {
+        // Node 91: ImageFromBatch — picks reference frame
+        {"91", {
             {"inputs", {
-                {"obj_id", objId},
-                {"plot_all_masks", plotAllMasks},
-                {"masks",      json::array({"53", 0})},
-                {"video_state",json::array({"53", 2})},
-                {"scores",     json::array({"53", 1})}
+                {"batch_index", referenceBatchIndex},
+                {"length", 1},
+                {"image", json::array({"44", 0})}
             }},
-            {"class_type", "SAM3VideoOutput"},
-            {"_meta", {{"title", "SAM3 Video Output"}}}
+            {"class_type", "ImageFromBatch"},
+            {"_meta", {{"title", "ImageFromBatch"}}}
         }},
 
-        // Node 37: VideoMaMa pipeline loader
-        {"37", {
+        // Node 89: SAM3_Detect on the reference frame
+        {"89", {
+            {"inputs", {
+                {"threshold", scoreThreshold},
+                {"refine_iterations", refineIterations},
+                {"individual_masks", individualMasks},
+                {"model",        json::array({"85", 0})},
+                {"image",        json::array({"91", 0})},
+                {"conditioning", json::array({"86", 0})}
+            }},
+            {"class_type", "SAM3_Detect"},
+            {"_meta", {{"title", "SAM3 Detect"}}}
+        }},
+
+        // Node 88: SAM3_VideoTrack across the full sequence
+        {"88", {
+            {"inputs", {
+                {"detection_threshold", detectionThreshold},
+                {"max_objects", maxObjects},
+                {"detect_interval", detectInterval},
+                {"images",       json::array({"44", 0})},
+                {"model",        json::array({"85", 0})},
+                {"initial_mask", json::array({"89", 0})},
+                {"conditioning", json::array({"86", 0})}
+            }},
+            {"class_type", "SAM3_VideoTrack"},
+            {"_meta", {{"title", "SAM3 Video Track"}}}
+        }},
+
+        // Node 87: SAM3_TrackToMask
+        {"87", {
+            {"inputs", {
+                {"object_indices", objectIndices},
+                {"track_data",     json::array({"88", 0})}
+            }},
+            {"class_type", "SAM3_TrackToMask"},
+            {"_meta", {{"title", "SAM3 Track to Mask"}}}
+        }},
+
+        // Node 99: VideoMaMa pipeline loader
+        {"99", {
             {"inputs", {
                 {"base_model_path", baseModelPath},
                 {"unet_checkpoint_path", unetCheckpointPath},
@@ -291,17 +303,17 @@ json MatteMaMaPlugin::buildHardcodedWorkflow(int frame, const std::string& input
             {"_meta", {{"title", "VideoMaMa Pipeline Loader"}}}
         }},
 
-        // Node 42: VideoMaMa sampler
-        {"42", {
+        // Node 98: VideoMaMa sampler
+        {"98", {
             {"inputs", {
                 {"seed", effectiveSeed},
                 {"max_resolution", maxResolution},
                 {"fps", fps},
                 {"motion_bucket_id", motionBucketId},
                 {"noise_aug_strength", noiseAugStrength},
-                {"pipeline", json::array({"37", 0})},
+                {"pipeline", json::array({"99", 0})},
                 {"images",   json::array({"44", 0})},
-                {"masks",    json::array({"54", 0})}
+                {"masks",    json::array({"87", 0})}
             }},
             {"class_type", "VideoMaMaSampler"},
             {"_meta", {{"title", "VideoMaMa Sampler"}}}
@@ -309,7 +321,7 @@ json MatteMaMaPlugin::buildHardcodedWorkflow(int frame, const std::string& input
 
         // Node 35: Mask to image (MaMa output)
         {"35", {
-            {"inputs", {{"mask", json::array({"42", 0})}}},
+            {"inputs", {{"mask", json::array({"98", 0})}}},
             {"class_type", "MaskToImage"},
             {"_meta", {{"title", "Convert Mask to Image"}}}
         }},
@@ -323,6 +335,7 @@ json MatteMaMaPlugin::buildHardcodedWorkflow(int frame, const std::string& input
                 {"start_frame", frame},
                 {"frame_pad", 4},
                 {"save_workflow", "none"},
+                {"create_path_if_missing", true},
                 {"images", json::array({"35", 0})}
             }},
             {"class_type", "SaveEXR"},
@@ -343,20 +356,23 @@ json MatteMaMaPlugin::customizeWorkflowWithParams(const json& baseWorkflow, int 
 {
     if (_logger) _logger->debug("Customizing MatteMaMa workflow with parameters");
 
-    std::string textPrompt, sam3ModelPath, direction, baseModelPath, unetCheckpointPath;
-    std::string precision, attentionMode;
-    double scoreThreshold, noiseAugStrength;
-    int frameIdx, objId, imageLoadCap, seed, maxResolution, fps, motionBucketId, vaeEncodeChunkSize;
-    bool plotAllMasks, offloadSam3Model, enableModelCpuOffload, enableVaeTiling, enableVaeSlicing;
+    std::string textPrompt, sam3CheckpointName, objectIndices;
+    std::string baseModelPath, unetCheckpointPath, precision, attentionMode;
+    double scoreThreshold, detectionThreshold, noiseAugStrength;
+    int    maxObjects, detectInterval, refineIterations, referenceBatchIndex, imageLoadCap;
+    int    seed, maxResolution, fps, motionBucketId, vaeEncodeChunkSize;
+    bool   individualMasks, enableModelCpuOffload, enableVaeTiling, enableVaeSlicing;
 
     _textPrompt->getValue(textPrompt);
     _scoreThreshold->getValue(scoreThreshold);
-    _frameIdx->getValue(frameIdx);
-    direction = getDirectionName();
-    _plotAllMasks->getValue(plotAllMasks);
-    _objId->getValue(objId);
-    _sam3ModelPath->getValue(sam3ModelPath);
-    _offloadSam3Model->getValue(offloadSam3Model);
+    _sam3CheckpointName->getValue(sam3CheckpointName);
+    _objectIndices->getValue(objectIndices);
+    _detectionThreshold->getValue(detectionThreshold);
+    _maxObjects->getValue(maxObjects);
+    _detectInterval->getValue(detectInterval);
+    _refineIterations->getValue(refineIterations);
+    _individualMasks->getValue(individualMasks);
+    _referenceBatchIndex->getValue(referenceBatchIndex);
     _imageLoadCap->getValue(imageLoadCap);
 
     _seed->getValue(seed);
@@ -396,29 +412,31 @@ json MatteMaMaPlugin::customizeWorkflowWithParams(const json& baseWorkflow, int 
 
     // String replacements
     replaceStr("${TEXT_PROMPT}",          textPrompt);
-    replaceStr("${DIRECTION}",            direction);
-    replaceStr("${SAM3_MODEL_PATH}",      sam3ModelPath);
+    replaceStr("${SAM3_CHECKPOINT_NAME}", sam3CheckpointName);
+    replaceStr("${OBJECT_INDICES}",       objectIndices);
     replaceStr("${BASE_MODEL_PATH}",      baseModelPath);
     replaceStr("${UNET_CHECKPOINT_PATH}", unetCheckpointPath);
     replaceStr("${PRECISION}",            precision);
     replaceStr("${ATTENTION_MODE}",       attentionMode);
 
     // Numeric replacements
-    replaceNumeric("\"${SCORE_THRESHOLD}\"",      std::to_string(scoreThreshold));
-    replaceNumeric("\"${FRAME_IDX}\"",            std::to_string(frameIdx));
-    replaceNumeric("\"${OBJ_ID}\"",               std::to_string(objId));
-    replaceNumeric("\"${IMAGE_LOAD_CAP}\"",       std::to_string(imageLoadCap));
-    replaceNumeric("\"${SEED}\"",                 std::to_string(effectiveSeed));
-    replaceNumeric("\"${MAX_RESOLUTION}\"",       std::to_string(maxResolution));
-    replaceNumeric("\"${FPS}\"",                  std::to_string(fps));
-    replaceNumeric("\"${MOTION_BUCKET_ID}\"",     std::to_string(motionBucketId));
-    replaceNumeric("\"${NOISE_AUG_STRENGTH}\"",   std::to_string(noiseAugStrength));
-    replaceNumeric("\"${VAE_ENCODE_CHUNK_SIZE}\"",std::to_string(vaeEncodeChunkSize));
-    replaceNumeric("\"${PLOT_ALL_MASKS}\"",       plotAllMasks        ? "true" : "false");
-    replaceNumeric("\"${OFFLOAD_SAM3_MODEL}\"",   offloadSam3Model    ? "true" : "false");
-    replaceNumeric("\"${ENABLE_MODEL_CPU_OFFLOAD}\"", enableModelCpuOffload ? "true" : "false");
-    replaceNumeric("\"${ENABLE_VAE_TILING}\"",    enableVaeTiling     ? "true" : "false");
-    replaceNumeric("\"${ENABLE_VAE_SLICING}\"",   enableVaeSlicing    ? "true" : "false");
+    replaceNumeric("\"${SCORE_THRESHOLD}\"",         std::to_string(scoreThreshold));
+    replaceNumeric("\"${DETECTION_THRESHOLD}\"",     std::to_string(detectionThreshold));
+    replaceNumeric("\"${MAX_OBJECTS}\"",             std::to_string(maxObjects));
+    replaceNumeric("\"${DETECT_INTERVAL}\"",         std::to_string(detectInterval));
+    replaceNumeric("\"${REFINE_ITERATIONS}\"",       std::to_string(refineIterations));
+    replaceNumeric("\"${REFERENCE_BATCH_INDEX}\"",   std::to_string(referenceBatchIndex));
+    replaceNumeric("\"${IMAGE_LOAD_CAP}\"",          std::to_string(imageLoadCap));
+    replaceNumeric("\"${SEED}\"",                    std::to_string(effectiveSeed));
+    replaceNumeric("\"${MAX_RESOLUTION}\"",          std::to_string(maxResolution));
+    replaceNumeric("\"${FPS}\"",                     std::to_string(fps));
+    replaceNumeric("\"${MOTION_BUCKET_ID}\"",        std::to_string(motionBucketId));
+    replaceNumeric("\"${NOISE_AUG_STRENGTH}\"",      std::to_string(noiseAugStrength));
+    replaceNumeric("\"${VAE_ENCODE_CHUNK_SIZE}\"",   std::to_string(vaeEncodeChunkSize));
+    replaceNumeric("\"${INDIVIDUAL_MASKS}\"",        individualMasks       ? "true" : "false");
+    replaceNumeric("\"${ENABLE_MODEL_CPU_OFFLOAD}\"",enableModelCpuOffload ? "true" : "false");
+    replaceNumeric("\"${ENABLE_VAE_TILING}\"",       enableVaeTiling       ? "true" : "false");
+    replaceNumeric("\"${ENABLE_VAE_SLICING}\"",      enableVaeSlicing      ? "true" : "false");
 
     try {
         json finalWorkflow = json::parse(workflowStr);
@@ -437,7 +455,7 @@ json MatteMaMaPlugin::customizeWorkflowWithParams(const json& baseWorkflow, int 
 std::vector<std::string> MatteMaMaPlugin::getRequiredModels()
 {
     std::string sam3, base, unet;
-    _sam3ModelPath->getValue(sam3);
+    _sam3CheckpointName->getValue(sam3);
     _baseModelPath->getValue(base);
     _unetCheckpointPath->getValue(unet);
     return {sam3, base, unet};
@@ -467,53 +485,79 @@ void MatteMaMaPlugin::describeInContext(OFX::ImageEffectDescriptor &desc,
     textPrompt->setParent(*sam3Group);
     page->addChild(*textPrompt);
 
+    OFX::StringParamDescriptor *objectIndices = desc.defineStringParam("objectIndices");
+    objectIndices->setLabel("Object Indices");
+    objectIndices->setHint("Comma-separated SAM3 object indices to keep in the matte.");
+    objectIndices->setDefault("0");
+    objectIndices->setAnimates(false);
+    objectIndices->setParent(*sam3Group);
+    page->addChild(*objectIndices);
+
+    OFX::IntParamDescriptor *referenceBatchIndex = desc.defineIntParam("referenceBatchIndex");
+    referenceBatchIndex->setLabel("Reference Frame");
+    referenceBatchIndex->setHint("Reference frame for SAM3_Detect.");
+    referenceBatchIndex->setDefault(0);
+    referenceBatchIndex->setRange(0, 9999);
+    referenceBatchIndex->setDisplayRange(0, 200);
+    referenceBatchIndex->setAnimates(false);
+    referenceBatchIndex->setParent(*sam3Group);
+    page->addChild(*referenceBatchIndex);
+
     OFX::DoubleParamDescriptor *scoreThreshold = desc.defineDoubleParam("scoreThreshold");
-    scoreThreshold->setLabel("Threshold");
-    scoreThreshold->setHint("SAM3 detection confidence threshold (0–1). Higher = stricter detection.");
+    scoreThreshold->setLabel("Detect Threshold");
+    scoreThreshold->setHint("SAM3_Detect confidence threshold on the reference frame (0–1).");
     scoreThreshold->setDefault(0.3);
     scoreThreshold->setRange(0.0, 1.0);
     scoreThreshold->setDisplayRange(0.0, 1.0);
     scoreThreshold->setParent(*sam3Group);
     page->addChild(*scoreThreshold);
 
-    OFX::IntParamDescriptor *frameIdx = desc.defineIntParam("frameIdx");
-    frameIdx->setLabel("Reference Frame");
-    frameIdx->setHint("Frame index (0-based) used as the reference for initial SAM3 segmentation.");
-    frameIdx->setDefault(1);
-    frameIdx->setRange(0, 9999);
-    frameIdx->setDisplayRange(0, 100);
-    frameIdx->setAnimates(false);
-    frameIdx->setParent(*sam3Group);
-    page->addChild(*frameIdx);
+    OFX::DoubleParamDescriptor *detectionThreshold = desc.defineDoubleParam("detectionThreshold");
+    detectionThreshold->setLabel("Track Threshold");
+    detectionThreshold->setHint("SAM3_VideoTrack per-frame detection threshold.");
+    detectionThreshold->setDefault(0.5);
+    detectionThreshold->setRange(0.0, 1.0);
+    detectionThreshold->setDisplayRange(0.0, 1.0);
+    detectionThreshold->setParent(*sam3Group);
+    page->addChild(*detectionThreshold);
 
-    OFX::ChoiceParamDescriptor *direction = desc.defineChoiceParam("direction");
-    direction->setLabel("Propagation Direction");
-    direction->setHint("Direction to propagate SAM3 segmentation through the sequence.");
-    direction->appendOption("Forward",  "From reference frame to end");
-    direction->appendOption("Backward", "From reference frame to start");
-    direction->appendOption("Both",     "Both directions");
-    direction->setDefault(0);
-    direction->setAnimates(false);
-    direction->setParent(*sam3Group);
-    page->addChild(*direction);
+    OFX::IntParamDescriptor *maxObjects = desc.defineIntParam("maxObjects");
+    maxObjects->setLabel("Max Objects");
+    maxObjects->setHint("Max objects to track (0 = unlimited).");
+    maxObjects->setDefault(0);
+    maxObjects->setRange(0, 32);
+    maxObjects->setDisplayRange(0, 16);
+    maxObjects->setAnimates(false);
+    maxObjects->setParent(*sam3Group);
+    page->addChild(*maxObjects);
 
-    OFX::BooleanParamDescriptor *plotAllMasks = desc.defineBooleanParam("plotAllMasks");
-    plotAllMasks->setLabel("All Masks");
-    plotAllMasks->setHint("Show all detected objects. Disable to isolate a single object by ID.");
-    plotAllMasks->setDefault(true);
-    plotAllMasks->setParent(*sam3Group);
-    page->addChild(*plotAllMasks);
+    OFX::IntParamDescriptor *detectInterval = desc.defineIntParam("detectInterval");
+    detectInterval->setLabel("Detect Interval");
+    detectInterval->setHint("Detect every N frames.");
+    detectInterval->setDefault(1);
+    detectInterval->setRange(1, 64);
+    detectInterval->setDisplayRange(1, 16);
+    detectInterval->setAnimates(false);
+    detectInterval->setParent(*sam3Group);
+    page->addChild(*detectInterval);
 
-    OFX::IntParamDescriptor *objId = desc.defineIntParam("objId");
-    objId->setLabel("Object ID");
-    objId->setHint("Index of the object to extract when All Masks is disabled.");
-    objId->setDefault(0);
-    objId->setRange(0, 99);
-    objId->setDisplayRange(0, 10);
-    objId->setIsSecret(true);
-    objId->setEnabled(false);
-    objId->setParent(*sam3Group);
-    page->addChild(*objId);
+    OFX::IntParamDescriptor *refineIterations = desc.defineIntParam("refineIterations");
+    refineIterations->setLabel("Refine Iterations");
+    refineIterations->setHint("SAM3_Detect refinement iterations.");
+    refineIterations->setDefault(2);
+    refineIterations->setRange(0, 16);
+    refineIterations->setDisplayRange(0, 16);
+    refineIterations->setAnimates(false);
+    refineIterations->setParent(*sam3Group);
+    page->addChild(*refineIterations);
+
+    OFX::BooleanParamDescriptor *individualMasks = desc.defineBooleanParam("individualMasks");
+    individualMasks->setLabel("Individual Masks");
+    individualMasks->setHint("Individual per-object masks.");
+    individualMasks->setDefault(false);
+    individualMasks->setAnimates(false);
+    individualMasks->setParent(*sam3Group);
+    page->addChild(*individualMasks);
 
     // ---- VIDEOMAMA SAMPLER GROUP ----
     OFX::GroupParamDescriptor *samplerGroup = desc.defineGroupParam("mamaGroup");
@@ -604,13 +648,13 @@ void MatteMaMaPlugin::describeInContext(OFX::ImageEffectDescriptor &desc,
     unetCheckpointPath->setParent(*modelGroup);
     page->addChild(*unetCheckpointPath);
 
-    OFX::StringParamDescriptor *sam3ModelPath = desc.defineStringParam("sam3ModelPath");
-    sam3ModelPath->setLabel("SAM3 Model");
-    sam3ModelPath->setHint("Path to the SAM3 model file (relative to ComfyUI models dir).");
-    sam3ModelPath->setDefault("models/sam3/sam3.pt");
-    sam3ModelPath->setAnimates(false);
-    sam3ModelPath->setParent(*modelGroup);
-    page->addChild(*sam3ModelPath);
+    OFX::StringParamDescriptor *sam3CheckpointName = desc.defineStringParam("sam3CheckpointName");
+    sam3CheckpointName->setLabel("SAM3 Checkpoint");
+    sam3CheckpointName->setHint("Checkpoint filename in ComfyUI/models/checkpoints.");
+    sam3CheckpointName->setDefault("sam3.1_multiplex_fp16.safetensors");
+    sam3CheckpointName->setAnimates(false);
+    sam3CheckpointName->setParent(*modelGroup);
+    page->addChild(*sam3CheckpointName);
 
     OFX::ChoiceParamDescriptor *precision = desc.defineChoiceParam("precision");
     precision->setLabel("Precision");
@@ -651,14 +695,6 @@ void MatteMaMaPlugin::describeInContext(OFX::ImageEffectDescriptor &desc,
     vaeEncodeChunkSize->setAnimates(false);
     vaeEncodeChunkSize->setParent(*modelGroup);
     page->addChild(*vaeEncodeChunkSize);
-
-    OFX::BooleanParamDescriptor *offloadSam3Model = desc.defineBooleanParam("offloadSam3Model");
-    offloadSam3Model->setLabel("Offload SAM3");
-    offloadSam3Model->setHint("Offload SAM3 model to CPU after propagation to free VRAM for VideoMaMa.");
-    offloadSam3Model->setDefault(false);
-    offloadSam3Model->setAnimates(false);
-    offloadSam3Model->setParent(*modelGroup);
-    page->addChild(*offloadSam3Model);
 
     OFX::BooleanParamDescriptor *enableVaeTiling = desc.defineBooleanParam("enableVaeTiling");
     enableVaeTiling->setLabel("VAE Tiling");
@@ -739,7 +775,7 @@ void MatteMaMaPluginFactory::describe(OFX::ImageEffectDescriptor &desc)
         "3. VideoMaMa refines the mask into a high-quality alpha matte\n\n"
         "Requires:\n"
         "- ComfyUI server with ComfyUI-MaMa and ComfyUI-SAM3 extensions\n"
-        "- SAM3 model (sam3.pt) and VideoMaMa UNet checkpoint\n"
+        "- SAM3 checkpoint (e.g. sam3.1_multiplex_fp16.safetensors) and VideoMaMa UNet checkpoint\n"
         "- SVD base model (stable-video-diffusion-img2vid-xt)\n"
         "- Shared network storage for image exchange\n\n"
         "Based on: https://github.com/kijai/ComfyUI-MaMa\n"

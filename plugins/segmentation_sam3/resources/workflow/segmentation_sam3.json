@@ -1,5 +1,99 @@
 {
-  "137": {
+  "2": {
+    "inputs": {
+      "ckpt_name": "${CKPT_NAME}"
+    },
+    "class_type": "CheckpointLoaderSimple",
+    "_meta": {
+      "title": "Load Checkpoint"
+    }
+  },
+  "8": {
+    "inputs": {
+      "detection_threshold": "${SCORE_THRESHOLD}",
+      "max_objects": "${MAX_OBJECTS}",
+      "detect_interval": "${DETECT_INTERVAL}",
+      "images": ["24", 0],
+      "model": ["2", 0],
+      "initial_mask": ["13", 0],
+      "conditioning": ["14", 0]
+    },
+    "class_type": "SAM3_VideoTrack",
+    "_meta": {
+      "title": "SAM3 Video Track"
+    }
+  },
+  "9": {
+    "inputs": {
+      "object_indices": "${OBJECT_INDICES}",
+      "track_data": ["8", 0]
+    },
+    "class_type": "SAM3_TrackToMask",
+    "_meta": {
+      "title": "SAM3 Track to Mask"
+    }
+  },
+  "13": {
+    "inputs": {
+      "threshold": "${SCORE_THRESHOLD}",
+      "refine_iterations": "${REFINE_ITERATIONS}",
+      "individual_masks": "${INDIVIDUAL_MASKS}",
+      "model": ["2", 0],
+      "image": ["15", 0],
+      "conditioning": ["14", 0]
+    },
+    "class_type": "SAM3_Detect",
+    "_meta": {
+      "title": "SAM3 Detect"
+    }
+  },
+  "14": {
+    "inputs": {
+      "text": "${PROMPT}",
+      "clip": ["2", 1]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Prompt)"
+    }
+  },
+  "15": {
+    "inputs": {
+      "batch_index": "${BATCH_INDEX}",
+      "length": 1,
+      "image": ["24", 0]
+    },
+    "class_type": "ImageFromBatch",
+    "_meta": {
+      "title": "ImageFromBatch"
+    }
+  },
+  "16": {
+    "inputs": {
+      "mask": ["9", 0]
+    },
+    "class_type": "MaskToImage",
+    "_meta": {
+      "title": "Convert Mask to Image"
+    }
+  },
+  "23": {
+    "inputs": {
+      "filename_prefix": "${OUTPUT_PREFIX}",
+      "tonemap": "linear",
+      "version": -1,
+      "start_frame": "${FRAME}",
+      "frame_pad": 4,
+      "save_workflow": "none",
+      "create_path_if_missing": true,
+      "images": ["16", 0]
+    },
+    "class_type": "SaveEXR",
+    "_meta": {
+      "title": "Save EXR"
+    }
+  },
+  "24": {
     "inputs": {
       "filepath": "${INPUT_PATH}",
       "tonemap": "linear",
@@ -10,79 +104,6 @@
     "class_type": "LoadEXR",
     "_meta": {
       "title": "Load EXR"
-    }
-  },
-  "138": {
-    "inputs": {
-      "model_path": "${MODEL_PATH}"
-    },
-    "class_type": "LoadSAM3Model",
-    "_meta": {
-      "title": "(down)Load SAM3 Model"
-    }
-  },
-  "136": {
-    "inputs": {
-      "prompt_mode": "text",
-      "text_prompt": "${PROMPT}",
-      "frame_idx": "${FRAME_IDX}",
-      "score_threshold": "${SCORE_THRESHOLD}",
-      "video_frames": ["137", 0]
-    },
-    "class_type": "SAM3VideoSegmentation",
-    "_meta": {
-      "title": "SAM3 Video Segmentation"
-    }
-  },
-  "134": {
-    "inputs": {
-      "start_frame": 0,
-      "end_frame": -1,
-      "direction": "${DIRECTION}",
-      "offload_model": "${OFFLOAD_MODEL}",
-      "sam3_model": ["138", 0],
-      "video_state": ["136", 0]
-    },
-    "class_type": "SAM3Propagate",
-    "_meta": {
-      "title": "SAM3 Propagate"
-    }
-  },
-  "133": {
-    "inputs": {
-      "obj_id": "${OBJ_ID}",
-      "plot_all_masks": "${PLOT_ALL_MASKS}",
-      "masks": ["134", 0],
-      "video_state": ["134", 2],
-      "scores": ["134", 1]
-    },
-    "class_type": "SAM3VideoOutput",
-    "_meta": {
-      "title": "SAM3 Video Output"
-    }
-  },
-  "132": {
-    "inputs": {
-      "mask": ["133", 0]
-    },
-    "class_type": "MaskToImage",
-    "_meta": {
-      "title": "Convert Mask to Image"
-    }
-  },
-  "139": {
-    "inputs": {
-      "filename_prefix": "${OUTPUT_PREFIX}",
-      "tonemap": "linear",
-      "version": -1,
-      "start_frame": "${FRAME}",
-      "frame_pad": 4,
-      "save_workflow": "none",
-      "images": ["132", 0]
-    },
-    "class_type": "SaveEXR",
-    "_meta": {
-      "title": "SAVE_SEG_MATTE"
     }
   }
 }

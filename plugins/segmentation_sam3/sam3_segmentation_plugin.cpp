@@ -16,23 +16,25 @@ SAM3SegmentationPlugin::SAM3SegmentationPlugin(OfxImageEffectHandle handle)
     : BasePlugin(handle)
     , _textPrompt(nullptr)
     , _scoreThreshold(nullptr)
-    , _frameIdx(nullptr)
-    , _direction(nullptr)
-    , _objId(nullptr)
-    , _plotAllMasks(nullptr)
+    , _batchIndex(nullptr)
+    , _objectIndices(nullptr)
+    , _maxObjects(nullptr)
+    , _detectInterval(nullptr)
+    , _refineIterations(nullptr)
+    , _individualMasks(nullptr)
     , _imageLoadCap(nullptr)
-    , _modelPath(nullptr)
-    , _offloadModel(nullptr)
+    , _ckptName(nullptr)
 {
-    _textPrompt     = fetchStringParam("textPrompt");
-    _scoreThreshold = fetchDoubleParam("scoreThreshold");
-    _frameIdx       = fetchDoubleParam("frameIdx");
-    _direction      = fetchChoiceParam("direction");
-    _objId          = fetchIntParam("objId");
-    _plotAllMasks   = fetchBooleanParam("plotAllMasks");
-    _imageLoadCap   = fetchIntParam("imageLoadCap");
-    _modelPath      = fetchStringParam("modelPath");
-    _offloadModel   = fetchBooleanParam("offloadModel");
+    _textPrompt       = fetchStringParam("textPrompt");
+    _scoreThreshold   = fetchDoubleParam("scoreThreshold");
+    _batchIndex       = fetchIntParam("batchIndex");
+    _objectIndices    = fetchStringParam("objectIndices");
+    _maxObjects       = fetchIntParam("maxObjects");
+    _detectInterval   = fetchIntParam("detectInterval");
+    _refineIterations = fetchIntParam("refineIterations");
+    _individualMasks  = fetchBooleanParam("individualMasks");
+    _imageLoadCap     = fetchIntParam("imageLoadCap");
+    _ckptName         = fetchStringParam("ckptName");
 }
 
 SAM3SegmentationPlugin::~SAM3SegmentationPlugin()
@@ -43,21 +45,6 @@ int SAM3SegmentationPlugin::getImageLoadCap() const {
     int cap = 0;
     if (_imageLoadCap) _imageLoadCap->getValue(cap);
     return cap;
-}
-
-void SAM3SegmentationPlugin::changedParam(const OFX::InstanceChangedArgs &args,
-                                          const std::string &paramName)
-{
-    // Base class handles server address / port changes
-    BasePlugin::changedParam(args, paramName);
-
-    // objId only matters when plotAllMasks is false
-    if (paramName == "plotAllMasks") {
-        bool plotAll;
-        _plotAllMasks->getValueAtTime(args.time, plotAll);
-        _objId->setEnabled(!plotAll);
-        _objId->setIsSecret(plotAll);
-    }
 }
 
 // ============================================================================
@@ -118,32 +105,30 @@ json SAM3SegmentationPlugin::buildHardcodedWorkflow(int frame, const std::string
     _textPrompt->getValue(prompt);
 
     double scoreThreshold = _scoreThreshold->getValue();
-    double frameIdx       = _frameIdx->getValue();
 
-    int directionIndex;
-    _direction->getValue(directionIndex);
-    std::string direction;
-    switch (directionIndex) {
-        case 0: direction = "forward";  break;
-        case 1: direction = "backward"; break;
-        case 2: direction = "both";     break;
-        default: direction = "forward";
-    }
+    int batchIndex;
+    _batchIndex->getValue(batchIndex);
 
-    int  objId;
-    _objId->getValue(objId);
+    std::string objectIndices;
+    _objectIndices->getValue(objectIndices);
 
-    bool plotAllMasks;
-    _plotAllMasks->getValue(plotAllMasks);
+    int maxObjects;
+    _maxObjects->getValue(maxObjects);
+
+    int detectInterval;
+    _detectInterval->getValue(detectInterval);
+
+    int refineIterations;
+    _refineIterations->getValue(refineIterations);
+
+    bool individualMasks;
+    _individualMasks->getValue(individualMasks);
 
     int imageLoadCap;
     _imageLoadCap->getValue(imageLoadCap);
 
-    std::string modelPath;
-    _modelPath->getValue(modelPath);
-
-    bool offloadModel;
-    _offloadModel->getValue(offloadModel);
+    std::string ckptName;
+    _ckptName->getValue(ckptName);
 
     // Build output path
     std::string mountPath, project, workflow_name, version;
@@ -166,22 +151,117 @@ json SAM3SegmentationPlugin::buildHardcodedWorkflow(int frame, const std::string
         _logger->info("SAM3 parameters:");
         _logger->info("  Prompt: {}", prompt);
         _logger->info("  Score threshold: {}", scoreThreshold);
-        _logger->info("  Frame idx: {}", frameIdx);
-        _logger->info("  Direction: {}", direction);
-        _logger->info("  Obj ID: {}", objId);
-        _logger->info("  Plot all masks: {}", plotAllMasks);
+        _logger->info("  Batch index: {}", batchIndex);
+        _logger->info("  Object indices: {}", objectIndices);
+        _logger->info("  Max objects: {}", maxObjects);
+        _logger->info("  Detect interval: {}", detectInterval);
+        _logger->info("  Refine iterations: {}", refineIterations);
+        _logger->info("  Individual masks: {}", individualMasks);
         _logger->info("  Image load cap: {}", imageLoadCap);
-        _logger->info("  Model path: {}", modelPath);
-        _logger->info("  Offload model: {}", offloadModel);
+        _logger->info("  Checkpoint: {}", ckptName);
         _logger->info("  Input (ComfyUI): {}", comfyInputPath);
         _logger->info("  Output prefix (ComfyUI): {}", comfyOutputPrefix);
     }
 
-    // Build workflow JSON matching segmentation_SAM3_ofx_api.json structure
+    // Build workflow JSON matching segmentation_sam3.json structure
     json workflow = {
 
-        // Node 137: Load EXR (single frame file path, same as old SAM plugin)
-        {"137", {
+        // Node 2: Load SAM3.1 checkpoint
+        {"2", {
+            {"inputs", {
+                {"ckpt_name", ckptName}
+            }},
+            {"class_type", "CheckpointLoaderSimple"},
+            {"_meta", {{"title", "Load Checkpoint"}}}
+        }},
+
+        // Node 8: SAM3 Video Track (propagate across all frames)
+        {"8", {
+            {"inputs", {
+                {"detection_threshold", scoreThreshold},
+                {"max_objects", maxObjects},
+                {"detect_interval", detectInterval},
+                {"images", json::array({"24", 0})},
+                {"model", json::array({"2", 0})},
+                {"initial_mask", json::array({"13", 0})},
+                {"conditioning", json::array({"14", 0})}
+            }},
+            {"class_type", "SAM3_VideoTrack"},
+            {"_meta", {{"title", "SAM3 Video Track"}}}
+        }},
+
+        // Node 9: SAM3 Track to Mask (select objects of interest)
+        {"9", {
+            {"inputs", {
+                {"object_indices", objectIndices},
+                {"track_data", json::array({"8", 0})}
+            }},
+            {"class_type", "SAM3_TrackToMask"},
+            {"_meta", {{"title", "SAM3 Track to Mask"}}}
+        }},
+
+        // Node 13: SAM3 Detect (initial detection on reference frame)
+        {"13", {
+            {"inputs", {
+                {"threshold", scoreThreshold},
+                {"refine_iterations", refineIterations},
+                {"individual_masks", individualMasks},
+                {"model", json::array({"2", 0})},
+                {"image", json::array({"15", 0})},
+                {"conditioning", json::array({"14", 0})}
+            }},
+            {"class_type", "SAM3_Detect"},
+            {"_meta", {{"title", "SAM3 Detect"}}}
+        }},
+
+        // Node 14: CLIP Text Encode (prompt -> conditioning)
+        {"14", {
+            {"inputs", {
+                {"text", prompt},
+                {"clip", json::array({"2", 1})}
+            }},
+            {"class_type", "CLIPTextEncode"},
+            {"_meta", {{"title", "CLIP Text Encode (Prompt)"}}}
+        }},
+
+        // Node 15: ImageFromBatch (pick reference frame from loaded batch)
+        {"15", {
+            {"inputs", {
+                {"batch_index", batchIndex},
+                {"length", 1},
+                {"image", json::array({"24", 0})}
+            }},
+            {"class_type", "ImageFromBatch"},
+            {"_meta", {{"title", "ImageFromBatch"}}}
+        }},
+
+        // Node 16: Convert mask to image
+        {"16", {
+            {"inputs", {
+                {"mask", json::array({"9", 0})}
+            }},
+            {"class_type", "MaskToImage"},
+            {"_meta", {{"title", "Convert Mask to Image"}}}
+        }},
+
+        // Node 23: Save EXR
+        {"23", {
+            {"inputs", {
+                {"filename_prefix", comfyOutputPrefix},
+                {"tonemap", "linear"},
+                {"version", -1},
+                {"start_frame", frame},
+                {"frame_pad", 4},
+                {"save_workflow", "none"},
+                {"create_path_if_missing", true},
+                {"images", json::array({"16", 0})}
+            }},
+            {"class_type", "SaveEXR"},
+            {"_meta", {{"title", "Save EXR"}}}
+        }},
+
+        // Node 24: Load EXR sequence
+        {"24", {
             {"inputs", {
                 {"filepath", comfyInputPath},
                 {"tonemap", "linear"},
@@ -191,79 +271,6 @@ json SAM3SegmentationPlugin::buildHardcodedWorkflow(int frame, const std::string
             }},
             {"class_type", "LoadEXR"},
             {"_meta", {{"title", "Load EXR"}}}
-        }},
-
-        // Node 138: Load SAM3 model
-        {"138", {
-            {"inputs", {
-                {"model_path", modelPath}
-            }},
-            {"class_type", "LoadSAM3Model"},
-            {"_meta", {{"title", "(down)Load SAM3 Model"}}}
-        }},
-
-        // Node 136: SAM3 initial segmentation on reference frame
-        {"136", {
-            {"inputs", {
-                {"prompt_mode", "text"},
-                {"text_prompt", prompt},
-                {"frame_idx", frameIdx},
-                {"score_threshold", scoreThreshold},
-                {"video_frames", json::array({"137", 0})}
-            }},
-            {"class_type", "SAM3VideoSegmentation"},
-            {"_meta", {{"title", "SAM3 Video Segmentation"}}}
-        }},
-
-        // Node 134: Propagate segmentation through all frames
-        {"134", {
-            {"inputs", {
-                {"start_frame", 0},
-                {"end_frame", -1},
-                {"direction", direction},
-                {"offload_model", offloadModel},
-                {"sam3_model", json::array({"138", 0})},
-                {"video_state", json::array({"136", 0})}
-            }},
-            {"class_type", "SAM3Propagate"},
-            {"_meta", {{"title", "SAM3 Propagate"}}}
-        }},
-
-        // Node 133: Extract mask from propagation result
-        {"133", {
-            {"inputs", {
-                {"obj_id", objId},
-                {"plot_all_masks", plotAllMasks},
-                {"masks", json::array({"134", 0})},
-                {"video_state", json::array({"134", 2})},
-                {"scores", json::array({"134", 1})}
-            }},
-            {"class_type", "SAM3VideoOutput"},
-            {"_meta", {{"title", "SAM3 Video Output"}}}
-        }},
-
-        // Node 132: Convert mask to image
-        {"132", {
-            {"inputs", {
-                {"mask", json::array({"133", 0})}
-            }},
-            {"class_type", "MaskToImage"},
-            {"_meta", {{"title", "Convert Mask to Image"}}}
-        }},
-
-        // Node 139: Save result as EXR
-        {"139", {
-            {"inputs", {
-                {"filename_prefix", comfyOutputPrefix},
-                {"tonemap", "linear"},
-                {"version", -1},
-                {"start_frame", frame},
-                {"frame_pad", 4},
-                {"save_workflow", "none"},
-                {"images", json::array({"132", 0})}
-            }},
-            {"class_type", "SaveEXR"},
-            {"_meta", {{"title", "SAVE_SEG_MATTE"}}}
         }}
     };
 
@@ -285,32 +292,30 @@ json SAM3SegmentationPlugin::customizeWorkflowWithParams(const json& baseWorkflo
     _textPrompt->getValue(prompt);
 
     double scoreThreshold = _scoreThreshold->getValue();
-    double frameIdx       = _frameIdx->getValue();
 
-    int directionIndex;
-    _direction->getValue(directionIndex);
-    std::string direction;
-    switch (directionIndex) {
-        case 0: direction = "forward";  break;
-        case 1: direction = "backward"; break;
-        case 2: direction = "both";     break;
-        default: direction = "forward";
-    }
+    int batchIndex;
+    _batchIndex->getValue(batchIndex);
 
-    int  objId;
-    _objId->getValue(objId);
+    std::string objectIndices;
+    _objectIndices->getValue(objectIndices);
 
-    bool plotAllMasks;
-    _plotAllMasks->getValue(plotAllMasks);
+    int maxObjects;
+    _maxObjects->getValue(maxObjects);
+
+    int detectInterval;
+    _detectInterval->getValue(detectInterval);
+
+    int refineIterations;
+    _refineIterations->getValue(refineIterations);
+
+    bool individualMasks;
+    _individualMasks->getValue(individualMasks);
 
     int imageLoadCap;
     _imageLoadCap->getValue(imageLoadCap);
 
-    std::string modelPath;
-    _modelPath->getValue(modelPath);
-
-    bool offloadModel;
-    _offloadModel->getValue(offloadModel);
+    std::string ckptName;
+    _ckptName->getValue(ckptName);
 
     // Placeholder-based replacement in serialised JSON
     std::string workflowStr = baseWorkflow.dump();
@@ -324,7 +329,7 @@ json SAM3SegmentationPlugin::customizeWorkflowWithParams(const json& baseWorkflo
     };
 
     auto replaceNumeric = [&](const std::string& quotedPlaceholder, const std::string& numStr) {
-        // Remove surrounding quotes so the JSON value becomes a number, not a string
+        // Remove surrounding quotes so the JSON value becomes a number, not a string/bool
         size_t pos = 0;
         while ((pos = workflowStr.find(quotedPlaceholder, pos)) != std::string::npos) {
             workflowStr.replace(pos, quotedPlaceholder.length(), numStr);
@@ -332,17 +337,18 @@ json SAM3SegmentationPlugin::customizeWorkflowWithParams(const json& baseWorkflo
         }
     };
 
-    replaceStr("${PROMPT}", prompt);
-    replaceStr("${DIRECTION}", direction);
-    replaceStr("${MODEL_PATH}", modelPath);
+    replaceStr("${PROMPT}",         prompt);
+    replaceStr("${CKPT_NAME}",      ckptName);
+    replaceStr("${OBJECT_INDICES}", objectIndices);
 
-    replaceNumeric("\"${SCORE_THRESHOLD}\"", std::to_string(scoreThreshold));
-    replaceNumeric("\"${FRAME_IDX}\"",       std::to_string(frameIdx));
-    replaceNumeric("\"${OBJ_ID}\"",          std::to_string(objId));
-    replaceNumeric("\"${PLOT_ALL_MASKS}\"",  plotAllMasks ? "true" : "false");
-    replaceNumeric("\"${OFFLOAD_MODEL}\"",   offloadModel ? "true" : "false");
-    replaceNumeric("\"${IMAGE_LOAD_CAP}\"",  std::to_string(imageLoadCap));
-    // Note: ${FRAME} is handled by the base class customizeWorkflow()
+    replaceNumeric("\"${SCORE_THRESHOLD}\"",   std::to_string(scoreThreshold));
+    replaceNumeric("\"${BATCH_INDEX}\"",       std::to_string(batchIndex));
+    replaceNumeric("\"${MAX_OBJECTS}\"",       std::to_string(maxObjects));
+    replaceNumeric("\"${DETECT_INTERVAL}\"",   std::to_string(detectInterval));
+    replaceNumeric("\"${REFINE_ITERATIONS}\"", std::to_string(refineIterations));
+    replaceNumeric("\"${INDIVIDUAL_MASKS}\"",  individualMasks ? "true" : "false");
+    replaceNumeric("\"${IMAGE_LOAD_CAP}\"",    std::to_string(imageLoadCap));
+    // Note: ${FRAME}, ${INPUT_PATH}, ${OUTPUT_PREFIX} are handled by the base class customizeWorkflow()
 
     try {
         json finalWorkflow = json::parse(workflowStr);
@@ -362,9 +368,9 @@ json SAM3SegmentationPlugin::customizeWorkflowWithParams(const json& baseWorkflo
 
 std::vector<std::string> SAM3SegmentationPlugin::getRequiredModels()
 {
-    std::string modelPath;
-    _modelPath->getValue(modelPath);
-    return {modelPath};
+    std::string ckptName;
+    _ckptName->getValue(ckptName);
+    return {ckptName};
 }
 
 // ============================================================================
@@ -402,47 +408,66 @@ void SAM3SegmentationPlugin::describeInContext(OFX::ImageEffectDescriptor &desc,
     scoreThreshold->setParent(*samGroup);
     page->addChild(*scoreThreshold);
 
-    // Reference frame index
-    OFX::DoubleParamDescriptor *frameIdx = desc.defineDoubleParam("frameIdx");
-    frameIdx->setLabel("Reference Frame");
-    frameIdx->setHint("Fraction of the sequence to use as reference for initial segmentation (0.0 = first frame, 1.0 = last frame).");
-    frameIdx->setDefault(0.3);
-    frameIdx->setRange(0.0, 1.0);
-    frameIdx->setDisplayRange(0.0, 1.0);
-    frameIdx->setParent(*samGroup);
-    page->addChild(*frameIdx);
+    // Reference frame index (in the loaded batch)
+    OFX::IntParamDescriptor *batchIndex = desc.defineIntParam("batchIndex");
+    batchIndex->setLabel("Reference Frame");
+    batchIndex->setHint("Index of the frame in the loaded EXR batch to use as the reference frame for initial SAM3 detection.");
+    batchIndex->setDefault(0);
+    batchIndex->setRange(0, 1023);
+    batchIndex->setDisplayRange(0, 50);
+    batchIndex->setAnimates(false);
+    batchIndex->setParent(*samGroup);
+    page->addChild(*batchIndex);
 
-    // Propagation direction
-    OFX::ChoiceParamDescriptor *direction = desc.defineChoiceParam("direction");
-    direction->setLabel("Propagation Direction");
-    direction->setHint("Direction to propagate segmentation through the sequence.");
-    direction->appendOption("Forward",  "Propagate from reference frame to end");
-    direction->appendOption("Backward", "Propagate from reference frame to start");
-    direction->appendOption("Both",     "Propagate in both directions");
-    direction->setDefault(0);
-    direction->setAnimates(false);
-    direction->setParent(*samGroup);
-    page->addChild(*direction);
+    // Object indices (comma-separated list)
+    OFX::StringParamDescriptor *objectIndices = desc.defineStringParam("objectIndices");
+    objectIndices->setLabel("Object Indices");
+    objectIndices->setHint("Comma-separated list of detected object indices to keep in the mask (e.g. '0' or '0,2,5').");
+    objectIndices->setDefault("0");
+    objectIndices->setAnimates(false);
+    objectIndices->setParent(*samGroup);
+    page->addChild(*objectIndices);
 
-    // Plot all masks
-    OFX::BooleanParamDescriptor *plotAllMasks = desc.defineBooleanParam("plotAllMasks");
-    plotAllMasks->setLabel("All Masks");
-    plotAllMasks->setHint("When enabled, all detected objects are shown. When disabled, only the object with Object ID is shown.");
-    plotAllMasks->setDefault(true);
-    plotAllMasks->setParent(*samGroup);
-    page->addChild(*plotAllMasks);
+    // Max objects
+    OFX::IntParamDescriptor *maxObjects = desc.defineIntParam("maxObjects");
+    maxObjects->setLabel("Max Objects");
+    maxObjects->setHint("Maximum number of detected objects to track (0 = unlimited).");
+    maxObjects->setDefault(0);
+    maxObjects->setRange(0, 100);
+    maxObjects->setDisplayRange(0, 20);
+    maxObjects->setAnimates(false);
+    maxObjects->setParent(*samGroup);
+    page->addChild(*maxObjects);
 
-    // Object ID (visible when plotAllMasks is false)
-    OFX::IntParamDescriptor *objId = desc.defineIntParam("objId");
-    objId->setLabel("Object ID");
-    objId->setHint("Index of the object to extract when All Masks is disabled (0 = first detected object).");
-    objId->setDefault(0);
-    objId->setRange(0, 99);
-    objId->setDisplayRange(0, 10);
-    objId->setIsSecret(true);   // Hidden by default (plotAllMasks = true)
-    objId->setEnabled(false);
-    objId->setParent(*samGroup);
-    page->addChild(*objId);
+    // Detect interval
+    OFX::IntParamDescriptor *detectInterval = desc.defineIntParam("detectInterval");
+    detectInterval->setLabel("Detect Interval");
+    detectInterval->setHint("Run SAM3 detection every N frames; intermediate frames are tracked.");
+    detectInterval->setDefault(1);
+    detectInterval->setRange(1, 100);
+    detectInterval->setDisplayRange(1, 30);
+    detectInterval->setAnimates(false);
+    detectInterval->setParent(*samGroup);
+    page->addChild(*detectInterval);
+
+    // Refine iterations
+    OFX::IntParamDescriptor *refineIterations = desc.defineIntParam("refineIterations");
+    refineIterations->setLabel("Refine Iterations");
+    refineIterations->setHint("Number of mask refinement iterations on the reference frame.");
+    refineIterations->setDefault(2);
+    refineIterations->setRange(0, 10);
+    refineIterations->setDisplayRange(0, 10);
+    refineIterations->setAnimates(false);
+    refineIterations->setParent(*samGroup);
+    page->addChild(*refineIterations);
+
+    // Individual masks
+    OFX::BooleanParamDescriptor *individualMasks = desc.defineBooleanParam("individualMasks");
+    individualMasks->setLabel("Individual Masks");
+    individualMasks->setHint("Generate separate masks per detected object instead of a combined mask.");
+    individualMasks->setDefault(false);
+    individualMasks->setParent(*samGroup);
+    page->addChild(*individualMasks);
 
     // Frame limit (image load cap)
     OFX::IntParamDescriptor *imageLoadCap = desc.defineIntParam("imageLoadCap");
@@ -461,22 +486,14 @@ void SAM3SegmentationPlugin::describeInContext(OFX::ImageEffectDescriptor &desc,
     modelGroup->setOpen(false);
     page->addChild(*modelGroup);
 
-    // SAM3 model path
-    OFX::StringParamDescriptor *modelPath = desc.defineStringParam("modelPath");
-    modelPath->setLabel("SAM3 Model Path");
-    modelPath->setHint("Path to the SAM3 model file, relative to the ComfyUI models directory (e.g., 'models/sam3/sam3.pt').");
-    modelPath->setDefault("models/sam3/sam3.pt");
-    modelPath->setAnimates(false);
-    modelPath->setParent(*modelGroup);
-    page->addChild(*modelPath);
-
-    // Offload model (advanced)
-    OFX::BooleanParamDescriptor *offloadModel = desc.defineBooleanParam("offloadModel");
-    offloadModel->setLabel("Offload Model");
-    offloadModel->setHint("Offload SAM3 model to CPU after inference to save VRAM. Slower but uses less GPU memory.");
-    offloadModel->setDefault(false);
-    offloadModel->setParent(*modelGroup);
-    page->addChild(*offloadModel);
+    // SAM3.1 checkpoint name (CheckpointLoaderSimple)
+    OFX::StringParamDescriptor *ckptName = desc.defineStringParam("ckptName");
+    ckptName->setLabel("Checkpoint");
+    ckptName->setHint("SAM3.1 checkpoint filename, relative to ComfyUI's models/checkpoints directory.");
+    ckptName->setDefault("sam3.1_multiplex_fp16.safetensors");
+    ckptName->setAnimates(false);
+    ckptName->setParent(*modelGroup);
+    page->addChild(*ckptName);
 
     // Add common parameters (server, project, cache, etc.) with optional config defaults
     BasePlugin::describeCommonParameters(desc, context, page, page, page, configDefaults,

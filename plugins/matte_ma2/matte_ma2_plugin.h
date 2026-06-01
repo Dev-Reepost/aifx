@@ -13,17 +13,19 @@ namespace ComfyUI {
 /**
  * @brief OFX plugin for MatAnyone V2 matting via ComfyUI
  *
- * Combines SAM3 video segmentation with MatAnyone2 memory-based video matting
- * to produce temporally-consistent alpha mattes from video sequences.
+ * Combines SAM3 (checkpoint-based) detect + video tracking with MatAnyone2
+ * memory-based video matting to produce temporally-consistent alpha mattes
+ * from video sequences.
  *
  * Pipeline:
- * 1. Load reference frame for SAM3          (node 93 - small load cap)
- * 2. SAM3 segmentation + propagation        (nodes 94, 91, 89, 88)
- * 3. Load full sequence for MatAnyone2      (node 171 - full load cap)
- * 4. MatAnyone2 matting                     (node 166)
- * 5. Save matte as EXR                      (node 172)
- *
- * Note: MatAnyone2 outputs an image directly (no MaskToImage step needed).
+ * 1. Load full sequence                       (node 171)
+ * 2. Pick reference frame                     (node 179 - Frame Select)
+ * 3. CheckpointLoaderSimple + CLIPTextEncode  (nodes 183, 184)
+ * 4. SAM3 detect on reference frame           (node 187)
+ * 5. SAM3 video track over full sequence      (node 186)
+ * 6. SAM3 track-to-mask                       (node 185)
+ * 7. MatAnyone2 matting                       (node 166)
+ * 8. Save matte as EXR                        (node 172)
  *
  * Based on: https://github.com/kijai/ComfyUI-MatAnyone
  *           https://github.com/PozzettiAndrea/ComfyUI-SAM3
@@ -36,10 +38,7 @@ public:
     virtual json buildWorkflow(int frame, const std::map<std::string, std::string>& inputPaths) override;
     virtual std::vector<std::string> getRequiredModels() override;
     bool isSequencePlugin() const override { return true; }
-    int  getImageLoadCap()  const override;  // returns _imageLoadCap (full MatAnyone2 sequence)
-
-    virtual void changedParam(const OFX::InstanceChangedArgs &args,
-                              const std::string &paramName) override;
+    int  getImageLoadCap()  const override;  // returns _imageLoadCap (full sequence cap)
 
     static void describeInContext(OFX::ImageEffectDescriptor &desc,
                                   OFX::ContextEnum context,
@@ -48,14 +47,14 @@ public:
 private:
     // --- SAM3 parameters ---
     OFX::StringParam  *_textPrompt;
-    OFX::DoubleParam  *_scoreThreshold;
-    OFX::DoubleParam  *_frameIdx;        // 0.0–1.0 ratio (matches workflow's float value)
-    OFX::ChoiceParam  *_direction;
-    OFX::BooleanParam *_plotAllMasks;
-    OFX::IntParam     *_objId;
-    OFX::StringParam  *_sam3ModelPath;
-    OFX::BooleanParam *_offloadSam3Model;
-    OFX::IntParam     *_sam3ImageLoadCap; // Frames loaded for SAM3 (typically 1–few)
+    OFX::StringParam  *_sam3CkptName;
+    OFX::StringParam  *_objectIndices;
+    OFX::IntParam     *_frameSelect;
+    OFX::DoubleParam  *_detectionThreshold;
+    OFX::IntParam     *_maxObjects;
+    OFX::IntParam     *_detectInterval;
+    OFX::IntParam     *_refineIterations;
+    OFX::BooleanParam *_individualMasks;
 
     // --- MatAnyone2 parameters ---
     OFX::IntParam     *_maskFrame;
@@ -65,12 +64,10 @@ private:
     OFX::IntParam     *_maxInternalSize;
     OFX::IntParam     *_maxMemFrames;
     OFX::BooleanParam *_useLongTerm;
-    OFX::IntParam     *_imageLoadCap;    // Frames loaded for MatAnyone2 (full sequence)
+    OFX::IntParam     *_imageLoadCap;    // Frames loaded (full sequence)
 
     json buildHardcodedWorkflow(int frame, const std::string& inputPath);
     json customizeWorkflowWithParams(const json& baseWorkflow, int frame);
-
-    std::string getDirectionName() const;
 };
 
 /**

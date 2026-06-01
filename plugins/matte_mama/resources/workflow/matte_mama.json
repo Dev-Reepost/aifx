@@ -1,4 +1,18 @@
 {
+  "35": {
+    "inputs": {
+      "mask": ["98", 0]
+    },
+    "class_type": "MaskToImage",
+    "_meta": { "title": "Convert Mask to Image" }
+  },
+  "40": {
+    "inputs": {
+      "mask": ["87", 0]
+    },
+    "class_type": "MaskToImage",
+    "_meta": { "title": "Convert Mask to Image" }
+  },
   "44": {
     "inputs": {
       "filepath": "${INPUT_PATH}",
@@ -10,48 +24,92 @@
     "class_type": "LoadEXR",
     "_meta": { "title": "Load EXR" }
   },
-  "55": {
+  "45": {
     "inputs": {
-      "model_path": "${SAM3_MODEL_PATH}"
+      "filename_prefix": "${OUTPUT_PREFIX}",
+      "tonemap": "linear",
+      "version": -1,
+      "start_frame": "${FRAME}",
+      "frame_pad": 4,
+      "save_workflow": "none",
+      "create_path_if_missing": true,
+      "images": ["35", 0]
     },
-    "class_type": "LoadSAM3Model",
-    "_meta": { "title": "(down)Load SAM3 Model" }
+    "class_type": "SaveEXR",
+    "_meta": { "title": "SAVE_SEG_MATTE" }
   },
-  "52": {
+  "85": {
     "inputs": {
-      "prompt_mode": "text",
-      "text_prompt": "${TEXT_PROMPT}",
-      "frame_idx": "${FRAME_IDX}",
-      "score_threshold": "${SCORE_THRESHOLD}",
-      "video_frames": ["44", 0]
+      "ckpt_name": "${SAM3_CHECKPOINT_NAME}"
     },
-    "class_type": "SAM3VideoSegmentation",
-    "_meta": { "title": "SAM3 Video Segmentation" }
+    "class_type": "CheckpointLoaderSimple",
+    "_meta": { "title": "Load Checkpoint" }
   },
-  "53": {
+  "86": {
     "inputs": {
-      "start_frame": 0,
-      "end_frame": -1,
-      "direction": "${DIRECTION}",
-      "offload_model": "${OFFLOAD_SAM3_MODEL}",
-      "sam3_model": ["55", 0],
-      "video_state": ["52", 0]
+      "text": "${TEXT_PROMPT}",
+      "clip": ["85", 1]
     },
-    "class_type": "SAM3Propagate",
-    "_meta": { "title": "SAM3 Propagate" }
+    "class_type": "CLIPTextEncode",
+    "_meta": { "title": "CLIP Text Encode (Prompt)" }
   },
-  "54": {
+  "87": {
     "inputs": {
-      "obj_id": "${OBJ_ID}",
-      "plot_all_masks": "${PLOT_ALL_MASKS}",
-      "masks": ["53", 0],
-      "video_state": ["53", 2],
-      "scores": ["53", 1]
+      "object_indices": "${OBJECT_INDICES}",
+      "track_data": ["88", 0]
     },
-    "class_type": "SAM3VideoOutput",
-    "_meta": { "title": "SAM3 Video Output" }
+    "class_type": "SAM3_TrackToMask",
+    "_meta": { "title": "SAM3 Track to Mask" }
   },
-  "37": {
+  "88": {
+    "inputs": {
+      "detection_threshold": "${DETECTION_THRESHOLD}",
+      "max_objects": "${MAX_OBJECTS}",
+      "detect_interval": "${DETECT_INTERVAL}",
+      "images": ["44", 0],
+      "model": ["85", 0],
+      "initial_mask": ["89", 0],
+      "conditioning": ["86", 0]
+    },
+    "class_type": "SAM3_VideoTrack",
+    "_meta": { "title": "SAM3 Video Track" }
+  },
+  "89": {
+    "inputs": {
+      "threshold": "${SCORE_THRESHOLD}",
+      "refine_iterations": "${REFINE_ITERATIONS}",
+      "individual_masks": "${INDIVIDUAL_MASKS}",
+      "model": ["85", 0],
+      "image": ["91", 0],
+      "conditioning": ["86", 0]
+    },
+    "class_type": "SAM3_Detect",
+    "_meta": { "title": "SAM3 Detect" }
+  },
+  "91": {
+    "inputs": {
+      "batch_index": "${REFERENCE_BATCH_INDEX}",
+      "length": 1,
+      "image": ["44", 0]
+    },
+    "class_type": "ImageFromBatch",
+    "_meta": { "title": "ImageFromBatch" }
+  },
+  "98": {
+    "inputs": {
+      "seed": "${SEED}",
+      "max_resolution": "${MAX_RESOLUTION}",
+      "fps": "${FPS}",
+      "motion_bucket_id": "${MOTION_BUCKET_ID}",
+      "noise_aug_strength": "${NOISE_AUG_STRENGTH}",
+      "pipeline": ["99", 0],
+      "images": ["44", 0],
+      "masks": ["87", 0]
+    },
+    "class_type": "VideoMaMaSampler",
+    "_meta": { "title": "VideoMaMa Sampler" }
+  },
+  "99": {
     "inputs": {
       "base_model_path": "${BASE_MODEL_PATH}",
       "unet_checkpoint_path": "${UNET_CHECKPOINT_PATH}",
@@ -64,39 +122,5 @@
     },
     "class_type": "VideoMaMaPipelineLoader",
     "_meta": { "title": "VideoMaMa Pipeline Loader" }
-  },
-  "42": {
-    "inputs": {
-      "seed": "${SEED}",
-      "max_resolution": "${MAX_RESOLUTION}",
-      "fps": "${FPS}",
-      "motion_bucket_id": "${MOTION_BUCKET_ID}",
-      "noise_aug_strength": "${NOISE_AUG_STRENGTH}",
-      "pipeline": ["37", 0],
-      "images": ["44", 0],
-      "masks": ["54", 0]
-    },
-    "class_type": "VideoMaMaSampler",
-    "_meta": { "title": "VideoMaMa Sampler" }
-  },
-  "35": {
-    "inputs": {
-      "mask": ["42", 0]
-    },
-    "class_type": "MaskToImage",
-    "_meta": { "title": "Convert Mask to Image" }
-  },
-  "45": {
-    "inputs": {
-      "filename_prefix": "${OUTPUT_PREFIX}",
-      "tonemap": "linear",
-      "version": -1,
-      "start_frame": "${FRAME}",
-      "frame_pad": 4,
-      "save_workflow": "none",
-      "images": ["35", 0]
-    },
-    "class_type": "SaveEXR",
-    "_meta": { "title": "SAVE_SEG_MATTE" }
   }
 }

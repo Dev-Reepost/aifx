@@ -11,17 +11,21 @@
 namespace ComfyUI {
 
 /**
- * @brief OFX plugin for VideoMaMa matting via ComfyUI
+ * @brief OFX plugin for VideoMaMa matting via ComfyUI (MaMa Matting V2)
  *
- * Combines SAM3 video segmentation with VideoMaMa diffusion-based matting
- * to produce high-quality alpha mattes from video sequences.
+ * Combines SAM3 (checkpoint-based) detect + video tracking with VideoMaMa
+ * diffusion-based matting to produce high-quality alpha mattes from video
+ * sequences.
  *
  * Pipeline:
- * 1. Load EXR sequence                    (node 44)
- * 2. SAM3 initial segmentation            (nodes 55, 52, 53, 54)
- * 3. VideoMaMa pipeline load              (node 37)
- * 4. VideoMaMa sampler (image + SAM mask) (node 42)
- * 5. Mask to image + save                 (nodes 35, 45)
+ * 1. Load EXR sequence                              (node 44)
+ * 2. CheckpointLoaderSimple + CLIPTextEncode        (nodes 85, 86)
+ * 3. ImageFromBatch reference frame                 (node 91)
+ * 4. SAM3_Detect on reference frame                 (node 89)
+ * 5. SAM3_VideoTrack across full sequence           (node 88)
+ * 6. SAM3_TrackToMask                               (node 87)
+ * 7. VideoMaMaPipelineLoader + VideoMaMaSampler     (nodes 99, 98)
+ * 8. MaskToImage + SaveEXR                          (nodes 35, 45)
  *
  * Based on: https://github.com/kijai/ComfyUI-MaMa (VideoMaMa)
  *           https://github.com/PozzettiAndrea/ComfyUI-SAM3
@@ -36,9 +40,6 @@ public:
     bool isSequencePlugin() const override { return true; }
     int  getImageLoadCap()  const override;
 
-    virtual void changedParam(const OFX::InstanceChangedArgs &args,
-                              const std::string &paramName) override;
-
     static void describeInContext(OFX::ImageEffectDescriptor &desc,
                                   OFX::ContextEnum context,
                                   const json* configDefaults = nullptr);
@@ -47,12 +48,14 @@ private:
     // --- SAM3 segmentation parameters ---
     OFX::StringParam  *_textPrompt;
     OFX::DoubleParam  *_scoreThreshold;
-    OFX::IntParam     *_frameIdx;       // Reference frame index (integer frame number)
-    OFX::ChoiceParam  *_direction;
-    OFX::BooleanParam *_plotAllMasks;
-    OFX::IntParam     *_objId;
-    OFX::StringParam  *_sam3ModelPath;
-    OFX::BooleanParam *_offloadSam3Model;
+    OFX::StringParam  *_sam3CheckpointName;
+    OFX::StringParam  *_objectIndices;
+    OFX::DoubleParam  *_detectionThreshold;
+    OFX::IntParam     *_maxObjects;
+    OFX::IntParam     *_detectInterval;
+    OFX::IntParam     *_refineIterations;
+    OFX::BooleanParam *_individualMasks;
+    OFX::IntParam     *_referenceBatchIndex;
 
     // --- VideoMaMa sampler parameters ---
     OFX::IntParam     *_seed;
@@ -75,7 +78,6 @@ private:
     json buildHardcodedWorkflow(int frame, const std::string& inputPath);
     json customizeWorkflowWithParams(const json& baseWorkflow, int frame);
 
-    std::string getDirectionName() const;
     std::string getPrecisionName() const;
     std::string getAttentionModeName() const;
 };
