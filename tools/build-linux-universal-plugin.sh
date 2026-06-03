@@ -69,7 +69,7 @@ EOF
 
 get_openfx_root() {
     local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    OFX_ROOT="$(cd "$script_dir/../.." && pwd)"
+    OFX_ROOT="$(cd "$script_dir/.." && pwd)"
 
     # Set default output directory if not specified
     if [[ -z "$OUTPUT_DIR" ]]; then
@@ -176,7 +176,6 @@ build_in_docker() {
                 -s arch=$arch \
                 -pr:b=default \
                 --build=missing \
-                -o "&:build_comfyui_plugins=True" \
                 -of=$build_dir
 
             echo '[INFO] Configuring CMake for $arch_name...'

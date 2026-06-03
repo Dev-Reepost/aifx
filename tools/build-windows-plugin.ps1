@@ -98,7 +98,10 @@ if ($Install -and [string]::IsNullOrEmpty($InstallDir)) {
 
 function Get-OpenFXRoot {
     $scriptDir = Split-Path -Parent $PSCommandPath
-    $root = Resolve-Path (Join-Path $scriptDir "..\..") -ErrorAction Stop
+    # tools/ sits one level below the AIFX repo root (the previous two-level
+    # climb was a leftover from the openfx-fork layout where dev tools lived
+    # at contrib/dev-tools/).
+    $root = Resolve-Path (Join-Path $scriptDir "..") -ErrorAction Stop
     return $root.Path
 }
 
@@ -169,7 +172,6 @@ function Install-ConanDependencies {
         "-s", "arch=x86_64",
         "-pr:b=default",
         "--build=missing",
-        "-o", "&:build_comfyui_plugins=True",
         "-of=$BUILD_DIR"
     )
 

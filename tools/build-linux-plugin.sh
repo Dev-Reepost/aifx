@@ -32,7 +32,7 @@ log_error() {
 
 # Script directory
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-OFX_ROOT="$( cd "$SCRIPT_DIR/../.." && pwd )"
+OFX_ROOT="$( cd "$SCRIPT_DIR/.." && pwd )"
 
 # Docker image name
 DOCKER_IMAGE="openfx-linux-builder:latest"
@@ -120,7 +120,6 @@ docker run --rm \
             -s build_type=Release \
             -pr:b=default \
             --build=missing \
-            -o "&:build_comfyui_plugins=True" \
             -of=build/linux
 
         echo '[INFO] Configuring CMake...'
