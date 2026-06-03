@@ -108,7 +108,7 @@
       "max_objects": "${MAX_OBJECTS}",
       "detect_interval": "${DETECT_INTERVAL}",
       "images": [
-        "171",
+        "179",
         0
       ],
       "model": [
