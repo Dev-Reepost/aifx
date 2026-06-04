@@ -51,8 +51,8 @@ foreach ($entry in $Targets) {
 Write-Step "Verifying bundles..."
 foreach ($entry in $Targets) {
     $target = $entry[1]
-    $bundle = "build\Release\${target}.ofx.bundle"
-    $bin    = "${bundle}\Contents\Win64\${target}.ofx"
+    $bundle = "build\windows\${target}.ofx.bundle"
+    $bin    = "${bundle}\Contents\Win64-AMD64\${target}.ofx"
     if (-not (Test-Path $bin)) {
         Write-Err "Missing bundle binary: $bin"
         exit 1
@@ -68,7 +68,7 @@ New-Item -ItemType Directory -Force -Path $Stage | Out-Null
 
 foreach ($entry in $Targets) {
     $target = $entry[1]
-    Copy-Item -Recurse "build\Release\${target}.ofx.bundle" -Destination $Stage
+    Copy-Item -Recurse "build\windows\${target}.ofx.bundle" -Destination $Stage
 }
 
 $ReadmePath = Join-Path $Stage "README.txt"
