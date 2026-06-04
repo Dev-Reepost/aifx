@@ -33,9 +33,9 @@ organized per operating system.
 
 | Platform | Asset | Built? |
 |---|---|---|
-| **macOS (universal: arm64 + x86_64)** | `aifx-<version>-macos-universal.tar.gz` | ✅ Available from v0.1.0 |
-| **Linux (x86_64)** | `aifx-<version>-linux-x86_64.tar.gz` | ⏳ Not yet — build from source for now |
-| **Windows (x86_64)** | `aifx-<version>-windows-x86_64.zip` | ⏳ Not yet — build from source for now |
+| **Windows (x86_64)** | `aifx-<version>-windows-x86_64.zip` | ✅ Available from v0.1.0 |
+| **macOS (universal: arm64 + x86_64)** | `aifx-<version>-macos-universal.tar.gz` | ⏳ Coming — build from source for now |
+| **Linux (x86_64)** | `aifx-<version>-linux-x86_64.tar.gz` | ⏳ Coming — build from source for now |
 
 ### macOS
 
@@ -61,12 +61,26 @@ organized per operating system.
    three ways to override them — the quickest is editing the plugin
    parameters in your host's UI on first use.
 
-### Linux & Windows
+### Windows
+
+1. Download `aifx-<version>-windows-x86_64.zip` from the latest release and
+   extract it. You will get a directory containing seven `.ofx.bundle`
+   directories.
+2. Copy all seven `.ofx.bundle` directories into one of the standard OFX
+   plugin paths from the table above (`%LOCALAPPDATA%\OFX\Plugins\` is the
+   safest choice — per-user, no admin rights needed).
+3. Ensure the **Microsoft Visual C++ Redistributable (x64)** is installed on
+   the machine — the plugins link against the standard MSVC runtime. Most
+   systems already have it; otherwise install it from Microsoft.
+4. Restart your OFX host. The plugins appear under the **AIFX** category.
+5. **Configure for your network** — see step 6 under macOS above and
+   [Configuration & defaults](configuration.md).
+
+### Linux
 
 Prebuilt bundles are not yet published. Build from source —
-see [Building from source](#building-from-source) below. The new repo will
-publish Linux and Windows binaries via GitHub Releases once we have those
-build machines wired into CI.
+see [Building from source](#building-from-source) below. Linux binaries will
+be published via GitHub Releases once that build machine is wired into CI.
 
 ## Building from source
 

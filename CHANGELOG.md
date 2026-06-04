@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-06-04
+
+First public pre-release. Windows x86_64 bundles published on GitHub Releases;
+macOS and Linux binaries to follow on the same release.
+
 ### Added
 
 - Initial public release of seven OpenFX plugins:
@@ -25,4 +30,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   plugin directories.
 - Comprehensive user documentation and GitHub Pages site.
 
-[Unreleased]: https://github.com/Dev-Reepost/aifx/commits/main
+[Unreleased]: https://github.com/Dev-Reepost/aifx/compare/v0.1.0...main
+[0.1.0]: https://github.com/Dev-Reepost/aifx/releases/tag/v0.1.0
