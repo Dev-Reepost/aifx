@@ -307,12 +307,21 @@ code {
   transition: all 0.15s ease;
   cursor: pointer;
 }
+/* Primary CTA in the hero: white pill on the dark hero gradient, with
+   dark text. The previous near-black accent (#1a1a1a) was nearly
+   invisible against the #000 → #1a1a1a hero, and on hover the global
+   a:hover rule (`color: var(--text)`) turned the white label dark —
+   so the button vanished completely on hover. Explicit color on both
+   states defeats that global rule. */
 .btn-primary {
-  background: var(--accent);
-  color: #ffffff;
+  background: #ffffff;
+  color: var(--text);
+  border-color: #ffffff;
 }
 .btn-primary:hover {
-  background: var(--accent-hover);
+  background: var(--accent-soft);
+  color: var(--text);
+  border-color: var(--accent-soft);
   text-decoration: none;
   transform: translateY(-1px);
 }
@@ -323,6 +332,7 @@ code {
 }
 .btn-secondary:hover {
   background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
   border-color: rgba(255, 255, 255, 0.4);
   text-decoration: none;
 }
