@@ -9,9 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.0] - 2026-06-04
 
-First public pre-release. Windows x86_64 and macOS universal (arm64 + x86_64)
-bundles published on GitHub Releases; Linux binaries to follow on the same
-release.
+First public pre-release. Windows x86_64, macOS universal (arm64 + x86_64), and
+Linux x86_64 (glibc 2.34+) bundles published on GitHub Releases.
 
 ### Added
 

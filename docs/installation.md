@@ -35,7 +35,7 @@ organized per operating system.
 |---|---|---|
 | **macOS (universal: arm64 + x86_64)** | `aifx-<version>-macos-universal.tar.gz` | ✅ Available from v0.1.0 |
 | **Windows (x86_64)** | `aifx-<version>-windows-x86_64.zip` | ✅ Available from v0.1.0 |
-| **Linux (x86_64)** | `aifx-<version>-linux-x86_64.tar.gz` | ⏳ Coming — build from source for now |
+| **Linux (x86_64)** | `aifx-<version>-linux-x86_64.tar.gz` | ✅ Available from v0.1.0 (glibc 2.34+) |
 
 ### macOS
 
@@ -78,9 +78,18 @@ organized per operating system.
 
 ### Linux
 
-Prebuilt bundles are not yet published. Build from source —
-see [Building from source](#building-from-source) below. Linux binaries will
-be published via GitHub Releases once that build machine is wired into CI.
+1. Download `aifx-<version>-linux-x86_64.tar.gz` from the latest release and
+   extract it. You will get a directory containing seven `.ofx.bundle`
+   directories.
+2. Copy all seven `.ofx.bundle` directories into one of the standard OFX
+   plugin paths from the table above (`~/OFX/Plugins/` is the safest choice —
+   per-user, no `sudo`).
+3. The binaries require **glibc 2.34 or later** (Ubuntu 22.04+, Debian 12+,
+   RHEL/Rocky 9+). On older hosts (Ubuntu 20.04, RHEL/Rocky 8, CentOS 7) they
+   will not load — [build from source](#building-from-source) instead.
+4. Restart your OFX host. The plugins appear under the **AIFX** category.
+5. **Configure for your network** — see step 6 under macOS above and
+   [Configuration & defaults](configuration.md).
 
 ## Building from source
 

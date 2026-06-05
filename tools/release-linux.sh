@@ -3,57 +3,101 @@
 # Copyright AIFX contributors.
 #
 # Build all AIFX plugins for Linux x86_64 and package them into a release
-# tarball. The Docker-based build in tools/build-linux-plugin.sh is used so
-# the host machine only needs Docker installed.
+# tarball. The build runs natively on the host using Conan + CMake, so the
+# machine needs a C++ toolchain, conan, and cmake >= 3.28 -- but no Docker.
+#
+# (To cross-build Linux binaries from macOS instead, use the Docker-based
+# tools/build-linux-plugin.sh.)
 #
 # Usage: tools/release-linux.sh [VERSION]
 #   VERSION defaults to "dev" if not supplied.
 
-set -e
+set -euo pipefail
 
 VERSION="${1:-dev}"
 ARCH="x86_64"
+REQUIRED_CMAKE="3.28"
 
-# Plugin targets matching each plugins/<dir>/CMakeLists.txt add_library() name.
-# Each entry is "<plugin-dir>:<target>" so we can pass both to build-plugin.
+# CMake target names, matching each plugins/<dir>/CMakeLists.txt add_library().
 TARGETS=(
-    "depth_da3:DepthAnything3"
-    "depth_crafter:DepthCrafter"
-    "normal_crafter:NormalCrafter"
-    "segmentation_sam3:SegmentationSAM3"
-    "matte_mama:MatteMaMa"
-    "matte_ma2:MatteMA2"
-    "upscale_seedvr2:UpscaleSeedVR2"
+    "DepthAnything3"
+    "DepthCrafter"
+    "NormalCrafter"
+    "SegmentationSAM3"
+    "MatteMaMa"
+    "MatteMA2"
+    "UpscaleSeedVR2"
 )
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
 
+BUILD_DIR="build/linux"
+
 if [[ "$OSTYPE" != "linux"* ]]; then
     echo "[ERROR] release-linux.sh must be run on Linux." >&2
+    echo "        To cross-build from macOS, use tools/build-linux-plugin.sh (Docker)." >&2
     exit 1
 fi
 
-if ! command -v docker >/dev/null 2>&1; then
-    echo "[ERROR] docker is required but not found in PATH." >&2
-    exit 1
-fi
+# Prefer a pip-installed cmake (~/.local/bin) over an older system one.
+export PATH="$HOME/.local/bin:$PATH"
 
-echo "==> Building all ${#TARGETS[@]} AIFX plugins for Linux ${ARCH}..."
-for spec in "${TARGETS[@]}"; do
-    plugin_dir="${spec%%:*}"
-    target="${spec##*:}"
-    echo ""
-    echo "==> $target ($plugin_dir)"
-    ./tools/build-linux-plugin.sh "plugins/$plugin_dir" "$target"
+# --- Toolchain checks --------------------------------------------------------
+for tool in conan cmake; do
+    if ! command -v "$tool" >/dev/null 2>&1; then
+        echo "[ERROR] '$tool' is required but not found in PATH." >&2
+        [[ "$tool" == "cmake" ]] && echo "        Install a recent one with: pip install --user 'cmake>=${REQUIRED_CMAKE}'" >&2
+        exit 1
+    fi
 done
 
+if ! command -v g++ >/dev/null 2>&1 && ! command -v clang++ >/dev/null 2>&1; then
+    echo "[ERROR] No C++ compiler (g++ or clang++) found in PATH." >&2
+    exit 1
+fi
+
+# cmake must be >= REQUIRED_CMAKE.
+CMAKE_VERSION="$(cmake --version | head -1 | grep -oE '[0-9]+\.[0-9]+(\.[0-9]+)?')"
+if [[ "$(printf '%s\n%s\n' "$REQUIRED_CMAKE" "$CMAKE_VERSION" | sort -V | head -1)" != "$REQUIRED_CMAKE" ]]; then
+    echo "[ERROR] cmake >= ${REQUIRED_CMAKE} required, but found ${CMAKE_VERSION} ($(command -v cmake))." >&2
+    echo "        Install a recent one with: pip install --user 'cmake>=${REQUIRED_CMAKE}'" >&2
+    exit 1
+fi
+echo "==> Using cmake ${CMAKE_VERSION} ($(command -v cmake)), conan $(conan --version | grep -oE '[0-9.]+')"
+
+# --- Build -------------------------------------------------------------------
+echo ""
+echo "==> [1/3] Installing Conan dependencies..."
+conan install . \
+    -s build_type=Release \
+    -pr:b=default \
+    --build=missing \
+    -of="$BUILD_DIR"
+
+echo ""
+echo "==> [2/3] Configuring CMake..."
+TOOLCHAIN="$(find "$BUILD_DIR" -name 'conan_toolchain.cmake' | head -1)"
+if [[ -z "$TOOLCHAIN" ]]; then
+    echo "[ERROR] conan_toolchain.cmake not found under $BUILD_DIR after conan install." >&2
+    exit 1
+fi
+cmake -S . -B "$BUILD_DIR" \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DBUILD_COMFYUI_PLUGINS=ON \
+    -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN" \
+    -DCMAKE_POLICY_DEFAULT_CMP0091=NEW
+
+echo ""
+echo "==> [3/3] Building all ${#TARGETS[@]} plugin targets..."
+cmake --build "$BUILD_DIR" --config Release --target "${TARGETS[@]}" --parallel
+
+# --- Verify ------------------------------------------------------------------
 echo ""
 echo "==> Verifying bundles..."
-for spec in "${TARGETS[@]}"; do
-    target="${spec##*:}"
-    # The Linux build produces bundles directly under build/linux/Release/.
-    bundle="build/linux/Release/${target}.ofx.bundle"
+for target in "${TARGETS[@]}"; do
+    # The native build produces bundles directly under build/linux/.
+    bundle="$BUILD_DIR/${target}.ofx.bundle"
     bin="${bundle}/Contents/Linux-${ARCH}/${target}.ofx"
     if [[ ! -f "$bin" ]]; then
         echo "[ERROR] Missing bundle binary: $bin" >&2
@@ -67,6 +111,7 @@ for spec in "${TARGETS[@]}"; do
     echo "    [OK] $target"
 done
 
+# --- Package -----------------------------------------------------------------
 echo ""
 echo "==> Packaging..."
 TOP="AIFX-${VERSION}-linux-${ARCH}"
@@ -74,9 +119,8 @@ STAGE="dist/staging/${TOP}"
 rm -rf dist/staging
 mkdir -p "$STAGE"
 
-for spec in "${TARGETS[@]}"; do
-    target="${spec##*:}"
-    cp -R "build/linux/Release/${target}.ofx.bundle" "$STAGE/"
+for target in "${TARGETS[@]}"; do
+    cp -R "$BUILD_DIR/${target}.ofx.bundle" "$STAGE/"
 done
 
 cat > "$STAGE/README.txt" <<EOF
