@@ -33,8 +33,8 @@ organized per operating system.
 
 | Platform | Asset | Built? |
 |---|---|---|
+| **macOS (universal: arm64 + x86_64)** | `aifx-<version>-macos-universal.tar.gz` | ✅ Available from v0.1.0 |
 | **Windows (x86_64)** | `aifx-<version>-windows-x86_64.zip` | ✅ Available from v0.1.0 |
-| **macOS (universal: arm64 + x86_64)** | `aifx-<version>-macos-universal.tar.gz` | ⏳ Coming — build from source for now |
 | **Linux (x86_64)** | `aifx-<version>-linux-x86_64.tar.gz` | ⏳ Coming — build from source for now |
 
 ### macOS
