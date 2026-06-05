@@ -3,6 +3,14 @@
 Thanks for considering a contribution. This document covers what to expect
 when filing issues, opening pull requests, and adding new plugins.
 
+> Two contact channels:
+>
+> - **[GitHub Issues](https://github.com/Dev-Reepost/aifx/issues)** —
+>   default channel for bug reports, feature requests, and questions.
+> - **[contact@reepost.fr](mailto:contact@reepost.fr)** — for non-public
+>   reports (security, NDA-covered footage), partnership / commercial
+>   integration enquiries, or if you'd rather email than open an issue.
+
 ## Ways to contribute
 
 - **File a bug.** Use the bug-report issue template. Include:

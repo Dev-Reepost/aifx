@@ -94,6 +94,14 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Bug reports and pull requests are welcom
 For new plugins, see [docs/architecture.md](docs/architecture.md) for the shared
 infrastructure and the `isSequencePlugin()` design.
 
+## Reporting bugs / getting help
+
+- **[GitHub Issues](https://github.com/Dev-Reepost/aifx/issues)** — default
+  channel for bug reports, feature requests, and questions.
+- **[contact@reepost.fr](mailto:contact@reepost.fr)** — for non-public
+  reports (security, NDA-covered footage), partnership / commercial
+  integration enquiries, or if you'd rather email than open an issue.
+
 ## License
 
 Plugin code is BSD-3-Clause. See [LICENSE](LICENSE).

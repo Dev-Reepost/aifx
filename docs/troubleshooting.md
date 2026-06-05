@@ -5,8 +5,9 @@ nav_order: 7
 
 # Troubleshooting
 
-A grouped reference of the failure modes most users hit. If you don't find your
-issue here, see the [GitHub issues](https://github.com/Dev-Reepost/aifx/issues).
+A grouped reference of the failure modes most users hit. If you don't find
+your issue here, see [Reporting bugs / getting help](#reporting-bugs--getting-help)
+at the bottom of this page.
 
 ## The plugin does not appear in my host
 
@@ -127,3 +128,23 @@ deviations. Hosts the maintainers have tested with, and known caveats:
 Hosts not in this table are still expected to work — the OFX standard is the
 contract — but have not been verified by the maintainers. Bug reports for new
 hosts are welcome.
+
+## Reporting bugs / getting help
+
+We use two channels:
+
+- **[GitHub Issues](https://github.com/Dev-Reepost/aifx/issues)** — the
+  default place for bug reports, feature requests, host-compatibility notes,
+  and questions. Search existing issues first; if nothing matches, open a new
+  one with the information listed in
+  [CONTRIBUTING.md](https://github.com/Dev-Reepost/aifx/blob/main/CONTRIBUTING.md#ways-to-contribute)
+  (OS + host + plugin versions, repro steps, console output from both the
+  host and the ComfyUI server).
+
+- **[contact@reepost.fr](mailto:contact@reepost.fr)** — for anything that
+  shouldn't be public yet: security issues, NDA-covered footage, partnership
+  / commercial integration enquiries, or simply if you'd rather email than
+  open an issue.
+
+Both channels are read by the same maintainers — pick whichever fits the
+situation.
