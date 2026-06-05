@@ -5,3 +5,28 @@ single extra stylesheet for the plugin-page media layouts (input/output
 video pairs, etc.) without overriding any theme variables.
 {% endcomment %}
 <link rel="stylesheet" href="{{ '/assets/css/plugin-extras.css' | relative_url }}">
+
+{% comment %}
+Open every external link (anchor with absolute http/https href pointing
+off-site) in a new tab. Markdown source uses [text](url) which Jekyll
+turns into a plain <a href="...">, with no target attribute, so links
+to GitHub, ComfyUI, model project pages, etc. otherwise replace the
+docs tab. Run once on DOMContentLoaded; cheap (single pass over
+anchors) and progressively enhanced — no JS = behaves like before.
+{% endcomment %}
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    var host = window.location.host;
+    var links = document.querySelectorAll('a[href^="http://"], a[href^="https://"]');
+    for (var i = 0; i < links.length; i++) {
+      var a = links[i];
+      if (a.host && a.host !== host && !a.target) {
+        a.target = '_blank';
+        var rel = (a.rel || '').split(/\s+/).filter(Boolean);
+        if (rel.indexOf('noopener') === -1) rel.push('noopener');
+        if (rel.indexOf('external') === -1) rel.push('external');
+        a.rel = rel.join(' ');
+      }
+    }
+  });
+</script>
