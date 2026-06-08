@@ -17,6 +17,13 @@ conan_provider.cmake
 # FetchContent / external sources (when written outside build/) --------------
 _deps/
 
+# macOS installer SPM build + staged bundle payloads -------------------------
+# (installer/macos/Resources/Bundles/ is repopulated from
+#  dist/aifx-<ver>-macos-universal.tar.gz by tools/release-macos-installer.sh)
+installer/macos/.build/
+installer/macos/build/
+installer/macos/Resources/Bundles/
+
 # Jekyll / GitHub Pages build artifacts --------------------------------------
 _site/
 .jekyll-cache/

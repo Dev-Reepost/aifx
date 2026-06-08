@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- macOS installer (`aifx-<version>-macos-installer.dmg`): SwiftUI wizard
+  that asks for the ComfyUI server URL + port and the two shared-folder
+  paths (this Mac's view, and the ComfyUI server's view), bakes them into
+  each plugin's `defaults.json`, copies the seven `.ofx.bundle` directories
+  into the chosen OFX directory, and clears macOS quarantine. Source at
+  `installer/macos/`, build pipeline at `tools/release-macos-installer.sh`.
+  Unsigned for v0.1.x — signing + notarisation lands once a Developer ID
+  certificate is on the build machine.
+
 ## [0.1.0] - 2026-06-04
 
 First public pre-release. Windows x86_64, macOS universal (arm64 + x86_64), and

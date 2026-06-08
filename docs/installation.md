@@ -33,33 +33,46 @@ organized per operating system.
 
 | Platform | Asset | Built? |
 |---|---|---|
-| **macOS (universal: arm64 + x86_64)** | `aifx-<version>-macos-universal.tar.gz` | ✅ Available from v0.1.0 |
+| **macOS (universal: arm64 + x86_64)** | `aifx-<version>-macos-installer.dmg` (wizard, recommended) **or** `aifx-<version>-macos-universal.tar.gz` (manual) | ✅ Available from v0.1.0 |
 | **Windows (x86_64)** | `aifx-<version>-windows-x86_64.zip` | ✅ Available from v0.1.0 |
 | **Linux (x86_64)** | `aifx-<version>-linux-x86_64.tar.gz` | ✅ Available from v0.1.0 (glibc 2.34+) |
 
-### macOS
+### macOS (recommended: the installer)
 
-1. Download `aifx-<version>-macos-universal.tar.gz` from the latest release.
-2. Extract it. You will get a directory containing seven `.ofx.bundle`
-   directories.
-3. Move all seven `.ofx.bundle` directories into one of the standard OFX
-   plugin paths from the table above
-   (`~/Library/OFX/Plugins/` is the safest choice — per-user, no `sudo`).
-4. If macOS quarantines the bundles (because they were downloaded from the
-   internet), clear the quarantine bit:
-
-   ```bash
-   xattr -dr com.apple.quarantine ~/Library/OFX/Plugins/*.ofx.bundle
-   ```
-
+1. Download `aifx-<version>-macos-installer.dmg` from the latest release and
+   double-click it.
+2. Drag **AIFX Installer.app** to wherever you like (or run it directly from
+   the mounted DMG) and launch it.
+3. The wizard walks you through:
+   - Install location: per-user `~/Library/OFX/Plugins/` (default — no
+     password) or system-wide `/Library/OFX/Plugins/`.
+   - **Site configuration**: ComfyUI server URL + port, this Mac's view of
+     the shared folder (typically `/Volumes/<share>/<root>`), and the
+     **ComfyUI server's view** of the same shared folder (typically a
+     Windows UNC path like `\\<server-host>\<share>\<root>`). These values
+     are baked into each plugin's `defaults.json` before the bundle is
+     copied into your OFX directory.
+   - **Optional skip**: tick "Keep each plugin's bundled defaults" if you'd
+     rather configure everything in your host UI on first use.
+4. Click Install. The wizard copies the seven bundles, writes the site
+   config into each, and clears macOS quarantine.
 5. Restart your OFX host. The plugins appear under the **AIFX** category.
 
-6. **Configure for your network.** The shipped bundles include a
-   `defaults.json` per plugin with the Reepost studio's server address
-   and shared-folder paths baked in. These won't work on any other
-   network. See [Configuration & defaults](configuration.md) for the
-   three ways to override them — the quickest is editing the plugin
-   parameters in your host's UI on first use.
+The installer is unsigned in v0.1.0. On first launch macOS will ask you to
+confirm — right-click → **Open**, or run
+`xattr -dr com.apple.quarantine '/path/to/AIFX Installer.app'`. A signed +
+notarised installer is planned for a follow-up patch release.
+
+### macOS (manual: the tarball)
+
+If you'd rather wire everything by hand (or you're scripting deployment),
+download `aifx-<version>-macos-universal.tar.gz` instead and follow the
+same steps as the Windows / Linux paths below: extract, move the seven
+`.ofx.bundle` directories into your OFX plugin directory, clear the
+quarantine bit with `xattr -dr com.apple.quarantine
+~/Library/OFX/Plugins/*.ofx.bundle`, restart your host, and override the
+bundled `defaults.json` per the [Configuration & defaults](configuration.md)
+guide.
 
 ### Windows
 
