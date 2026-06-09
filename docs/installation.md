@@ -146,30 +146,24 @@ for Git / CMake / Python, installs Conan (`pip install 'conan>=2.1.0'`), runs
 git clone https://github.com/Dev-Reepost/aifx.git
 cd AIFX
 
-# Build and install all plugins to the per-user OFX directory.
-# Each line is: build-plugin.sh <plugin-dir> <cmake-target> --install
-./tools/build-plugin.sh plugins/depth_da3 DepthAnything3 --install
-./tools/build-plugin.sh plugins/normal_crafter NormalCrafter --install
-./tools/build-plugin.sh plugins/depth_crafter DepthCrafter --install
-./tools/build-plugin.sh plugins/segmentation_sam3 SegmentationSAM3 --install
-./tools/build-plugin.sh plugins/matte_mama MatteMaMa --install
-./tools/build-plugin.sh plugins/matte_ma2 MatteMA2 --install
-./tools/build-plugin.sh plugins/upscale_seedvr2 UpscaleSeedVR2 --install
+# Build and install every plugin listed in plugins/manifest.txt into the
+# per-user OFX directory:
+while read -r dir target _; do
+  case "$dir" in ''|\#*) continue ;; esac
+  ./tools/build-plugin.sh "plugins/$dir" "$target" --install
+done < plugins/manifest.txt
 ```
 
-The second argument is the **CMake target name**, which differs from the
-directory name and must be passed explicitly — the build cannot infer it from
-the directory. The mapping is:
+To build a **single** plugin, pass its directory and CMake target name. The
+target differs from the directory name and must be passed explicitly — the
+build cannot infer it. The authoritative directory-to-target list is
+[`plugins/manifest.txt`](https://github.com/Dev-Reepost/aifx/blob/main/plugins/manifest.txt)
+(the same file the loop above and the release scripts read). For example, to
+build just Depth Anything V3:
 
-| Plugin directory | CMake target |
-|---|---|
-| `plugins/depth_da3` | `DepthAnything3` |
-| `plugins/normal_crafter` | `NormalCrafter` |
-| `plugins/depth_crafter` | `DepthCrafter` |
-| `plugins/segmentation_sam3` | `SegmentationSAM3` |
-| `plugins/matte_mama` | `MatteMaMa` |
-| `plugins/matte_ma2` | `MatteMA2` |
-| `plugins/upscale_seedvr2` | `UpscaleSeedVR2` |
+```bash
+./tools/build-plugin.sh plugins/depth_da3 DepthAnything3 --install
+```
 
 The `--install` flag copies the resulting `.ofx.bundle` into your per-user OFX
 plugin directory. Without it, the bundle is left under `build/Release/`.

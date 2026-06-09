@@ -78,18 +78,38 @@ target_include_directories(ComfyUICommon PUBLIC
 
 # --- Plugins ---------------------------------------------------------------
 
-# V1 release scope (7 plugins).
-add_subdirectory(depth_da3)
-add_subdirectory(depth_crafter)
-add_subdirectory(normal_crafter)
-add_subdirectory(segmentation_sam3)
-add_subdirectory(matte_mama)
-add_subdirectory(matte_ma2)
-add_subdirectory(upscale_seedvr2)
+# The plugin set is driven by plugins/manifest.txt -- the single source of
+# truth shared with the release scripts (tools/release-*.sh, release-windows.ps1)
+# and docs/installation.md. Each non-comment line is "<subdir> <cmake-target>".
+# We add the subdirectory, then assert it created the target the manifest
+# promised, so the manifest and each plugin's add_library() name cannot
+# silently drift apart. (Keep manifest.txt ASCII: file(STRINGS) splits lines
+# on non-ASCII bytes.)
+file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/manifest.txt" _aifx_manifest_lines)
+set(_aifx_plugin_count 0)
+foreach(_line IN LISTS _aifx_manifest_lines)
+    string(STRIP "${_line}" _line)
+    if(_line STREQUAL "" OR _line MATCHES "^#")
+        continue()
+    endif()
+    separate_arguments(_parts UNIX_COMMAND "${_line}")
+    list(GET _parts 0 _dir)
+    list(GET _parts 1 _target)
+
+    add_subdirectory(${_dir})
+
+    if(NOT TARGET ${_target})
+        message(FATAL_ERROR
+            "plugins/manifest.txt lists target '${_target}' for '${_dir}', but "
+            "plugins/${_dir}/CMakeLists.txt did not define it. Check the "
+            "add_library() name.")
+    endif()
+    math(EXPR _aifx_plugin_count "${_aifx_plugin_count} + 1")
+endforeach()
 
 # Tests build only if the dir was copied.
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/tests/CMakeLists.txt)
     add_subdirectory(tests)
 endif()
 
-message(STATUS "AIFX plugins configured: 7 plugins targeting OpenFX 1.4+.")
+message(STATUS "AIFX plugins configured: ${_aifx_plugin_count} plugins targeting OpenFX 1.4+.")

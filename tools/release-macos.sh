@@ -12,16 +12,9 @@ set -e
 
 VERSION="${1:-dev}"
 
-# Plugin targets matching each plugins/<dir>/CMakeLists.txt add_library() name.
-TARGETS=(
-    DepthAnything3
-    DepthCrafter
-    NormalCrafter
-    SegmentationSAM3
-    MatteMaMa
-    MatteMA2
-    UpscaleSeedVR2
-)
+# Plugin set comes from plugins/manifest.txt (single source of truth).
+source "$(dirname "${BASH_SOURCE[0]}")/plugin-manifest.sh"
+TARGETS=("${AIFX_PLUGIN_TARGETS[@]}")
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"

@@ -15,21 +15,26 @@ param(
 $ErrorActionPreference = "Stop"
 $Arch = "x86_64"
 
-# Plugin targets matching each plugins/<dir>/CMakeLists.txt add_library() name.
-# Each tuple is (plugin-dir, target).
-$Targets = @(
-    @("depth_da3",          "DepthAnything3"),
-    @("depth_crafter",      "DepthCrafter"),
-    @("normal_crafter",     "NormalCrafter"),
-    @("segmentation_sam3",  "SegmentationSAM3"),
-    @("matte_mama",         "MatteMaMa"),
-    @("matte_ma2",          "MatteMA2"),
-    @("upscale_seedvr2",    "UpscaleSeedVR2")
-)
-
 $ScriptDir = Split-Path -Parent $PSCommandPath
 $RepoRoot  = Resolve-Path (Join-Path $ScriptDir "..")
 Set-Location $RepoRoot
+
+# Plugin set comes from plugins/manifest.txt (single source of truth).
+# Each entry is a (plugin-dir, target) pair; downstream code uses $entry[0]/$entry[1].
+$ManifestPath = Join-Path $RepoRoot "plugins\manifest.txt"
+if (-not (Test-Path $ManifestPath)) {
+    Write-Host "[ERROR] plugin manifest not found: $ManifestPath" -ForegroundColor Red
+    exit 1
+}
+$Targets = @(
+    foreach ($line in Get-Content $ManifestPath) {
+        $trimmed = $line.Trim()
+        if ($trimmed -eq "" -or $trimmed.StartsWith("#")) { continue }
+        $parts = $trimmed -split '\s+'
+        # Unary comma keeps each entry a 2-element array (not flattened).
+        ,@($parts[0], $parts[1])
+    }
+)
 
 function Write-Step($msg) { Write-Host ""; Write-Host "==> $msg" -ForegroundColor Cyan }
 function Write-Ok($msg)   { Write-Host "    [OK] $msg" -ForegroundColor Green }

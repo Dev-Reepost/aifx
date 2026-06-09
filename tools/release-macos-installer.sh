@@ -78,7 +78,9 @@ else
     find build/Release -maxdepth 1 -name '*.ofx.bundle' -type d -exec cp -R {} "$STAGE_BUNDLES_DIR/" \;
 fi
 
-EXPECTED=(DepthAnything3 DepthCrafter NormalCrafter SegmentationSAM3 MatteMaMa MatteMA2 UpscaleSeedVR2)
+# Expected bundle set comes from plugins/manifest.txt (single source of truth).
+source "$(dirname "${BASH_SOURCE[0]}")/plugin-manifest.sh"
+EXPECTED=("${AIFX_PLUGIN_TARGETS[@]}")
 for t in "${EXPECTED[@]}"; do
     if [[ ! -d "$STAGE_BUNDLES_DIR/${t}.ofx.bundle" ]]; then
         echo "[ERROR] Missing staged bundle: ${t}.ofx.bundle" >&2

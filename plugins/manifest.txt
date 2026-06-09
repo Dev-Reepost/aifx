@@ -1,0 +1,25 @@
+# AIFX plugin set -- single source of truth.
+#
+# Format: <subdir> <cmake-target>
+#   - whitespace-separated; extra columns are ignored
+#   - blank lines and lines starting with '#' are ignored
+#   - <subdir> is relative to plugins/; <cmake-target> must match the
+#     add_library() name in plugins/<subdir>/CMakeLists.txt
+#
+# Consumed by:
+#   - plugins/CMakeLists.txt          (add_subdirectory + target-name guard)
+#   - tools/plugin-manifest.sh        (sourced by tools/release-*.sh)
+#   - tools/release-windows.ps1       (inline parse)
+#   - docs/installation.md            (build-all loop reads this file)
+#
+# Add or rename a plugin here and every consumer above picks it up; nothing
+# else needs editing. Keep this file ASCII -- CMake's file(STRINGS) splits
+# lines on non-ASCII bytes.
+
+depth_da3          DepthAnything3
+depth_crafter      DepthCrafter
+normal_crafter     NormalCrafter
+segmentation_sam3  SegmentationSAM3
+matte_mama         MatteMaMa
+matte_ma2          MatteMA2
+upscale_seedvr2    UpscaleSeedVR2
