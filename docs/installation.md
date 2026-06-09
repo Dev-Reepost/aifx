@@ -116,21 +116,60 @@ guide.
   - Windows: Visual Studio 2022 with the C++ workload
 - **Git**
 
+### Set up the build environment
+
+Before building any plugin you need a **Conan default profile**. The build
+resolves all of its C/C++ dependencies through Conan, and `build-plugin.sh`
+runs `conan install ... -pr:b=default` on every build — without a `default`
+profile that step fails immediately. Create it once per machine:
+
+```bash
+conan profile detect
+```
+
+This inspects your compiler and writes `~/.conan2/profiles/default`. You only
+need to do this once; `build-plugin.sh` handles the per-build `conan install`
+for you from then on.
+
+On a fresh machine you can let the bootstrap script do this for you. It checks
+for Git / CMake / Python, installs Conan (`pip install 'conan>=2.1.0'`), runs
+`conan profile detect`, and creates the standard OFX plugin directories:
+
+```bash
+./tools/setup-env.sh          # macOS / Linux
+./tools/setup-env.ps1         # Windows (PowerShell)
+```
+
 ### Build
 
 ```bash
 git clone https://github.com/Dev-Reepost/aifx.git
 cd AIFX
 
-# Build and install all plugins to the per-user OFX directory:
-./tools/build-plugin.sh plugins/depth_da3 --install
-./tools/build-plugin.sh plugins/normal_crafter --install
-./tools/build-plugin.sh plugins/depth_crafter --install
-./tools/build-plugin.sh plugins/segmentation_sam3 --install
-./tools/build-plugin.sh plugins/matte_mama --install
-./tools/build-plugin.sh plugins/matte_ma2 --install
-./tools/build-plugin.sh plugins/upscale_seedvr2 --install
+# Build and install all plugins to the per-user OFX directory.
+# Each line is: build-plugin.sh <plugin-dir> <cmake-target> --install
+./tools/build-plugin.sh plugins/depth_da3 DepthAnything3 --install
+./tools/build-plugin.sh plugins/normal_crafter NormalCrafter --install
+./tools/build-plugin.sh plugins/depth_crafter DepthCrafter --install
+./tools/build-plugin.sh plugins/segmentation_sam3 SegmentationSAM3 --install
+./tools/build-plugin.sh plugins/matte_mama MatteMaMa --install
+./tools/build-plugin.sh plugins/matte_ma2 MatteMA2 --install
+./tools/build-plugin.sh plugins/upscale_seedvr2 UpscaleSeedVR2 --install
 ```
+
+The second argument is the **CMake target name**, which differs from the
+directory name and must be passed explicitly — the build cannot infer it from
+the directory. The mapping is:
+
+| Plugin directory | CMake target |
+|---|---|
+| `plugins/depth_da3` | `DepthAnything3` |
+| `plugins/normal_crafter` | `NormalCrafter` |
+| `plugins/depth_crafter` | `DepthCrafter` |
+| `plugins/segmentation_sam3` | `SegmentationSAM3` |
+| `plugins/matte_mama` | `MatteMaMa` |
+| `plugins/matte_ma2` | `MatteMA2` |
+| `plugins/upscale_seedvr2` | `UpscaleSeedVR2` |
 
 The `--install` flag copies the resulting `.ofx.bundle` into your per-user OFX
 plugin directory. Without it, the bundle is left under `build/Release/`.
@@ -139,7 +178,7 @@ For a system-wide install, run with elevated privileges and pass an explicit
 install path:
 
 ```bash
-sudo ./tools/build-plugin.sh plugins/depth_da3 --install \
+sudo ./tools/build-plugin.sh plugins/depth_da3 DepthAnything3 --install \
   --install-dir /Library/OFX/Plugins
 ```
 

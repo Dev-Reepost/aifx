@@ -69,12 +69,23 @@ page lists the relevant license. Verify before shipping a paid project.
 
 ## Build from source
 
+First set up the build environment once (creates the Conan `default` profile
+the build needs):
+
 ```bash
-./tools/build-plugin.sh plugins/<name> --install
+conan profile detect            # or: ./tools/setup-env.sh
 ```
 
-See [docs/building.md](docs/building.md) for the full build matrix and
-dependencies.
+Then build and install a plugin, passing the plugin directory and its CMake
+target name:
+
+```bash
+./tools/build-plugin.sh plugins/depth_da3 DepthAnything3 --install
+```
+
+See [the build-from-source guide](docs/installation.md#building-from-source)
+for the full directory→target mapping, prerequisites, environment setup, and
+build options.
 
 ## Documentation
 
