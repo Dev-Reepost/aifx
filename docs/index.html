@@ -309,13 +309,27 @@ nav_order: 1
       <li>
         <h3>Install the plugins in your OFX host</h3>
         <p>
-          Download the latest release for your OS from
-          <a href="https://github.com/Dev-Reepost/aifx/releases/latest" rel="external noopener" target="_blank">GitHub Releases</a>
-          (macOS universal, Windows x86_64, Linux x86_64). Extract the archive and drop the
-          seven <code>.ofx.bundle</code> directories into the standard OFX plugin directory for
-          your OS — any OFX-compatible host picks them up at next launch.
+          Grab the latest
+          <a href="https://github.com/Dev-Reepost/aifx/releases/latest" rel="external noopener" target="_blank">release</a>
+          for your platform:
         </p>
-        <p><a href="{{ '/installation/' | relative_url }}">Full installation guide →</a></p>
+        <ul class="os-install">
+          <li>
+            <strong>macOS — the installer (recommended).</strong>
+            Download the <code>.dmg</code>, launch <strong>AIFX&nbsp;Installer.app</strong>, and run the
+            guided wizard: it copies the seven bundles, bakes your ComfyUI server URL and
+            shared-folder paths into each one, and clears the macOS quarantine flag.
+          </li>
+          <li>
+            <strong>Windows / Linux.</strong>
+            Download the archive (Windows x86_64, Linux x86_64), extract it, and drop the seven
+            <code>.ofx.bundle</code> directories into the standard OFX plugin directory for your OS.
+          </li>
+        </ul>
+        <p>
+          Any OFX-compatible host picks them up at next launch.
+          <a href="{{ '/installation/' | relative_url }}">Full installation guide →</a>
+        </p>
       </li>
       <li>
         <h3>Set up a ComfyUI server</h3>

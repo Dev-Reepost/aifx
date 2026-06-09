@@ -593,6 +593,26 @@ code {
   margin: 0 0 0.5rem;
   color: var(--text-muted);
 }
+.os-install {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 0.5rem;
+}
+.os-install > li {
+  position: relative;
+  padding-left: 1.25rem;
+  margin-bottom: 0.5rem;
+  color: var(--text-muted);
+}
+.os-install > li::before {
+  content: "\25B8"; /* ▸ */
+  position: absolute;
+  left: 0;
+  color: var(--accent);
+}
+.os-install strong {
+  color: var(--text);
+}
 
 /* -------------------------------------------------------- COMMERCIAL-USE TABLE */
 
