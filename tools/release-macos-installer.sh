@@ -117,6 +117,10 @@ cp -R "$STAGE_BUNDLES_DIR/." "$APP_DIR/Contents/Resources/Bundles/"
 sed -e "s|@VERSION@|${VERSION}|g" \
     "$INSTALLER_DIR/app/Info.plist.in" \
     > "$APP_DIR/Contents/Info.plist"
+# App icon (Reepost logo).
+if [[ -f "$INSTALLER_DIR/app/AppIcon.icns" ]]; then
+    cp "$INSTALLER_DIR/app/AppIcon.icns" "$APP_DIR/Contents/Resources/AppIcon.icns"
+fi
 
 # Quick sanity: every bundle has its config/defaults.json (we'll mutate these
 # at install time; failing to ship them means rendering will break).
@@ -193,10 +197,11 @@ echo "==> [5/5] Building ${DMG_PATH}…"
 rm -f "$DMG_PATH"
 DMG_STAGE="$(mktemp -d)"
 cp -R "$APP_DIR" "$DMG_STAGE/"
-# An Applications symlink lets the user drag the app over; we're not actually
-# installing into /Applications (the installer lives anywhere) — but the
-# affordance is familiar.
-ln -s /Applications "$DMG_STAGE/Applications"
+# Intentionally NO /Applications symlink: this is a one-shot installer
+# (it copies the seven .ofx.bundle directories into ~/Library/OFX/Plugins/
+# and exits). Suggesting a drag-to-Applications install would mislead users
+# into thinking the app is meant to live there. Right action is just
+# double-click from the mounted DMG.
 hdiutil create -volname "AIFX ${VERSION}" \
     -srcfolder "$DMG_STAGE" -ov -format UDZO "$DMG_PATH" >/dev/null
 rm -rf "$DMG_STAGE"

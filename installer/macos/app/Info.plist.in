@@ -3,7 +3,7 @@
 <!--
   Info.plist template for the AIFX macOS installer.
   tools/release-macos-installer.sh substitutes @VERSION@ with the build's
-  --version argument before copying this file into the wrapped .app bundle.
+  version argument before copying this file into the wrapped .app bundle.
 -->
 <plist version="1.0">
 <dict>
@@ -13,6 +13,8 @@
     <string>AIFX Installer</string>
     <key>CFBundleExecutable</key>
     <string>AIFXInstaller</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
     <key>CFBundleIdentifier</key>
     <string>fr.reepost.aifx.installer</string>
     <key>CFBundleInfoDictionaryVersion</key>
