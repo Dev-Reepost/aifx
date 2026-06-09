@@ -124,6 +124,34 @@ The Windows path uses **doubled backslashes** in JSON
 (`\\\\HOSTNAME\\share`) — each `\` is escaped, so `\\\\` in the file
 becomes a literal `\\` on the wire, which is a valid UNC path.
 
+#### Why there are input directories but no output directories
+
+This block defines `…ComfyUIInputDir` paths but deliberately has no
+`…OutputDir` counterpart. The asymmetry is intentional:
+
+- **The input path must be *declared* because it is an address handed
+  to a foreign process.** ComfyUI runs as a separate process, usually
+  on a separate machine, and has no idea where the host just wrote the
+  source frame. The plugin must inject an explicit "load from *here*"
+  path — expressed from ComfyUI's own filesystem vantage point — into
+  the workflow JSON it submits. That value cannot be inferred, so it
+  has to be configured (per-OS, because each side addresses the shared
+  drive differently).
+- **The output path is *derived*, not configured.** The plugin builds
+  it at runtime from pieces already present:
+  `{mountPath}/out/{workflowName}/{outputVersion}/…`, where `mountPath`
+  comes from this `server` block and `workflowName` / `outputVersion`
+  come from the plugin's `project` block. The plugin both writes the
+  job request and reads the result back from its *own* host-side mount,
+  so it never needs to tell anyone else where output lives. Adding an
+  explicit output-dir field would only duplicate the mount path and
+  risk drifting out of sync with the `workflowName` / `outputVersion`
+  that actually determine the folder.
+
+In short: **input is an address you must give to another process;
+output is a convention you reconstruct locally.** Only the former
+belongs in config.
+
 ### `controls` block — runtime behaviour
 
 Lives in `config/defaults-base.json`. Any plugin may override individual
