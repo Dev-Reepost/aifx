@@ -420,8 +420,8 @@ if (-not $cmakeOk -or -not $conanOk) {
 
 Write-Host ""
 Write-Info "Next steps:"
-Write-Info "  1. Navigate to your OpenFX root directory"
-Write-Info "  2. Run: .\contrib\dev-tools\build-windows-plugin.ps1 -Plugin AnyComfy -Target AnyComfy -Install"
+Write-Info "  1. Navigate to your AIFX repository root"
+Write-Info "  2. Run: .\tools\build-windows-plugin.ps1 -Plugin depth_da3 -Target DepthAnything3 -Install"
 Write-Host ""
 Write-Info "Plugin installation directories:"
 Write-Info "  Development:  $userProfile\OFX\Plugins"

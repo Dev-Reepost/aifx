@@ -1,8 +1,11 @@
 #!/bin/bash
 
-# OpenFX Development Environment Setup Script
+# AIFX Development Environment Setup Script
 #
-# This script automates the initial setup of the OpenFX development environment
+# Automates the initial setup of the AIFX plugin build environment:
+# installs Conan, creates the Conan default profile, and creates the
+# standard OFX plugin directories. After this, build plugins with
+# tools/build-plugin.sh.
 # Supports Linux, macOS, and Windows (Git Bash/MSYS2)
 
 set -e  # Exit on any error
@@ -45,10 +48,22 @@ detect_platform() {
     log_success "Detected platform: $PLATFORM"
 }
 
+# Ensure we're running from the AIFX repository root. setup_env_vars records
+# REPO_ROOT as $(pwd), and the build scripts resolve plugin paths relative to
+# it, so the script must be invoked from the checkout root.
+check_aifx_root() {
+    if [[ ! -f "CMakeLists.txt" ]] || [[ ! -d "plugins" ]]; then
+        log_error "Not in the AIFX root directory."
+        log_info "cd into your aifx checkout and re-run: ./tools/setup-env.sh"
+        exit 1
+    fi
+    log_success "AIFX repository root detected: $(pwd)"
+}
+
 # Check for required tools
 check_prerequisites() {
     log_info "Checking prerequisites..."
-    
+
     # Check for Git
     if ! command -v git &> /dev/null; then
         case "$PLATFORM" in
@@ -69,7 +84,7 @@ check_prerequisites() {
         esac
         exit 1
     fi
-    
+
     # Check for CMake
     if ! command -v cmake &> /dev/null; then
         case "$PLATFORM" in
@@ -102,20 +117,20 @@ check_prerequisites() {
                 ;;
         esac
     fi
-    
+
     # Check for Python 3
     if ! command -v python3 &> /dev/null; then
         log_error "Python 3 not found. Please install Python 3.8+"
         exit 1
     fi
-    
+
     log_success "Prerequisites check passed"
 }
 
 # Install Conan
 setup_conan() {
     log_info "Setting up Conan package manager..."
-    
+
     # Check if Conan is already installed
     if command -v conan &> /dev/null; then
         CONAN_VERSION=$(conan --version | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+')
@@ -123,11 +138,11 @@ setup_conan() {
     else
         log_info "Installing Conan..."
         python3 -m pip install 'conan>=2.1.0'
-        
+
         # Find Conan installation path
         CONAN_PATH=$(python3 -c "import sys; import os; print(os.path.join(sys.prefix, 'bin'))")
         export PATH="$PATH:$CONAN_PATH"
-        
+
         if ! command -v conan &> /dev/null; then
             # Try alternative paths
             for potential_path in ~/.local/bin ~/Library/Python/*/bin ~/.pyenv/versions/*/bin; do
@@ -138,8 +153,9 @@ setup_conan() {
             done
         fi
     fi
-    
-    # Create default profile
+
+    # Create default profile. build-plugin.sh runs `conan install -pr:b=default`
+    # on every build, so a default profile must exist before any plugin builds.
     if [[ ! -f ~/.conan2/profiles/default ]]; then
         log_info "Creating Conan default profile..."
         conan profile detect
@@ -182,32 +198,10 @@ setup_directories() {
     log_info "  Development: $DEV_PLUGIN_DIR"
 }
 
-# Build OpenFX framework
-build_openfx() {
-    log_info "Building OpenFX framework..."
-    
-    # Ensure we're in the OpenFX root directory
-    if [[ ! -f "CMakeLists.txt" ]] || [[ ! -d "include" ]]; then
-        log_error "Not in OpenFX root directory. Please run from the openfx directory."
-        exit 1
-    fi
-    
-    # Build with examples
-    get_plugin_paths
-    if ./scripts/build-cmake.sh Release -DPLUGIN_INSTALLDIR="$DEV_PLUGIN_DIR"; then
-        log_success "OpenFX framework built successfully"
-        log_info "Built plugins are in: $DEV_PLUGIN_DIR"
-        log_info "Build output is in: build/Release/"
-    else
-        log_error "OpenFX build failed"
-        exit 1
-    fi
-}
-
 # Setup environment variables
 setup_env_vars() {
     log_info "Setting up environment variables..."
-    
+
     SHELL_RC=""
     if [[ -f ~/.zshrc ]]; then
         SHELL_RC=~/.zshrc
@@ -220,16 +214,16 @@ setup_env_vars() {
         touch ~/.zshrc
         SHELL_RC=~/.zshrc
     fi
-    
-    # Check if OpenFX environment is already configured
+
+    # Check if AIFX environment is already configured
     if grep -q "REPO_ROOT" "$SHELL_RC"; then
-        log_info "OpenFX environment variables already configured"
+        log_info "AIFX environment variables already configured"
     else
-        log_info "Adding OpenFX environment variables to $SHELL_RC"
-        
+        log_info "Adding AIFX environment variables to $SHELL_RC"
+
         cat >> "$SHELL_RC" << EOF
 
-# OpenFX Development Environment
+# AIFX Development Environment
 export REPO_ROOT="$(pwd)"
 export OFX_PLUGIN_PATH="$USER_PLUGIN_DIR"
 export OFX_DEV_PLUGIN_PATH="$DEV_PLUGIN_DIR"
@@ -238,7 +232,6 @@ export OFX_DEV_PLUGIN_PATH="$DEV_PLUGIN_DIR"
 export PATH="\$PATH:\$(python3 -c 'import sys; import os; print(os.path.join(sys.prefix, "bin"))')"
 
 # Helper aliases
-# (removed) ofx-build: no top-level build-cmake.sh in AIFX
 alias ofx-plugins="find \$OFX_PLUGIN_PATH -maxdepth 1 -name '*.ofx.bundle' -type d -exec ls -ld {} + 2>/dev/null || echo 'No plugins found'"
 alias ofx-dev-build="\$REPO_ROOT/tools/build-plugin.sh"
 
@@ -248,66 +241,61 @@ EOF
     fi
 }
 
-# Verify installation
+# Verify the environment is ready to build
 verify_setup() {
-    log_info "Verifying installation..."
-    
-    # Check if example plugins were built
+    log_info "Verifying environment..."
+
+    if command -v conan &> /dev/null; then
+        log_success "Conan available: $(conan --version)"
+    else
+        log_warning "Conan not on PATH yet. Reload your shell (source your RC file) or restart the terminal."
+    fi
+
+    if [[ -f ~/.conan2/profiles/default ]]; then
+        log_success "Conan default profile present (~/.conan2/profiles/default)"
+    else
+        log_warning "Conan default profile missing. Run: conan profile detect"
+    fi
+
     get_plugin_paths
-    EXAMPLE_COUNT=$(find "$DEV_PLUGIN_DIR" -name "*.ofx.bundle" -type d 2>/dev/null | wc -l)
-    if [[ $EXAMPLE_COUNT -gt 0 ]]; then
-        log_success "Found $EXAMPLE_COUNT example plugins in $DEV_PLUGIN_DIR"
+    if [[ -d "$USER_PLUGIN_DIR" ]]; then
+        log_success "OFX plugin directory ready: $USER_PLUGIN_DIR"
     else
-        log_warning "No example plugins found. Build may have failed."
+        log_warning "OFX plugin directory missing: $USER_PLUGIN_DIR"
     fi
-    
-    # Check support libraries
-    if [[ -f "build/Release/Support/Library/libOfxSupport.a" ]]; then
-        log_success "OpenFX Support library built"
-    else
-        log_warning "OpenFX Support library not found"
-    fi
-    
-    # Check host support
-    if [[ -f "build/Release/HostSupport/libOfxHost.a" ]]; then
-        log_success "OpenFX Host library built"
-    else
-        log_warning "OpenFX Host library not found"
-    fi
-    
-    log_success "Setup verification completed"
+
+    log_success "Environment verification completed"
 }
 
 # Print next steps
 print_next_steps() {
-    log_success "OpenFX development environment setup complete!"
+    log_success "AIFX development environment setup complete!"
     echo
+    get_plugin_paths
     echo "Next steps:"
     echo "1. Reload your shell: source ~/.zshrc  (or ~/.bash_profile)"
-    echo "3. Build your plugin: ofx-dev-build MyPlugin"
-    get_plugin_paths
-    echo "4. Find plugins in: $USER_PLUGIN_DIR"
+    echo "2. Build and install a plugin, e.g.:"
+    echo "     ./tools/build-plugin.sh plugins/depth_da3 DepthAnything3 --install"
+    echo "3. Find installed plugins in: $USER_PLUGIN_DIR"
     echo
-    echo "Available commands:"
-    echo "  ofx-build            - Build OpenFX framework"
-    echo "  ofx-plugins          - List installed plugins"
-    echo "  ofx-dev-build        - Build specific plugin"
-    echo "  ofx-plugins          - List installed plugins"
+    echo "Available commands (after reloading your shell):"
+    echo "  ofx-dev-build    - Build a specific plugin (tools/build-plugin.sh)"
+    echo "  ofx-plugins      - List installed plugins"
     echo
-    echo "Documentation: OPENFX_DEVELOPMENT_GUIDE.md"
+    echo "Documentation: docs/installation.md (Building from source)"
 }
 
 # Main execution
 main() {
-    echo "OpenFX Development Environment Setup"
+    echo "AIFX Development Environment Setup"
     echo "====================================="
     echo
-    
+
     detect_platform
+    check_aifx_root
     check_prerequisites
     setup_conan
     setup_directories
-    build_openfx
     setup_env_vars
     verify_setup
     print_next_steps
