@@ -138,15 +138,15 @@ This block defines `…ComfyUIInputDir` paths but deliberately has no
   has to be configured (per-OS, because each side addresses the shared
   drive differently).
 - **The output path is *derived*, not configured.** The plugin builds
-  it at runtime from pieces already present:
-  `{mountPath}/out/{workflowName}/{outputVersion}/…`, where `mountPath`
-  comes from this `server` block and `workflowName` / `outputVersion`
-  come from the plugin's `project` block. The plugin both writes the
-  job request and reads the result back from its *own* host-side mount,
-  so it never needs to tell anyone else where output lives. Adding an
-  explicit output-dir field would only duplicate the mount path and
-  risk drifting out of sync with the `workflowName` / `outputVersion`
-  that actually determine the folder.
+  it at runtime from pieces already present: the host-side `mountPath`
+  from this `server` block, plus the runtime `projectName` parameter and
+  the `workflowName` / `outputVersion` from the plugin's `project` block
+  (roughly `{mountPath}/{projectName}/…/{workflowName}/{outputVersion}`).
+  The plugin both writes the job request and reads the result back from
+  its *own* host-side mount, so it never needs to tell anyone else where
+  output lives. Adding an explicit output-dir field would only duplicate
+  the mount path and risk drifting out of sync with the parameters that
+  actually determine the folder.
 
 In short: **input is an address you must give to another process;
 output is a convention you reconstruct locally.** Only the former
@@ -182,13 +182,49 @@ is no `project` block in the base file).
 - **`workflowName`** — a tag the plugin uses for the on-disk output
   folder hierarchy (so multiple workflows for the same shot don't
   collide).
-- **`workflowFile`** — path inside the bundle's `Resources/` to the
-  ComfyUI workflow JSON the plugin submits. Change this to point at
-  a custom workflow you authored — see
+- **`workflowFile`** — the workflow JSON the plugin submits. This value
+  seeds the runtime **Workflow File** parameter (`workflowFilePath`, see
+  [Runtime path parameters](#runtime-path-parameters-not-in-config)
+  below), and how it resolves depends on its form:
+  - A `resources/…`-prefixed value (e.g.
+    `resources/workflow/depth_crafter.json`) is **bundle-relative** —
+    the plugin resolves it against
+    `<Plugin>.ofx.bundle/Contents/Resources/`. This is the usual case.
+  - An absolute path is used as-is.
+
+  Change this to point at a custom workflow you authored — see
   [Workflow customization](workflow-customization.md).
 - **`outputVersion`** — version suffix appended to the output folder.
   Bump (e.g. `v001` → `v002`) when you want a clean re-render
   alongside prior results.
+
+### Runtime path parameters (not in config)
+
+Some paths the plugin uses are **OFX parameters shown in the host's
+parameter panel**, not keys in `defaults-base.json` /
+`defaults-project.json`. They're listed here for completeness because
+they hold or build filesystem paths, even though you don't set them in
+the JSON config:
+
+- **`workflowFilePath`** (label *Workflow File*, type
+  `eStringTypeFilePath`) — the live path to the workflow JSON the plugin
+  actually loads. Its default is seeded from the `project.workflowFile`
+  config key above, and it resolves by the same rules
+  (`resources/…` → bundle-relative; absolute → as-is). The artist can
+  override it in the panel to point at a custom workflow. There is no
+  `workflowFilePath` config key — configure the default via
+  `project.workflowFile`.
+- **`projectName`** (label *Project Name*) — an artist-entered name that
+  becomes a **component of the output path** the plugin reads results
+  back from (`{mountPath}/{projectName}/…`). It has no config-file
+  counterpart; it's intentionally per-shot and set in the panel. Leaving
+  it empty turns the project-name status indicator black as a reminder.
+
+This is why the output location never appears in the config file (see
+[Why there are input directories but no output
+directories](#why-there-are-input-directories-but-no-output-directories)):
+it's assembled at render time from `mountPath` (config) plus the
+runtime `projectName`, `workflowName`, and `outputVersion`.
 
 ## Per-plugin override examples
 
