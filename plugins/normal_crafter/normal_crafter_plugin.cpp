@@ -415,17 +415,9 @@ NormalCrafterPluginFactory::NormalCrafterPluginFactory()
 
 json NormalCrafterPluginFactory::loadNormalCrafterConfigDefaults()
 {
-    const char* home = getenv("HOME");
-    if (!home) return json{};
-
-    std::vector<std::string> searchPaths = {
-        std::string(home) + "/Library/OFX/Plugins/NormalCrafter.ofx.bundle/Contents/Resources/config/defaults.json",
-        std::string(home) + "/OFX/Plugins/NormalCrafter.ofx.bundle/Contents/Resources/config/defaults.json",
-        "/Library/OFX/Plugins/NormalCrafter.ofx.bundle/Contents/Resources/config/defaults.json",
-        std::string(home) + "/Library/OFX/Plugins/AnyComfy.ofx.bundle/Contents/Resources/config/defaults.json",
-        std::string(home) + "/OFX/Plugins/AnyComfy.ofx.bundle/Contents/Resources/config/defaults.json",
-        "/Library/OFX/Plugins/AnyComfy.ofx.bundle/Contents/Resources/config/defaults.json"
-    };
+    // Search the NormalCrafter bundle across all platform OFX plugin locations.
+    std::vector<std::string> searchPaths =
+        getOfxConfigSearchPaths({"NormalCrafter"});
 
     for (const auto& path : searchPaths) {
         std::ifstream f(path);

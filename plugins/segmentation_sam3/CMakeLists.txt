@@ -74,7 +74,7 @@ endif()
 # Linux: create .ofx.bundle structure at build time
 if(UNIX AND NOT APPLE)
     set(BUNDLE_DIR "${CMAKE_BINARY_DIR}/SegmentationSAM3.ofx.bundle/Contents/Linux-x86-64")
-    set(RESOURCES_DIR "${CMAKE_BINARY_DIR}/SegmentationSAM3.ofx.bundle/Resources")
+    set(RESOURCES_DIR "${CMAKE_BINARY_DIR}/SegmentationSAM3.ofx.bundle/Contents/Resources")
 
     add_custom_command(TARGET SegmentationSAM3 POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E make_directory "${BUNDLE_DIR}"
@@ -98,7 +98,7 @@ endif()
 # wrapped with $<CONFIG> to land in the right per-config output folder.
 if(WIN32)
     set(BUNDLE_DIR "${CMAKE_BINARY_DIR}/SegmentationSAM3.ofx.bundle/Contents/Win64")
-    set(RESOURCES_DIR "${CMAKE_BINARY_DIR}/SegmentationSAM3.ofx.bundle/Resources")
+    set(RESOURCES_DIR "${CMAKE_BINARY_DIR}/SegmentationSAM3.ofx.bundle/Contents/Resources")
 
     add_custom_command(TARGET SegmentationSAM3 POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E make_directory "${BUNDLE_DIR}"

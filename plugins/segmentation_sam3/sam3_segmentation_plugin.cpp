@@ -519,19 +519,9 @@ SAM3SegmentationPluginFactory::SAM3SegmentationPluginFactory()
 
 json SAM3SegmentationPluginFactory::loadSAM3ConfigDefaults()
 {
-    // Search for config in the SAM3 bundle locations, then fall back to AnyComfy
-    const char* home = getenv("HOME");
-    if (!home) return json{};
-
-    std::vector<std::string> searchPaths = {
-        std::string(home) + "/Library/OFX/Plugins/SegmentationSAM3.ofx.bundle/Contents/Resources/config/defaults.json",
-        std::string(home) + "/OFX/Plugins/SegmentationSAM3.ofx.bundle/Contents/Resources/config/defaults.json",
-        "/Library/OFX/Plugins/SegmentationSAM3.ofx.bundle/Contents/Resources/config/defaults.json",
-        // Fall back to AnyComfy config if SAM3 bundle config not found
-        std::string(home) + "/Library/OFX/Plugins/AnyComfy.ofx.bundle/Contents/Resources/config/defaults.json",
-        std::string(home) + "/OFX/Plugins/AnyComfy.ofx.bundle/Contents/Resources/config/defaults.json",
-        "/Library/OFX/Plugins/AnyComfy.ofx.bundle/Contents/Resources/config/defaults.json"
-    };
+    // Search the SegmentationSAM3 bundle across all platform OFX plugin locations.
+    std::vector<std::string> searchPaths =
+        getOfxConfigSearchPaths({"SegmentationSAM3"});
 
     for (const auto& path : searchPaths) {
         std::ifstream f(path);

@@ -399,17 +399,9 @@ DepthCrafterPluginFactory::DepthCrafterPluginFactory()
 
 json DepthCrafterPluginFactory::loadDepthCrafterConfigDefaults()
 {
-    const char* home = getenv("HOME");
-    if (!home) return json{};
-
-    std::vector<std::string> searchPaths = {
-        std::string(home) + "/Library/OFX/Plugins/DepthCrafter.ofx.bundle/Contents/Resources/config/defaults.json",
-        std::string(home) + "/OFX/Plugins/DepthCrafter.ofx.bundle/Contents/Resources/config/defaults.json",
-        "/Library/OFX/Plugins/DepthCrafter.ofx.bundle/Contents/Resources/config/defaults.json",
-        std::string(home) + "/Library/OFX/Plugins/AnyComfy.ofx.bundle/Contents/Resources/config/defaults.json",
-        std::string(home) + "/OFX/Plugins/AnyComfy.ofx.bundle/Contents/Resources/config/defaults.json",
-        "/Library/OFX/Plugins/AnyComfy.ofx.bundle/Contents/Resources/config/defaults.json"
-    };
+    // Search the DepthCrafter bundle across all platform OFX plugin locations.
+    std::vector<std::string> searchPaths =
+        getOfxConfigSearchPaths({"DepthCrafter"});
 
     for (const auto& path : searchPaths) {
         std::ifstream f(path);

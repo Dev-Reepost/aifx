@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-06-10
+
+Windows resource- and log-loading fixes. The plugins built and loaded on
+Windows but could not find the user's home directory, their bundled
+`defaults.json`, or their workflow templates; this release makes all three work
+and standardises the bundle layout on the OFX spec across every platform.
+
+### Fixed
+
+- **Plugin log is now written on Windows.** `initializeLogger()` resolved the
+  log directory from `getenv("HOME")`, which Windows does not set, so logging
+  silently disabled itself (the only trace was a `std::cerr` line the host
+  discards). Home resolution now falls back to `USERPROFILE` (then
+  `HOMEDRIVE`+`HOMEPATH`), so the daily `comfyui_plugin_YYYYMMDD.log` lands in
+  `%USERPROFILE%`.
+- **Bundled `defaults.json` now loads on Windows/Linux.** The runtime config
+  search looked under `Contents/Resources/config/`, but the Windows and Linux
+  builds packaged resources at the bundle's top-level `Resources/`, so the
+  search never matched and the parameter panel fell back to hard-coded defaults
+  instead of the merged studio `defaults.json`. Resources are now packaged
+  under `Contents/Resources/` per the OFX spec on all platforms (matching
+  macOS).
+- **Bundled workflow templates now load on Windows/Linux.**
+  `getBundleResourcePath()` resolved workflow files from the old top-level
+  `Resources/`; it now uses `Contents/Resources/` on every platform, consistent
+  with the packaging change above.
+- **Absolute Windows workflow paths are recognised.** `resolveWorkflowPath()`
+  treated only POSIX `/…` paths as absolute; drive-letter (`C:\…`, `C:/…`) and
+  UNC (`\\…`) paths are now handled, so a user-supplied absolute workflow path
+  on Windows is used directly instead of being mis-resolved as bundle-relative.
+
+### Changed
+
+- Config-defaults lookup is centralised in a single cross-platform
+  `getOfxConfigSearchPaths()` helper that also honours `OFX_PLUGIN_PATH` and the
+  Windows system OFX directory. The dead `BasePlugin::loadConfigDefaults()` and
+  its vestigial `AnyComfy` fallback paths were removed.
+
 ## [0.1.2] - 2026-06-10
 
 Stability fix for OFX hosts that don't zero plugin instance memory.

@@ -43,10 +43,10 @@ namespace ComfyUI {
 void BasePlugin::initializeLogger()
 {
     try {
-        // Check if HOME environment variable exists
-        const char* home = getenv("HOME");
-        if (!home) {
-            std::cerr << "WARNING: HOME environment variable not set, logging disabled" << std::endl;
+        // Resolve the home directory (HOME on POSIX, USERPROFILE on Windows).
+        std::string home = getHomeDir();
+        if (home.empty()) {
+            std::cerr << "WARNING: could not resolve home directory, logging disabled" << std::endl;
             return;
         }
 
@@ -316,6 +316,7 @@ BasePlugin::BasePlugin(OfxImageEffectHandle handle)
             const char* home = getenv("HOME");
             if (home) _logger->info("HOME: '{}'", home);
             else _logger->warn("HOME: NOT SET");
+            _logger->info("Resolved home dir: '{}'", getHomeDir());
         } catch (...) { _logger->warn("HOME: ERROR"); }
 
         try {
@@ -2256,7 +2257,7 @@ std::string BasePlugin::getBundleResourcePath(const std::string& resourceName)
 
 #elif defined(__linux__)
     // On Linux, bundle structure: Plugin.ofx.bundle/Contents/Linux-{arch}/Plugin.ofx
-    //                 Resources: Plugin.ofx.bundle/Resources/{resourceName}
+    //                 Resources: Plugin.ofx.bundle/Contents/Resources/{resourceName}
     std::string pluginPath;
     try {
         pluginPath = getPropertySet().propGetString(kOfxPluginPropFilePath, false);
@@ -2273,14 +2274,14 @@ std::string BasePlugin::getBundleResourcePath(const std::string& resourceName)
     }
 
     std::string bundlePath = pluginPath.substr(0, bundlePos + 11);
-    std::string resourcePath = bundlePath + "/Resources/" + resourceName;
+    std::string resourcePath = bundlePath + "/Contents/Resources/" + resourceName;
 
     if (_logger) _logger->debug("Resolved bundle resource path: {}", resourcePath);
     return resourcePath;
 
 #elif defined(_WIN32)
     // On Windows, bundle structure: Plugin.ofx.bundle\Contents\Win64\Plugin.ofx
-    //                   Resources:  Plugin.ofx.bundle\Resources\{resourceName}
+    //                   Resources:  Plugin.ofx.bundle\Contents\Resources\{resourceName}
     std::string pluginPath;
     try {
         pluginPath = getPropertySet().propGetString(kOfxPluginPropFilePath, false);
@@ -2321,7 +2322,7 @@ std::string BasePlugin::getBundleResourcePath(const std::string& resourceName)
     // Forward slashes are accepted by Windows file APIs even when the rest of
     // the path uses backslashes, so we can append the resource subpath as-is.
     std::string bundlePath = pluginPath.substr(0, bundlePos + 11);
-    std::string resourcePath = bundlePath + "/Resources/" + resourceName;
+    std::string resourcePath = bundlePath + "/Contents/Resources/" + resourceName;
 
     if (_logger) _logger->debug("Resolved bundle resource path: {}", resourcePath);
     return resourcePath;
@@ -2338,7 +2339,7 @@ std::string BasePlugin::resolveWorkflowPath(const std::string& workflowPath)
     if (_logger) _logger->info("Resolving workflow path: {}", workflowPath);
 
     // If path is absolute and exists, use it directly
-    if (!workflowPath.empty() && workflowPath[0] == '/') {
+    if (isAbsolutePath(workflowPath)) {
         std::ifstream test(workflowPath);
         if (test.good()) {
             test.close();
@@ -3920,103 +3921,6 @@ bool BasePlugin::shouldFlipYForOFX() const
         }
     }
     return result;
-}
-
-// ============================================================================
-// Configuration Management
-// ============================================================================
-
-json BasePlugin::loadConfigDefaults()
-{
-    // Try to load config from bundle resources
-    // This is a static method, so we need to find the bundle path manually
-
-    json config;
-
-    // Try to get or create a logger for config loading
-    auto logger = spdlog::get("comfyui_plugin");
-    if (!logger) {
-        // No logger available yet (first load), create a basic one
-        try {
-            const char* home = getenv("HOME");
-            if (home) {
-                auto now = std::chrono::system_clock::now();
-                std::time_t now_c = std::chrono::system_clock::to_time_t(now);
-                std::tm* now_tm = std::localtime(&now_c);
-                char dateStamp[16];
-                std::strftime(dateStamp, sizeof(dateStamp), "%Y%m%d", now_tm);
-                std::string logPath = std::string(home) + "/comfyui_plugin_" + std::string(dateStamp) + ".log";
-                logger = spdlog::basic_logger_mt("comfyui_plugin", logPath);
-            }
-        } catch (...) {
-            // Ignore logger creation errors
-        }
-    }
-
-    if (logger) {
-        logger->info("=== BasePlugin::loadConfigDefaults() called ===");
-    }
-
-    try {
-        // Get the plugin bundle path from environment or OFX standard locations
-        std::string bundlePath;
-
-        // On macOS, OFX plugins are in ~/Library/OFX/Plugins/ or /Library/OFX/Plugins/
-        // Check common locations
-        const char* home = getenv("HOME");
-        if (home) {
-            std::vector<std::string> searchPaths = {
-                std::string(home) + "/Library/OFX/Plugins/AnyComfy.ofx.bundle/Contents/Resources/config/defaults.json",
-                std::string(home) + "/OFX/Plugins/AnyComfy.ofx.bundle/Contents/Resources/config/defaults.json",
-                "/Library/OFX/Plugins/AnyComfy.ofx.bundle/Contents/Resources/config/defaults.json"
-            };
-
-            if (logger) {
-                logger->info("Searching for config file in {} locations:", searchPaths.size());
-            }
-
-            for (const auto& path : searchPaths) {
-                if (logger) {
-                    logger->info("  Checking: {}", path);
-                }
-
-                std::ifstream configFile(path);
-                if (configFile.is_open()) {
-                    configFile >> config;
-                    configFile.close();
-
-                    // Log successful load
-                    if (logger) {
-                        logger->info("✓ Successfully loaded config from: {}", path);
-                        logger->info("Config contents: {}", config.dump(2));
-                    }
-
-                    return config;
-                } else {
-                    if (logger) {
-                        logger->debug("  ✗ Not found");
-                    }
-                }
-            }
-        } else {
-            if (logger) {
-                logger->error("HOME environment variable not set!");
-            }
-        }
-
-        // If we get here, config file not found - return empty JSON
-        if (logger) {
-            logger->warn("Config file not found in any standard location, using hardcoded defaults");
-        }
-
-    } catch (const std::exception& e) {
-        if (logger) {
-            logger->error("Failed to load config defaults: {}", e.what());
-        }
-    }
-
-    // Return empty JSON if loading failed
-    return json();
 }
 
 // ============================================================================

@@ -16,10 +16,124 @@
 #include <map>
 #include <unordered_set>
 #include <unordered_map>
+#include <cstdlib>
+#include <cctype>
+#include <string>
+#include <vector>
 
 using json = nlohmann::json;
 
 namespace ComfyUI {
+
+/**
+ * @brief Resolve the user's home directory in a cross-platform way.
+ *
+ * POSIX sets HOME, but Windows usually does not — there the home directory is
+ * exposed via USERPROFILE (or HOMEDRIVE + HOMEPATH). Relying on getenv("HOME")
+ * alone silently disables logging and config discovery on Windows, so every
+ * caller must go through this helper instead.
+ *
+ * @return The home directory path, or an empty string if none could be found.
+ */
+inline std::string getHomeDir()
+{
+    if (const char* home = std::getenv("HOME")) {
+        return home;
+    }
+#ifdef _WIN32
+    if (const char* userProfile = std::getenv("USERPROFILE")) {
+        return userProfile;
+    }
+    const char* drive = std::getenv("HOMEDRIVE");
+    const char* path = std::getenv("HOMEPATH");
+    if (drive && path) {
+        return std::string(drive) + path;
+    }
+#endif
+    return std::string();
+}
+
+/**
+ * @brief Cross-platform test for whether a path is absolute.
+ *
+ * POSIX absolute paths start with '/'. Windows additionally has drive-letter
+ * paths ("C:\\..." or "C:/...") and UNC paths ("\\\\server\\share"); a leading
+ * backslash also denotes a (drive-relative) root on Windows.
+ */
+inline bool isAbsolutePath(const std::string& path)
+{
+    if (path.empty()) {
+        return false;
+    }
+    if (path[0] == '/' || path[0] == '\\') {
+        return true;
+    }
+#ifdef _WIN32
+    // Drive-letter path, e.g. "C:\\foo" or "C:/foo".
+    if (path.size() >= 3 && std::isalpha(static_cast<unsigned char>(path[0])) &&
+        path[1] == ':' && (path[2] == '/' || path[2] == '\\')) {
+        return true;
+    }
+#endif
+    return false;
+}
+
+/**
+ * @brief Build the ordered list of candidate defaults.json paths for the given
+ *        OFX bundles, across platforms.
+ *
+ * Searches, most specific first: every root listed in OFX_PLUGIN_PATH (the
+ * canonical OFX host search path, so config is found wherever the host actually
+ * loaded the bundle from), then the user's per-user OFX directories, then the
+ * system-wide install locations for macOS (/Library/OFX/Plugins) and Windows
+ * (C:\Program Files\Common Files\OFX\Plugins, plus %CommonProgramFiles%).
+ *
+ * @param bundleNames Bundle base names without the ".ofx.bundle" suffix, in
+ *                    priority order (e.g. {"DepthAnything3"}).
+ */
+inline std::vector<std::string> getOfxConfigSearchPaths(const std::vector<std::string>& bundleNames)
+{
+    const std::string suffix = ".ofx.bundle/Contents/Resources/config/defaults.json";
+    const std::string home = getHomeDir();
+
+#ifdef _WIN32
+    const char pathSep = ';';
+#else
+    const char pathSep = ':';
+#endif
+
+    // Roots that directly contain bundle directories (i.e. an ".../OFX/Plugins").
+    std::vector<std::string> ofxRoots;
+    if (const char* pluginPath = std::getenv("OFX_PLUGIN_PATH")) {
+        const std::string value(pluginPath);
+        size_t start = 0;
+        while (start < value.size()) {
+            size_t end = value.find(pathSep, start);
+            if (end == std::string::npos) end = value.size();
+            if (end > start) ofxRoots.push_back(value.substr(start, end - start));
+            start = end + 1;
+        }
+    }
+
+    std::vector<std::string> paths;
+    for (const auto& bundle : bundleNames) {
+        for (const auto& root : ofxRoots) {
+            paths.push_back(root + "/" + bundle + suffix);
+        }
+        if (!home.empty()) {
+            paths.push_back(home + "/Library/OFX/Plugins/" + bundle + suffix);
+            paths.push_back(home + "/OFX/Plugins/" + bundle + suffix);
+        }
+        paths.push_back("/Library/OFX/Plugins/" + bundle + suffix);
+#ifdef _WIN32
+        paths.push_back("C:/Program Files/Common Files/OFX/Plugins/" + bundle + suffix);
+        if (const char* commonProgramFiles = std::getenv("CommonProgramFiles")) {
+            paths.push_back(std::string(commonProgramFiles) + "/OFX/Plugins/" + bundle + suffix);
+        }
+#endif
+    }
+    return paths;
+}
 
 /**
  * @brief Base class for all ComfyUI OFX plugins
@@ -277,9 +391,6 @@ public:
                                          const json* configDefaults = nullptr,
                                          bool skipGroupHeaders = false,
                                          bool isSequencePlugin = false);
-
-    // Configuration file management (public for factory access)
-    static json loadConfigDefaults();
 };
 
 } // namespace ComfyUI
