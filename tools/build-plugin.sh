@@ -452,10 +452,15 @@ locate_or_create_bundle() {
             cp "$plugin_binary" "$bundle_path/Contents/MacOS/"
             chmod +x "$bundle_path/Contents/MacOS/$binary_name"
             ;;
-        linux|windows)
+        linux)
             mkdir -p "$bundle_path/Contents/Linux-x86-64"
             cp "$plugin_binary" "$bundle_path/Contents/Linux-x86-64/"
             chmod +x "$bundle_path/Contents/Linux-x86-64/$binary_name"
+            ;;
+        windows)
+            mkdir -p "$bundle_path/Contents/Win64"
+            cp "$plugin_binary" "$bundle_path/Contents/Win64/"
+            chmod +x "$bundle_path/Contents/Win64/$binary_name"
             ;;
     esac
 
@@ -661,7 +666,7 @@ _verify_portability_windows() {
     # Reject DLLs that the MSYS2/MinGW toolchain emits as dynamic runtime
     # dependencies; these are typically absent on a clean Windows install.
     # If you genuinely need one of these, ship it inside the bundle's
-    # Win64-x86_64/ directory and remove its prefix from this list.
+    # Win64/ directory and remove its prefix from this list.
     local forbidden_dlls
     forbidden_dlls=$(echo "$imports" \
         | grep -iE '^(libgcc|libstdc\+\+|libwinpthread|libssp|libgomp|libquadmath)' || true)
@@ -675,7 +680,7 @@ _verify_portability_windows() {
         log_error ""
         log_error "Fix (preferred): link statically — add -static-libgcc -static-libstdc++ to"
         log_error "the target's link flags, or use the static MSVCRT runtime. Alternative: copy"
-        log_error "the required DLLs into the bundle's Win64-x86_64/ directory."
+        log_error "the required DLLs into the bundle's Win64/ directory."
         exit 1
     fi
 

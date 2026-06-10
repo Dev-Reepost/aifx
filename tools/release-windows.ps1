@@ -57,7 +57,7 @@ Write-Step "Verifying bundles..."
 foreach ($entry in $Targets) {
     $target = $entry[1]
     $bundle = "build\windows\${target}.ofx.bundle"
-    $bin    = "${bundle}\Contents\Win64-AMD64\${target}.ofx"
+    $bin    = "${bundle}\Contents\Win64\${target}.ofx"
     if (-not (Test-Path $bin)) {
         Write-Err "Missing bundle binary: $bin"
         exit 1

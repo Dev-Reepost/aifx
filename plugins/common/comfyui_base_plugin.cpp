@@ -15,6 +15,10 @@
 #include <algorithm>
 
 #ifdef _WIN32
+    #ifndef WIN32_LEAN_AND_MEAN
+    #define WIN32_LEAN_AND_MEAN
+    #endif
+    #include <windows.h>
     #include <sys/stat.h>
     #define S_ISDIR(m) (((m) & _S_IFMT) == _S_IFDIR)
 #else
@@ -23,8 +27,14 @@
 
 #ifdef __APPLE__
 #include <dlfcn.h>
-// Anchor symbol for dladdr: any address in this shared library's data segment works.
-// A pointer-to-member-function cannot be reinterpret_cast'd to void*, so we use this instead.
+#endif
+
+#if defined(__APPLE__) || defined(_WIN32)
+// Anchor symbol used to locate this shared library at runtime when the host
+// does not populate kOfxPluginPropFilePath (e.g. DaVinci Resolve): its address
+// lies inside this module, resolved via dladdr (macOS) or GetModuleHandleEx
+// FROM_ADDRESS (Windows). A pointer-to-member-function cannot be cast to void*,
+// so we use this free symbol instead.
 static const char _dladdr_anchor = 0;
 #endif
 
@@ -2268,8 +2278,56 @@ std::string BasePlugin::getBundleResourcePath(const std::string& resourceName)
     if (_logger) _logger->debug("Resolved bundle resource path: {}", resourcePath);
     return resourcePath;
 
+#elif defined(_WIN32)
+    // On Windows, bundle structure: Plugin.ofx.bundle\Contents\Win64\Plugin.ofx
+    //                   Resources:  Plugin.ofx.bundle\Resources\{resourceName}
+    std::string pluginPath;
+    try {
+        pluginPath = getPropertySet().propGetString(kOfxPluginPropFilePath, false);
+        if (_logger) _logger->debug("Plugin file path: {}", pluginPath);
+    } catch (...) {
+        if (_logger) _logger->warn("Could not retrieve plugin file path");
+    }
+
+    // Fallback: some hosts (e.g. DaVinci Resolve) do not populate
+    // kOfxPluginPropFilePath. Recover this module's own path from an address
+    // inside it -- the Win32 equivalent of macOS dladdr.
+    if (pluginPath.empty()) {
+        HMODULE hModule = nullptr;
+        if (GetModuleHandleExA(
+                GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
+                    GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                reinterpret_cast<LPCSTR>(&_dladdr_anchor),
+                &hModule) && hModule) {
+            char modPath[MAX_PATH] = {0};
+            DWORD n = GetModuleFileNameA(hModule, modPath, MAX_PATH);
+            if (n > 0 && n < MAX_PATH) {
+                pluginPath = modPath;
+                if (_logger) _logger->info("kOfxPluginPropFilePath empty, using module path: {}", pluginPath);
+            }
+        }
+        if (pluginPath.empty()) {
+            if (_logger) _logger->warn("GetModuleFileName failed, cannot locate bundle resources");
+            return "";
+        }
+    }
+
+    size_t bundlePos = pluginPath.find(".ofx.bundle");
+    if (bundlePos == std::string::npos) {
+        if (_logger) _logger->warn("Plugin path does not contain .ofx.bundle: {}", pluginPath);
+        return "";
+    }
+
+    // Forward slashes are accepted by Windows file APIs even when the rest of
+    // the path uses backslashes, so we can append the resource subpath as-is.
+    std::string bundlePath = pluginPath.substr(0, bundlePos + 11);
+    std::string resourcePath = bundlePath + "/Resources/" + resourceName;
+
+    if (_logger) _logger->debug("Resolved bundle resource path: {}", resourcePath);
+    return resourcePath;
+
 #else
-    // Windows or unsupported platform
+    // Unsupported platform
     if (_logger) _logger->warn("Bundle resource lookup not implemented for this platform");
     return "";
 #endif

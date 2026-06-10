@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Windows/Linux bundles are now visible to OFX hosts.** Plugin binaries were
+  packaged into non-spec architecture subdirectories (`Contents/Win64-AMD64`
+  and `Contents/Linux-x86_64`, derived from `CMAKE_SYSTEM_PROCESSOR`). The OFX
+  bundle spec requires exactly `Contents/Win64` and `Contents/Linux-x86-64`, so
+  hosts (e.g. DaVinci Resolve) found the `.ofx.bundle` but no loadable binary
+  inside and silently skipped the plugin. macOS (`Contents/MacOS`) was already
+  correct. All seven plugins, the Windows release verifier, and the manual
+  bundle fallback now emit the spec names.
+- **Windows resource loading implemented.** `getBundleResourcePath()` was an
+  unimplemented stub on Windows (`#else` returned `""`), so even a visible
+  Windows plugin could not locate its bundled workflow template or
+  `defaults.json`. It now resolves resources from the module path, with a
+  `GetModuleHandleEx`-based fallback for hosts that don't populate
+  `kOfxPluginPropFilePath` (mirrors the macOS `dladdr` path).
+
 ### Added
 
 - macOS installer (`aifx-<version>-macos-installer.dmg`): SwiftUI wizard

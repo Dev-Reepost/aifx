@@ -73,7 +73,7 @@ endif()
 
 # Linux: create .ofx.bundle structure at build time
 if(UNIX AND NOT APPLE)
-    set(BUNDLE_DIR "${CMAKE_BINARY_DIR}/DepthAnything3.ofx.bundle/Contents/Linux-${CMAKE_SYSTEM_PROCESSOR}")
+    set(BUNDLE_DIR "${CMAKE_BINARY_DIR}/DepthAnything3.ofx.bundle/Contents/Linux-x86-64")
     set(RESOURCES_DIR "${CMAKE_BINARY_DIR}/DepthAnything3.ofx.bundle/Resources")
 
     add_custom_command(TARGET DepthAnything3 POST_BUILD
@@ -92,12 +92,12 @@ aifx_merge_defaults(DepthAnything3 "${RESOURCES_DIR}")
 endif()
 
 # Windows: create .ofx.bundle structure at build time. Mirrors the Linux
-# block above with Win64-${ARCH} as the OS-specific binary directory.
+# block above with Win64 as the OS-specific binary directory.
 # Assumes a single-config generator (Ninja/Makefile via the Conan preset);
 # for Visual Studio multi-config builds, BUNDLE_DIR would need to be
 # wrapped with $<CONFIG> to land in the right per-config output folder.
 if(WIN32)
-    set(BUNDLE_DIR "${CMAKE_BINARY_DIR}/DepthAnything3.ofx.bundle/Contents/Win64-${CMAKE_SYSTEM_PROCESSOR}")
+    set(BUNDLE_DIR "${CMAKE_BINARY_DIR}/DepthAnything3.ofx.bundle/Contents/Win64")
     set(RESOURCES_DIR "${CMAKE_BINARY_DIR}/DepthAnything3.ofx.bundle/Resources")
 
     add_custom_command(TARGET DepthAnything3 POST_BUILD
