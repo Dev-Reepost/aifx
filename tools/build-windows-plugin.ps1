@@ -166,17 +166,37 @@ function Clean-BuildDirectory {
 function Install-ConanDependencies {
     Write-Info "Step 1/4: Installing Conan dependencies..."
 
+    # Build ixwebsocket from source against the locally installed MSVC, but only
+    # when no local cache binary exists yet. Conan keys binary compatibility on
+    # compiler.version=194, which spans MSVC 19.40–19.49; Conan Center's prebuilt
+    # is built with a newer 19.4x whose STL references symbols (e.g.
+    # __std_find_last_of_trivial_pos_1) that an older-but-still-194 toolset's
+    # import libs don't export, causing LNK2019 at plugin link time. Forcing it
+    # from source removes the dependency on Conan Center's builder MSVC being
+    # at or below ours. The cache check keeps the release loop from rebuilding
+    # it once per plugin: the first plugin builds it, the rest reuse the cached
+    # binary via --build=missing. Only ixwebsocket has triggered this; the other
+    # compiled
+    # deps' prebuilts were built older and link fine. If a stale prebuilt is
+    # already cached, clear it once with: conan remove "ixwebsocket/*"
+    $ixwsBuild = @()
+    if (-not ((& conan list "ixwebsocket/*:*" 2>&1 | Out-String) -match '[0-9a-f]{40}')) {
+        $ixwsBuild = @("--build=ixwebsocket/*")
+    }
+
     # NOTE: "--build=missing" must stay at index 7 — the retry path below does
-    # $conanArgs[7] = "--build=*". Keep the -o options at the END so that index
-    # is stable. The -o flags force static linkage of all deps regardless of the
-    # build host's Conan profile (CLI -o is highest precedence), making the .ofx
-    # self-contained; expat stays shared (OpenFX HostSupport only, not bundled).
+    # $conanArgs[7] = "--build=*". $ixwsBuild and the -o options come after, so
+    # that index is stable. The -o flags force static linkage of all deps
+    # regardless of the build host's Conan profile (CLI -o is highest
+    # precedence), making the .ofx self-contained; expat stays shared (OpenFX
+    # HostSupport only, not bundled).
     $conanArgs = @(
         "install", ".",
         "-s", "build_type=$BuildType",
         "-s", "arch=x86_64",
         "-pr:b=default",
-        "--build=missing",
+        "--build=missing"
+    ) + $ixwsBuild + @(
         "-of=$BUILD_DIR",
         "-o", "*:shared=False",
         "-o", "expat/*:shared=True"
