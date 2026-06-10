@@ -58,7 +58,7 @@ organized per operating system.
    config into each, and clears macOS quarantine.
 5. Restart your OFX host. The plugins appear under the **AIFX** category.
 
-The installer is unsigned in v0.1.0. On first launch macOS will ask you to
+The installer is unsigned in v0.1.x. On first launch macOS will ask you to
 confirm — right-click → **Open**, or run
 `xattr -dr com.apple.quarantine '/path/to/AIFX Installer.app'`. A signed +
 notarised installer is planned for a follow-up patch release.
