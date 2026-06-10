@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-06-10
+
+Build-portability and host-visibility release. Plugin behaviour is unchanged;
+the build and packaging tooling changed so the shipped `.ofx` bundles are
+self-contained, use OFX-spec architecture directories, and load on a clean host
+without the build machine's Conan cache.
+
+### Added
+
+- macOS installer (`aifx-<version>-macos-installer.dmg`): SwiftUI wizard
+  that asks for the ComfyUI server URL + port and the two shared-folder
+  paths (this Mac's view, and the ComfyUI server's view), bakes them into
+  each plugin's `defaults.json`, copies the seven `.ofx.bundle` directories
+  into the chosen OFX directory, and clears macOS quarantine. Source at
+  `installer/macos/`, build pipeline at `tools/release-macos-installer.sh`.
+  Unsigned for v0.1.x — signing + notarisation lands once a Developer ID
+  certificate is on the build machine.
+
 ### Fixed
 
 - **Windows/Linux bundles are now visible to OFX hosts.** Plugin binaries were
@@ -23,26 +41,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `defaults.json`. It now resolves resources from the module path, with a
   `GetModuleHandleEx`-based fallback for hosts that don't populate
   `kOfxPluginPropFilePath` (mirrors the macOS `dladdr` path).
-
-### Added
-
-- macOS installer (`aifx-<version>-macos-installer.dmg`): SwiftUI wizard
-  that asks for the ComfyUI server URL + port and the two shared-folder
-  paths (this Mac's view, and the ComfyUI server's view), bakes them into
-  each plugin's `defaults.json`, copies the seven `.ofx.bundle` directories
-  into the chosen OFX directory, and clears macOS quarantine. Source at
-  `installer/macos/`, build pipeline at `tools/release-macos-installer.sh`.
-  Unsigned for v0.1.x — signing + notarisation lands once a Developer ID
-  certificate is on the build machine.
-
-## [0.1.1] - 2026-06-10
-
-Build-portability release. Plugin behaviour is unchanged; only the build and
-packaging tooling changed so the shipped `.ofx` bundles are self-contained and
-load on a clean host without the build machine's Conan cache.
-
-### Fixed
-
+- Build `ixwebsocket` from source on Windows when no local Conan binary is
+  cached. Conan Center's prebuilt is keyed on `compiler.version=194` (MSVC
+  19.40–19.49) but can be built with a newer toolset than the build host has;
+  its C++ runtime then references STL symbols the host's import libraries don't
+  export, breaking plugin linking. Building it against the locally installed
+  MSVC avoids the mismatch.
 - Make plugin bundles self-contained via static linkage. Every third-party
   Conan dependency is now statically linked into each `.ofx` (`-o '*:shared=False'`
   forced on the Conan CLI across all build/release scripts, the highest-precedence
