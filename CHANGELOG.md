@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-06-10
+
+Stability fix for OFX hosts that don't zero plugin instance memory.
+
+### Fixed
+
+- **Flame no longer segfaults when instancing a plugin.** Every clip/param
+  pointer in `BasePlugin` is now zero-initialized (`= nullptr`). The
+  constructor's environment-discovery dump calls `shouldFlipYForOFX()` — which
+  reads `_flipYMode` — *before* the parameter-fetch block assigns those members.
+  With an indeterminate pointer, `if (_flipYMode)` passed and the following
+  `->getValue()` dereferenced garbage, an uncatchable SIGSEGV. macOS hosts
+  happened to hand out zeroed memory and survived; Flame on Linux got non-zero
+  garbage and crashed on instancing.
+
 ## [0.1.1] - 2026-06-10
 
 Build-portability and host-visibility release. Plugin behaviour is unchanged;
@@ -86,6 +101,7 @@ Linux x86_64 (glibc 2.34+) bundles published on GitHub Releases.
   plugin directories.
 - Comprehensive user documentation and GitHub Pages site.
 
-[Unreleased]: https://github.com/Dev-Reepost/aifx/compare/v0.1.1...main
+[Unreleased]: https://github.com/Dev-Reepost/aifx/compare/v0.1.2...main
+[0.1.2]: https://github.com/Dev-Reepost/aifx/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/Dev-Reepost/aifx/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/Dev-Reepost/aifx/releases/tag/v0.1.0
