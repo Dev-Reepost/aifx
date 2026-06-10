@@ -175,6 +175,8 @@ build_in_docker() {
                 -s build_type=Release \
                 -s arch=$arch \
                 -pr:b=default \
+                -o '*:shared=False' \
+                -o 'expat/*:shared=True' \
                 --build=missing \
                 -of=$build_dir
 

@@ -166,13 +166,20 @@ function Clean-BuildDirectory {
 function Install-ConanDependencies {
     Write-Info "Step 1/4: Installing Conan dependencies..."
 
+    # NOTE: "--build=missing" must stay at index 7 — the retry path below does
+    # $conanArgs[7] = "--build=*". Keep the -o options at the END so that index
+    # is stable. The -o flags force static linkage of all deps regardless of the
+    # build host's Conan profile (CLI -o is highest precedence), making the .ofx
+    # self-contained; expat stays shared (OpenFX HostSupport only, not bundled).
     $conanArgs = @(
         "install", ".",
         "-s", "build_type=$BuildType",
         "-s", "arch=x86_64",
         "-pr:b=default",
         "--build=missing",
-        "-of=$BUILD_DIR"
+        "-of=$BUILD_DIR",
+        "-o", "*:shared=False",
+        "-o", "expat/*:shared=True"
     )
 
     Write-Info "Running: conan $($conanArgs -join ' ')"

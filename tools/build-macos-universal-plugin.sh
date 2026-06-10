@@ -163,6 +163,8 @@ install_conan_dependencies() {
         -s build_type=Release \
         -s arch="$arch" \
         -pr:b=default \
+        -o "*:shared=False" \
+        -o "expat/*:shared=True" \
         --build=missing \
         \
         -of="$build_dir" 2>&1; then
@@ -175,6 +177,8 @@ install_conan_dependencies() {
             -s build_type=Release \
             -s arch="$arch" \
             -pr:b=default \
+            -o "*:shared=False" \
+            -o "expat/*:shared=True" \
             --build="*" \
             \
             -of="$build_dir"

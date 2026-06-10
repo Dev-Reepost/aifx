@@ -62,9 +62,15 @@ echo "==> Using cmake ${CMAKE_VERSION} ($(command -v cmake)), conan $(conan --ve
 # --- Build -------------------------------------------------------------------
 echo ""
 echo "==> [1/3] Installing Conan dependencies..."
+# -o '*:shared=False' forces static linkage of all deps regardless of the
+# build host's Conan profile (CLI -o is highest precedence), so the shipped
+# .ofx is self-contained and portable; expat stays shared (OpenFX HostSupport
+# only, never in the bundle). Mirrors tools/build-plugin.sh.
 conan install . \
     -s build_type=Release \
     -pr:b=default \
+    -o '*:shared=False' \
+    -o 'expat/*:shared=True' \
     --build=missing \
     -of="$BUILD_DIR"
 

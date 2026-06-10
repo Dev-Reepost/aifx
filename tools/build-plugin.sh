@@ -254,12 +254,22 @@ configure_cmake() {
         log_info "Detected ComfyUI plugin - enabling ComfyUI dependencies"
     fi
 
+    # Force static linkage of all third-party deps, overriding whatever the
+    # developer's `default` profile says. CLI `-o` has the highest precedence in
+    # Conan 2 (above profile [options] and the consumer's default_options), so a
+    # profile carrying `*:shared=True` can't slip shared libs — and their
+    # absolute Conan-cache RUNPATHs — into the .ofx. expat is pinned back to
+    # shared to match conanfile.py (it's OpenFX HostSupport's, never in the
+    # bundle). Result: a self-contained, portable .ofx; see
+    # verify_binary_portability().
+    local conan_opts=(-o "*:shared=False" -o "expat/*:shared=True")
+
     # Install Conan dependencies and generate build files if needed
     if [[ ! -f "build/$BUILD_TYPE/generators/CMakePresets.json" ]] || [[ "$is_comfyui_plugin" == true ]]; then
         log_info "Installing Conan dependencies..."
-        if ! conan install -s build_type=$BUILD_TYPE -pr:b=default "${conan_extra_args[@]}" --build=missing .; then
+        if ! conan install -s build_type=$BUILD_TYPE -pr:b=default "${conan_opts[@]}" "${conan_extra_args[@]}" --build=missing .; then
             log_warning "Conan install with --build=missing failed, retrying with --build='*' (builds all from source)..."
-            conan install -s build_type=$BUILD_TYPE -pr:b=default "${conan_extra_args[@]}" --build="*" .
+            conan install -s build_type=$BUILD_TYPE -pr:b=default "${conan_opts[@]}" "${conan_extra_args[@]}" --build="*" .
         fi
     fi
 
@@ -520,6 +530,28 @@ _verify_portability_macos() {
         log_error "build-plugin.sh now always configures with --fresh so cache poisoning can't"
         log_error "carry over a stale Homebrew resolution; verify the top-level CMakeLists uses"
         log_error "'find_package(... CONFIG REQUIRED)' for every Conan-supplied dep."
+        exit 1
+    fi
+
+    # LC_LOAD_DYLIB install names are only half the story: a shared dependency
+    # resolved as @rpath/lib... passes the check above but still needs an
+    # LC_RPATH to be found at load time. If CMake baked that LC_RPATH as an
+    # absolute Conan-cache path, the bundle loads only on this machine — and
+    # otool -L never shows it. Inspect the load commands directly. (For each
+    # LC_RPATH command otool -l prints the cmdsize line then a `path <p>` line.)
+    local bad_rpaths
+    bad_rpaths=$(otool -l "$plugin_binary" 2>/dev/null \
+        | awk '/^[[:space:]]*cmd LC_RPATH$/{getline; getline; print $2}' \
+        | grep -vE '^(@loader_path|@executable_path|@rpath)(/|$)' || true)
+
+    if [[ -n "$bad_rpaths" ]]; then
+        log_error "Binary has non-portable LC_RPATH entries:"
+        echo "$bad_rpaths" | sed 's/^/        /'
+        log_error ""
+        log_error "Allowed: @loader_path / @executable_path / @rpath-relative only."
+        log_error "An absolute LC_RPATH (Conan cache, Homebrew, build-host home) means a shared"
+        log_error "dependency resolves only on the build machine. Prefer static linkage for"
+        log_error "Conan-supplied deps (build-plugin.sh forces -o '*:shared=False')."
         exit 1
     fi
 

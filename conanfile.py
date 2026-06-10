@@ -26,8 +26,21 @@ class AIFX(ConanFile):
     settings = "os", "arch", "compiler", "build_type"
 
     default_options = {
+        # Statically link every third-party C/C++ dependency into each .ofx so
+        # the bundle is self-contained and portable: no DT_RUNPATH / LC_RPATH
+        # back into the Conan cache, nothing to ship beside the binary. This is
+        # exactly what build-plugin.sh's verify_binary_portability() enforces.
+        #
+        # NOTE: a consumer's default_options is LOWER priority than profile
+        # [options], so a developer profile carrying `*:shared=True` would
+        # override this and reintroduce non-portable RUNPATHs. build-plugin.sh
+        # therefore *also* forces these on the conan CLI (-o, highest priority)
+        # so the supported build path can't be broken by an inherited profile.
+        "*:shared": False,
         "spdlog/*:header_only": True,
         "fmt/*:header_only": True,
+        # expat stays shared for OpenFX's HostSupport (host-side plist XML); it
+        # is never linked into a plugin .ofx, so it does not affect portability.
         "expat/*:shared": True,
     }
 

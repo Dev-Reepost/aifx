@@ -119,6 +119,8 @@ docker run --rm \
         conan install . \
             -s build_type=Release \
             -pr:b=default \
+            -o '*:shared=False' \
+            -o 'expat/*:shared=True' \
             --build=missing \
             -of=build/linux
 
