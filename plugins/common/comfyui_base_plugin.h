@@ -39,36 +39,47 @@ namespace ComfyUI {
 class BasePlugin : public OFX::ImageEffect {
 protected:
     // Clips - Primary input and output
-    OFX::Clip *_srcClip;      // Primary input (Source) - required
-    OFX::Clip *_dstClip;      // Output
+    //
+    // NOTE: every clip/param pointer below carries an in-class `= nullptr`
+    // initializer. This is load-bearing, not stylistic: the constructor's
+    // env-discovery dump calls shouldFlipYForOFX() — which reads _flipYMode —
+    // BEFORE the parameter-fetch block assigns these members. Any pointer left
+    // indeterminate there is read as garbage; `if (_flipYMode)` then passes and
+    // the following ->getValue() dereferences a wild pointer (SIGSEGV that no
+    // try/catch can intercept). macOS hosts happened to get zeroed memory and
+    // survived; Flame on Linux got non-zero garbage and crashed on instancing.
+    // Keep these initializers even though the constructor init-list also sets
+    // most of them — they guarantee safety for any read-before-fetch path.
+    OFX::Clip *_srcClip = nullptr;      // Primary input (Source) - required
+    OFX::Clip *_dstClip = nullptr;      // Output
 
     // Optional secondary input clips for multi-input workflows
-    OFX::Clip *_src2Clip;     // Secondary input (Source2) - optional
-    OFX::Clip *_src3Clip;     // Tertiary input (Source3) - optional
+    OFX::Clip *_src2Clip = nullptr;     // Secondary input (Source2) - optional
+    OFX::Clip *_src3Clip = nullptr;     // Tertiary input (Source3) - optional
 
     // Common parameters
-    OFX::BooleanParam *_enableProcessing;      // Master enable/disable for ComfyUI processing
-    OFX::StringParam *_serverAddress;
-    OFX::IntParam *_serverPort;
-    OFX::StringParam *_macMountPath;           // macOS client mount path
-    OFX::StringParam *_winMountPath;           // Windows server mount path (UNC, e.g., "\\\\192.168.1.110\\share")
-    OFX::StringParam *_projectName;            // Project name for file organization (e.g., "my_commercial")
-    OFX::StringParam *_workflowName;           // Workflow subdirectory (e.g., "segmentation")
-    OFX::StringParam *_outputVersion;          // Output version (e.g., "v001")
-    OFX::StringParam *_workflowFilePath;       // Path to workflow JSON file (supports bundle resources)
-    OFX::BooleanParam *_enableCache;
-    OFX::IntParam *_timeout;
+    OFX::BooleanParam *_enableProcessing = nullptr;  // Master enable/disable for ComfyUI processing
+    OFX::StringParam *_serverAddress = nullptr;
+    OFX::IntParam *_serverPort = nullptr;
+    OFX::StringParam *_macMountPath = nullptr;        // macOS client mount path
+    OFX::StringParam *_winMountPath = nullptr;        // Windows server mount path (UNC, e.g., "\\\\192.168.1.110\\share")
+    OFX::StringParam *_projectName = nullptr;         // Project name for file organization (e.g., "my_commercial")
+    OFX::StringParam *_workflowName = nullptr;        // Workflow subdirectory (e.g., "segmentation")
+    OFX::StringParam *_outputVersion = nullptr;       // Output version (e.g., "v001")
+    OFX::StringParam *_workflowFilePath = nullptr;    // Path to workflow JSON file (supports bundle resources)
+    OFX::BooleanParam *_enableCache = nullptr;
+    OFX::IntParam *_timeout = nullptr;
 
     // Async rendering parameters
-    OFX::ChoiceParam *_asyncMode;              // Blocking vs Non-blocking rendering
-    OFX::ChoiceParam *_placeholderMode;        // What to show while processing
-    OFX::DoubleParam *_refreshTrigger;         // Hidden parameter for cache invalidation
-    OFX::StringParam *_jobStatus;              // Read-only job status display
-    OFX::RGBParam *_jobStatusColor;            // Visual status indicator (color swatch)
-    OFX::ChoiceParam *_flipYMode;              // EXR Y-flip override: 0=Auto, 1=Always, 2=Never
+    OFX::ChoiceParam *_asyncMode = nullptr;          // Blocking vs Non-blocking rendering
+    OFX::ChoiceParam *_placeholderMode = nullptr;    // What to show while processing
+    OFX::DoubleParam *_refreshTrigger = nullptr;     // Hidden parameter for cache invalidation
+    OFX::StringParam *_jobStatus = nullptr;          // Read-only job status display
+    OFX::RGBParam *_jobStatusColor = nullptr;        // Visual status indicator (color swatch)
+    OFX::ChoiceParam *_flipYMode = nullptr;          // EXR Y-flip override: 0=Auto, 1=Always, 2=Never
 
     // Sequence plugins only: button to collect all frames and submit the job
-    OFX::PushButtonParam *_collectAndSubmit;   // nullptr for non-sequence plugins
+    OFX::PushButtonParam *_collectAndSubmit = nullptr;  // nullptr for non-sequence plugins
 
     // Instance identification
     std::string _instanceName;                 // OFX instance name for auto-basename generation
