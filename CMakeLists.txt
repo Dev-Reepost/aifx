@@ -10,6 +10,31 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 # ----------------------------------------------------------------------------
+# Portable RPATH.
+#
+# Deps link statically into each .ofx (build-plugin.sh forces -o *:shared=False;
+# conanfile.py defaults to it), so nothing is actually loaded from an RPATH. But
+# CMake otherwise auto-derives RPATH entries from the Conan link directories and
+# bakes absolute cache paths (/root/.conan2/..., ~/.conan2/...) into the binary
+# — non-portable, and rejected by verify_binary_portability(). Pin RPATH to the
+# binary's own directory and nothing else:
+#   - CMAKE_BUILD_WITH_INSTALL_RPATH ON   -> use the install RPATH for the
+#     build-tree binary too (bundles are assembled from build/ via POST_BUILD
+#     copies, never `cmake --install`), and *suppress* the auto link-path RPATH.
+#   - CMAKE_INSTALL_RPATH_USE_LINK_PATH OFF -> don't append Conan link dirs.
+#   - CMAKE_INSTALL_RPATH = the self-relative loader token per platform.
+# Should any dep ever end up shared, this keeps it resolvable from inside the
+# bundle instead of from the build host's cache.
+# ----------------------------------------------------------------------------
+set(CMAKE_BUILD_WITH_INSTALL_RPATH ON)
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH OFF)
+if(APPLE)
+    set(CMAKE_INSTALL_RPATH "@loader_path")
+elseif(UNIX)
+    set(CMAKE_INSTALL_RPATH "$ORIGIN")
+endif()
+
+# ----------------------------------------------------------------------------
 # OpenFX dependency (via FetchContent).
 #
 # AIFX consumes the OpenFX C API headers and the C++ Support library from
