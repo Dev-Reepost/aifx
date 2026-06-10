@@ -16,6 +16,10 @@ set -euo pipefail
 
 VERSION="${1:-dev}"
 ARCH="x86_64"
+# OFX bundle spec arch directory (Contents/Linux-x86-64) -- note the hyphen,
+# distinct from the underscore used in archive names (aifx-...-x86_64.tar.gz).
+# The plugins' POST_BUILD emits the spec name; keep this in sync with it.
+OFX_ARCH_DIR="Linux-x86-64"
 REQUIRED_CMAKE="3.28"
 
 # Plugin set comes from plugins/manifest.txt (single source of truth).
@@ -97,7 +101,7 @@ echo "==> Verifying bundles..."
 for target in "${TARGETS[@]}"; do
     # The native build produces bundles directly under build/linux/.
     bundle="$BUILD_DIR/${target}.ofx.bundle"
-    bin="${bundle}/Contents/Linux-${ARCH}/${target}.ofx"
+    bin="${bundle}/Contents/${OFX_ARCH_DIR}/${target}.ofx"
     if [[ ! -f "$bin" ]]; then
         echo "[ERROR] Missing bundle binary: $bin" >&2
         exit 1
