@@ -7,12 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.5] - 2026-06-11
+
+**The Flame-on-Linux instancing crash is fixed.** A vtable-layout mismatch
+crashed the host with `SIGSEGV` at `0x0` the instant a node was instanced — the
+crash that survived the 0.1.2 and 0.1.4 attempts.
+
+### Fixed
+
+- **Flame no longer segfaults when a plugin is instanced (for real this time).**
+  Root cause: `OFX_SUPPORTS_OPENGLRENDER` (upstream OpenFX default ON) gates
+  extra *virtual* methods on `OFX::ImageEffect` (`contextAttached` /
+  `contextDetached` and the OpenGL render-arg overloads), so it changes that
+  class's vtable layout. Upstream applies the macro only within its own CMake
+  directory scope, so the `OfxSupport` library was built **with** it while our
+  plugin sources (a sibling directory) were built **without** it. The two then
+  disagreed on `ImageEffect`'s vtable: `OfxSupport` dispatched host actions
+  through the longer layout while the plugins used the shorter one. Flame is a
+  GL/Vulkan host and fires the OpenGL context-attach action when a node is
+  instanced; the support library routed it through the `contextAttached` vtable
+  slot, which in the plugin's mismatched vtable held `BasePlugin::buildWorkflow`
+  — called with the wrong arguments, an immediate null dereference. The build
+  now compiles plugin code with the same `OFX_SUPPORTS_OPENGLRENDER` (and
+  sibling render defines) that `OfxSupport` was built with, so both agree on the
+  layout. Verified at the binary level across all seven plugins: the dispatched
+  slot now resolves to `OFX::ImageEffect::contextDetached()` instead of
+  `buildWorkflow`.
+- Diagnosed with the crash-backtrace handler added in 0.1.4, which captured the
+  faulting stack (`buildWorkflow` ← `OFX::Private::mainEntryStr` doing a vtable
+  call) that spdlog could never reach.
+
 ## [0.1.4] - 2026-06-11
 
 Linux symbol-export hygiene, plus a crash-backtrace handler to chase the Flame
 instancing segfault. NOTE: the export fix below eliminates a real latent bug but
-did **not** resolve the Flame-on-Linux instancing crash — that remains open and
-is now under investigation via the new backtrace handler.
+did **not** resolve the Flame-on-Linux instancing crash — that was root-caused
+and fixed in 0.1.5 (a vtable-layout mismatch). The backtrace handler added here
+is what captured the faulting stack.
 
 ### Fixed
 
@@ -179,7 +210,8 @@ Linux x86_64 (glibc 2.34+) bundles published on GitHub Releases.
   plugin directories.
 - Comprehensive user documentation and GitHub Pages site.
 
-[Unreleased]: https://github.com/Dev-Reepost/aifx/compare/v0.1.4...main
+[Unreleased]: https://github.com/Dev-Reepost/aifx/compare/v0.1.5...main
+[0.1.5]: https://github.com/Dev-Reepost/aifx/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/Dev-Reepost/aifx/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/Dev-Reepost/aifx/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/Dev-Reepost/aifx/compare/v0.1.1...v0.1.2
