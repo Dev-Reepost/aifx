@@ -1,0 +1,29 @@
+# Linker version script for AIFX .ofx plugins (GNU ld / Linux).
+#
+# WHY THIS EXISTS — symbol interposition crash on Flame/Linux.
+#
+# AIFX links every dependency statically into each .ofx (zlib via miniz/tinyexr,
+# OpenSSL, httplib, ixwebsocket, the OFX C++ Support library, ...). Those archives
+# are compiled with *default* ELF visibility, so without this script the .ofx
+# re-exports ~3700 of their symbols (crc32, adler32, deflate/inflate, EXRLayers,
+# the whole OpenSSL surface, ...).
+#
+# A host like Flame is a huge binary that links its OWN copies of zlib/OpenSSL/
+# OpenEXR. When it dlopen()s the plugin, ELF's global symbol table lets the host's
+# internal calls bind to the PLUGIN's crc32/deflate/etc. (interposition). The host
+# then runs its image/codec/IO paths against a different zlib/OpenSSL build than it
+# was compiled for and segfaults (observed: SIGSEGV at 0x0 the instant the effect
+# is instantiated, Flame/Linux only — macOS dyld uses a two-level namespace and is
+# immune, which is why Resolve/macOS never hit this).
+#
+# Fix: an OFX plugin's ABI is exactly three C entry points. Export only those and
+# localize everything else, so no dependency symbol can leak out and interpose the
+# host (or be interposed by it).
+{
+    global:
+        OfxGetNumberOfPlugins;
+        OfxGetPlugin;
+        OfxSetHost;   # OFX 1.4+ optional entry point; harmless if undefined
+    local:
+        *;
+};

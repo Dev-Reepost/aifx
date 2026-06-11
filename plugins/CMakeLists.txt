@@ -76,6 +76,36 @@ target_include_directories(ComfyUICommon PUBLIC
     ${OPENFX_SOURCE_DIR}/Support/include
 )
 
+# --- Linker hardening: export only the OFX entry points --------------------
+#
+# Every dependency (zlib via miniz/tinyexr, OpenSSL, httplib, ixwebsocket, the
+# OFX Support library) links statically into each .ofx. Those archives are built
+# with default ELF visibility, so by default the .ofx re-exports thousands of
+# their symbols (crc32, deflate, EXRLayers, the OpenSSL surface, ...). On Linux a
+# host like Flame links its own copies of those libs; ELF's global symbol table
+# then lets the host's internal calls bind to the plugin's copies (interposition)
+# and the host crashes with SIGSEGV at instantiation. macOS dyld's two-level
+# namespace is immune (Resolve/macOS never hit it), so this hardening is Linux-only.
+#
+# A version script that exports just the three OFX C entry points and localizes
+# everything else closes the hole, and -Bsymbolic binds the plugin's own
+# references to itself so the host can't interpose them either. (Note: we do NOT
+# use --exclude-libs,ALL — the OFX entry points are themselves defined in the
+# static OfxSupport archive, so excluding all archive symbols would hide
+# OfxGetPlugin and the plugin would fail to load. The version script's explicit
+# `global:` list is the authoritative, origin-agnostic export control.)
+# See plugins/ofx_exports.version.
+function(aifx_harden_ofx_exports _tgt)
+    if(UNIX AND NOT APPLE)
+        target_link_options(${_tgt} PRIVATE
+            "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/ofx_exports.version"
+            "-Wl,-Bsymbolic")
+        # Relink when the export list changes.
+        set_property(TARGET ${_tgt} APPEND PROPERTY
+            LINK_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/ofx_exports.version")
+    endif()
+endfunction()
+
 # --- Plugins ---------------------------------------------------------------
 
 # The plugin set is driven by plugins/manifest.txt -- the single source of
@@ -104,6 +134,7 @@ foreach(_line IN LISTS _aifx_manifest_lines)
             "plugins/${_dir}/CMakeLists.txt did not define it. Check the "
             "add_library() name.")
     endif()
+    aifx_harden_ofx_exports(${_target})
     math(EXPR _aifx_plugin_count "${_aifx_plugin_count} + 1")
 endforeach()
 

@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-06-11
+
+Linux symbol-interposition fix. The plugins loaded and described correctly in
+Flame on Linux but segfaulted the host the instant a concrete plugin was
+instantiated — the next crash downstream of the 0.1.2 instancing fix.
+
+### Fixed
+
+- **Flame on Linux no longer segfaults when a plugin is instanced.** Every
+  dependency (zlib via miniz/tinyexr, OpenSSL, httplib, ixwebsocket, the OFX
+  C++ Support library) links statically into each `.ofx`, and those archives
+  are built with default ELF visibility — so the bundle re-exported ~3700 of
+  their symbols (`crc32`, `adler32`, `deflate`/`inflate`, `EXRLayers`, the whole
+  OpenSSL surface, …). Flame links its *own* copies of zlib/OpenSSL/OpenEXR;
+  when it `dlopen`ed the plugin, ELF's global symbol table bound Flame's
+  internal calls to the plugin's copies (symbol interposition), and the moment
+  the host touched its image/codec subsystem to lay out the new node it ran
+  against a mismatched library build and crashed with `SIGSEGV` at `0x0`. macOS
+  dyld's two-level namespace is immune, which is why Resolve/macOS never hit it.
+  The build now links each `.ofx` with a version script
+  (`plugins/ofx_exports.version`) that exports only the OFX C entry points
+  (`OfxGetNumberOfPlugins`, `OfxGetPlugin`, `OfxSetHost`) and localizes
+  everything else, plus `-Bsymbolic` so the plugin's own references bind to
+  itself. Exported-symbol count drops from ~3700 to 2, closing the
+  interposition vector. Linux-only link change; macOS/Windows binaries are
+  unaffected.
+
 ## [0.1.3] - 2026-06-10
 
 Windows resource- and log-loading fixes. The plugins built and loaded on
@@ -139,7 +166,9 @@ Linux x86_64 (glibc 2.34+) bundles published on GitHub Releases.
   plugin directories.
 - Comprehensive user documentation and GitHub Pages site.
 
-[Unreleased]: https://github.com/Dev-Reepost/aifx/compare/v0.1.2...main
+[Unreleased]: https://github.com/Dev-Reepost/aifx/compare/v0.1.4...main
+[0.1.4]: https://github.com/Dev-Reepost/aifx/compare/v0.1.3...v0.1.4
+[0.1.3]: https://github.com/Dev-Reepost/aifx/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/Dev-Reepost/aifx/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/Dev-Reepost/aifx/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/Dev-Reepost/aifx/releases/tag/v0.1.0
