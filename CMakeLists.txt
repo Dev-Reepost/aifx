@@ -65,6 +65,35 @@ FetchContent_MakeAvailable(openfx)
 set(OPENFX_SOURCE_DIR ${openfx_SOURCE_DIR} CACHE INTERNAL "OpenFX source tree (FetchContent)")
 
 # ----------------------------------------------------------------------------
+# CRITICAL — vtable-layout consistency with the OFX Support library.
+#
+# OFX_SUPPORTS_OPENGLRENDER gates extra *virtual* methods on OFX::ImageEffect
+# (contextAttached/contextDetached and the OpenGL render-arg overloads), so it
+# changes that class's vtable layout. Upstream OpenFX defaults it ON and applies
+# it with add_definitions()/add_compile_definitions() *inside its own directory
+# scope* — so the OfxSupport library is built WITH it, but the macro never
+# reaches our plugin sources in plugins/ (a sibling directory). The result is an
+# ODR violation: OfxSupport dispatches host actions through ImageEffect's LONGER
+# vtable while our plugins were compiled against a SHORTER one. The host then
+# calls an action through a vtable slot that, in the plugin's vtable, holds a
+# different virtual (observed: a render action landed on BasePlugin::buildWorkflow
+# at slot 0xa0) — an immediate SIGSEGV when Flame instances and renders a node.
+#
+# Mirror the EXACT setting OfxSupport was built with onto every target defined
+# below (the plugins), so both sides agree on the layout. Keyed off the same
+# cache variable OpenFX's CMake set, so it tracks however the option is resolved.
+# ----------------------------------------------------------------------------
+if(OFX_SUPPORTS_OPENGLRENDER)
+    add_compile_definitions(OFX_SUPPORTS_OPENGLRENDER)
+endif()
+if(OFX_SUPPORTS_OPENCLRENDER)
+    add_compile_definitions(OFX_SUPPORTS_OPENCLRENDER)
+endif()
+if(OFX_SUPPORTS_CUDARENDER)
+    add_compile_definitions(OFX_SUPPORTS_CUDARENDER)
+endif()
+
+# ----------------------------------------------------------------------------
 # ComfyUI plugin third-party dependencies (Conan-provided, CONFIG-only).
 #
 # CONFIG-only resolution. CMake's built-in FindOpenSSL.cmake probes Homebrew's
