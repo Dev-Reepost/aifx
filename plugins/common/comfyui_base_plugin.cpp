@@ -38,7 +38,119 @@
 static const char _dladdr_anchor = 0;
 #endif
 
+#if !defined(_WIN32)
+#include <execinfo.h>
+#include <csignal>
+#include <fcntl.h>
+#include <unistd.h>
+#endif
+
 namespace ComfyUI {
+
+#if !defined(_WIN32)
+// ---------------------------------------------------------------------------
+// Crash backtrace handler (diagnostic).
+//
+// Flame on Linux segfaults the instant a plugin is instanced, in a code path
+// that runs AFTER the constructor finishes logging but BEFORE any logged
+// instance method — so spdlog never captures where. This installs an
+// async-signal-safe SIGSEGV/SIGABRT/SIGBUS handler that writes a symbolized
+// backtrace straight to a raw fd (~/comfyui_crash_<date>.log) and then chains
+// to whatever handler Flame had installed, so the host still does its own
+// reporting. backtrace_symbols_fd() and write() are async-signal-safe.
+// ---------------------------------------------------------------------------
+namespace {
+
+int                g_crashFd = -1;
+struct sigaction   g_oldSegv, g_oldAbrt, g_oldBus, g_oldFpe, g_oldIll;
+
+// async-signal-safe raw write of a C string
+void crashWrite(const char* s) {
+    if (g_crashFd < 0 || !s) return;
+    size_t n = 0; while (s[n]) ++n;
+    ssize_t rc = ::write(g_crashFd, s, n); (void)rc;
+}
+
+// async-signal-safe unsigned -> hex
+void crashWriteHex(unsigned long v) {
+    char buf[2 + sizeof(v) * 2];
+    char* p = buf;
+    *p++ = '0'; *p++ = 'x';
+    bool started = false;
+    for (int shift = (int)(sizeof(v) * 8) - 4; shift >= 0; shift -= 4) {
+        unsigned nib = (v >> shift) & 0xF;
+        if (nib || started || shift == 0) {
+            *p++ = (char)(nib < 10 ? '0' + nib : 'a' + (nib - 10));
+            started = true;
+        }
+    }
+    ssize_t rc = ::write(g_crashFd, buf, (size_t)(p - buf)); (void)rc;
+}
+
+void crashHandler(int sig, siginfo_t* info, void* ucontext) {
+    crashWrite("\n=== AIFX PLUGIN CRASH ===\nsignal=");
+    crashWriteHex((unsigned long)sig);
+    crashWrite(" fault_addr=");
+    crashWriteHex(info ? (unsigned long)info->si_addr : 0UL);
+    crashWrite("\nbacktrace:\n");
+
+    void* frames[64];
+    int n = backtrace(frames, 64);
+    backtrace_symbols_fd(frames, n, g_crashFd);
+    crashWrite("=== END CRASH ===\n");
+    if (g_crashFd >= 0) ::fsync(g_crashFd);
+
+    // Chain to the host's previous handler so Flame still reports/cleans up.
+    struct sigaction* old = nullptr;
+    switch (sig) {
+        case SIGSEGV: old = &g_oldSegv; break;
+        case SIGABRT: old = &g_oldAbrt; break;
+        case SIGBUS:  old = &g_oldBus;  break;
+        case SIGFPE:  old = &g_oldFpe;  break;
+        case SIGILL:  old = &g_oldIll;  break;
+    }
+    if (old) {
+        sigaction(sig, old, nullptr);
+        if (old->sa_flags & SA_SIGINFO) {
+            if (old->sa_sigaction) { old->sa_sigaction(sig, info, ucontext); return; }
+        } else if (old->sa_handler != SIG_DFL && old->sa_handler != SIG_IGN) {
+            old->sa_handler(sig); return;
+        }
+    }
+    raise(sig);  // fall back to default disposition
+}
+
+} // anonymous namespace
+
+void installCrashHandler(const std::string& home) {
+    static std::once_flag once;
+    std::call_once(once, [&]() {
+        // Open a dedicated crash log next to the daily plugin log.
+        auto now = std::chrono::system_clock::now();
+        std::time_t now_c = std::chrono::system_clock::to_time_t(now);
+        std::tm* now_tm = std::localtime(&now_c);
+        char dateStamp[16];
+        std::strftime(dateStamp, sizeof(dateStamp), "%Y%m%d", now_tm);
+        std::string path = (home.empty() ? std::string("/tmp") : home)
+                           + "/comfyui_crash_" + dateStamp + ".log";
+        g_crashFd = ::open(path.c_str(), O_WRONLY | O_CREAT | O_APPEND, 0644);
+        if (g_crashFd < 0) return;
+
+        struct sigaction sa;
+        std::memset(&sa, 0, sizeof(sa));
+        sa.sa_sigaction = crashHandler;
+        sa.sa_flags = SA_SIGINFO | SA_RESTART;
+        sigemptyset(&sa.sa_mask);
+        sigaction(SIGSEGV, &sa, &g_oldSegv);
+        sigaction(SIGABRT, &sa, &g_oldAbrt);
+        sigaction(SIGBUS,  &sa, &g_oldBus);
+        sigaction(SIGFPE,  &sa, &g_oldFpe);
+        sigaction(SIGILL,  &sa, &g_oldIll);
+    });
+}
+#else
+void installCrashHandler(const std::string&) {}
+#endif
 
 void BasePlugin::initializeLogger()
 {
@@ -110,6 +222,11 @@ BasePlugin::BasePlugin(OfxImageEffectHandle handle)
 {
     // Initialize logger first
     initializeLogger();
+
+    // Install a crash backtrace handler (diagnostic). Writes a symbolized stack
+    // to ~/comfyui_crash_<date>.log on SIGSEGV/SIGABRT/SIGBUS, then chains to
+    // the host's handler. Idempotent across instances.
+    installCrashHandler(getHomeDir());
 
     if (_logger) _logger->info("BasePlugin constructor started");
 
