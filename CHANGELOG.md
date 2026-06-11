@@ -9,13 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.4] - 2026-06-11
 
-Linux symbol-interposition fix. The plugins loaded and described correctly in
-Flame on Linux but segfaulted the host the instant a concrete plugin was
-instantiated — the next crash downstream of the 0.1.2 instancing fix.
+Linux symbol-export hygiene, plus a crash-backtrace handler to chase the Flame
+instancing segfault. NOTE: the export fix below eliminates a real latent bug but
+did **not** resolve the Flame-on-Linux instancing crash — that remains open and
+is now under investigation via the new backtrace handler.
 
 ### Fixed
 
-- **Flame on Linux no longer segfaults when a plugin is instanced.** Every
+- **Plugins no longer leak their static dependencies' symbols.** Every
   dependency (zlib via miniz/tinyexr, OpenSSL, httplib, ixwebsocket, the OFX
   C++ Support library) links statically into each `.ofx`, and those archives
   are built with default ELF visibility — so the bundle re-exported ~3700 of
@@ -32,7 +33,19 @@ instantiated — the next crash downstream of the 0.1.2 instancing fix.
   everything else, plus `-Bsymbolic` so the plugin's own references bind to
   itself. Exported-symbol count drops from ~3700 to 2, closing the
   interposition vector. Linux-only link change; macOS/Windows binaries are
-  unaffected.
+  unaffected. (This closes the interposition hole but, per the note above, is
+  not the cause of the Flame instancing crash.)
+
+### Added
+
+- **Crash-backtrace handler (diagnostic).** The plugin installs an
+  async-signal-safe `SIGSEGV`/`SIGABRT`/`SIGBUS`/`SIGFPE`/`SIGILL` handler that
+  writes a symbolized backtrace to `~/comfyui_crash_<date>.log` and then chains
+  to the host's previous handler. The Flame instancing segfault happens in the
+  unlogged window between the base constructor finishing and the first logged
+  instance method, so spdlog never captured it; this handler records the
+  faulting stack so the culprit can be identified. The `.ofx` ships unstripped
+  so `module+offset` frames resolve to function names with `addr2line`.
 
 ## [0.1.3] - 2026-06-10
 
