@@ -7,6 +7,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.6] - 2026-06-12
+
+Path-management rationalization. With the Flame instancing crash fixed in 0.1.5,
+real jobs surfaced a cluster of cross-platform path bugs on Linux and Windows.
+This release reworks how the plugins resolve storage mounts, server paths,
+config, and bundled workflows.
+
+### Fixed
+
+- **Per-OS mount paths now actually work.** The code only ever read
+  `macMountPath`/`winMountPath` and **ignored `linuxMountPath` entirely**, and it
+  forced the macOS field as the local mount on every platform. So on a Linux host
+  the plugin tried to read/write a macOS or Windows path (`/Volumes/…`, `S:\…`)
+  and failed (`Failed to create directory`, `output file missing`); on a Windows
+  host it aborted because the macOS field was empty. The plugin now auto-selects
+  the mount for the OS it is running on (`getLocalMountPath()` — macOS→mac,
+  Windows→win, Linux→linux) for all local EXR I/O.
+- **Empty server mount no longer produces broken paths.** With the Windows mount
+  blank, `convertPathForComfyUI()` used to strip the local mount and prepend
+  nothing, emitting rootless `\in\…` / `\out\…` paths that crashed the job. It now
+  returns the path unchanged (with a warning) when no server mount is set, and
+  only rewrites when the path genuinely starts with the local mount.
+- **Every plugin built its output path from the macOS mount directly**, bypassing
+  the per-OS selection — so output paths were wrong on Linux/Windows even when the
+  input path was right. All seven plugins now use `getLocalMountPath()`.
+- **`create_path_if_missing` is set on every SaveEXR node.** It was present in
+  only three of the seven plugins; DepthCrafter / NormalCrafter / DepthDA3 /
+  SeedVR2 failed when the output directory didn't already exist. Added to all
+  seven (hardcoded workflows and bundled JSON).
+- **Bundled `defaults.json` is now found on Linux.** The config search path
+  omitted the standard Linux OFX directory `/usr/OFX/Plugins` (where Flame loads
+  plugins), so on Linux config was never read and every config-seeded parameter
+  silently fell back to its hard-coded default — including a stale, wrong
+  `workflowFile` (`resources/workflows/sam_segmentation.json`) that no plugin
+  could resolve. The search now covers the standard macOS, Windows, **and** Linux
+  system directories on every host. The neutral `workflowFile` fallback is now
+  empty (use the built-in workflow) instead of a bogus path.
+- **Stale duplicate `Resources/` no longer ships.** Bundles carried a top-level
+  `Resources/` left over from before the `Contents/Resources/` (OFX-spec) layout
+  migration, holding out-of-date config/workflow copies. The release scripts
+  (Linux/macOS/Windows) now strip it before packaging.
+
+### Changed
+
+- **Config restructured.** `defaults-base.json` splits the old catch-all
+  `server` block into **`server`** (just the ComfyUI HTTP endpoint) and
+  **`storage`** (the three per-OS mount paths). The OFX panel gains a dedicated
+  **Storage Mounts** group, separate from the Server connection. Internal OFX
+  parameter names are unchanged, so existing saved projects keep working.
+- Removed four dead config keys (`macComfyUIInputDir`, `winComfyUIInputDir`,
+  `linuxComfyUIInputDir`, `comfyUIInputDir`) — unreferenced in code and redundant
+  with the mount paths. `docs/configuration.md` rewritten to match.
+
 ## [0.1.5] - 2026-06-11
 
 **The Flame-on-Linux instancing crash is fixed.** A vtable-layout mismatch
@@ -210,7 +263,8 @@ Linux x86_64 (glibc 2.34+) bundles published on GitHub Releases.
   plugin directories.
 - Comprehensive user documentation and GitHub Pages site.
 
-[Unreleased]: https://github.com/Dev-Reepost/aifx/compare/v0.1.5...main
+[Unreleased]: https://github.com/Dev-Reepost/aifx/compare/v0.1.6...main
+[0.1.6]: https://github.com/Dev-Reepost/aifx/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/Dev-Reepost/aifx/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/Dev-Reepost/aifx/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/Dev-Reepost/aifx/compare/v0.1.2...v0.1.3
