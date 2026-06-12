@@ -69,6 +69,7 @@
       "start_frame": "${FRAME}",
       "frame_pad": 4,
       "save_workflow": "none",
+      "create_path_if_missing": true,
       "images": ["44", 0]
     },
     "class_type": "SaveEXR",

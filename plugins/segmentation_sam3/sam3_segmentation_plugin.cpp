@@ -132,7 +132,7 @@ json SAM3SegmentationPlugin::buildHardcodedWorkflow(int frame, const std::string
 
     // Build output path
     std::string mountPath, project, workflow_name, version;
-    mountPath     = getTrimmedStringParam(_macMountPath);
+    mountPath     = getLocalMountPath();
     project       = getTrimmedStringParam(_projectName);
     workflow_name = getTrimmedStringParam(_workflowName);
     version       = getTrimmedStringParam(_outputVersion);

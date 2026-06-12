@@ -158,7 +158,7 @@ json DepthDA3Plugin::buildHardcodedWorkflow(int frame, const std::string& inputP
 
     // Build output path
     std::string mountPath, project, workflow_name, version;
-    mountPath = getTrimmedStringParam(_macMountPath);
+    mountPath = getLocalMountPath();
     project = getTrimmedStringParam(_projectName);
     workflow_name = getTrimmedStringParam(_workflowName);
     version = getTrimmedStringParam(_outputVersion);
@@ -240,6 +240,7 @@ json DepthDA3Plugin::buildHardcodedWorkflow(int frame, const std::string& inputP
                 {"start_frame", frame},
                 {"frame_pad", 4},
                 {"save_workflow", "none"},
+                {"create_path_if_missing", true},
                 {"images", json::array({"79", 0})}
             }},
             {"class_type", "SaveEXR"},

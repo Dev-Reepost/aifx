@@ -120,17 +120,25 @@ inline std::vector<std::string> getOfxConfigSearchPaths(const std::vector<std::s
         for (const auto& root : ofxRoots) {
             paths.push_back(root + "/" + bundle + suffix);
         }
+        // Per-user OFX directories.
         if (!home.empty()) {
-            paths.push_back(home + "/Library/OFX/Plugins/" + bundle + suffix);
-            paths.push_back(home + "/OFX/Plugins/" + bundle + suffix);
+            paths.push_back(home + "/Library/OFX/Plugins/" + bundle + suffix);   // macOS user
+            paths.push_back(home + "/OFX/Plugins/" + bundle + suffix);           // generic (Linux) user
         }
-        paths.push_back("/Library/OFX/Plugins/" + bundle + suffix);
-#ifdef _WIN32
-        paths.push_back("C:/Program Files/Common Files/OFX/Plugins/" + bundle + suffix);
-        if (const char* commonProgramFiles = std::getenv("CommonProgramFiles")) {
+
+        // Standard system OFX plugin directories for every platform, per the OFX
+        // spec. All are probed on every OS — a path that doesn't exist just fails
+        // to open and is skipped — so config is found wherever the host loaded the
+        // bundle from, whether that's macOS, Windows, or Linux (e.g. Flame loads
+        // from /usr/OFX/Plugins, which earlier builds omitted and so never found
+        // their defaults.json on Linux).
+        paths.push_back("/Library/OFX/Plugins/" + bundle + suffix);                       // macOS
+        paths.push_back("/usr/OFX/Plugins/" + bundle + suffix);                           // Linux
+        paths.push_back("/usr/local/OFX/Plugins/" + bundle + suffix);                     // Linux (local install)
+        paths.push_back("C:/Program Files/Common Files/OFX/Plugins/" + bundle + suffix);  // Windows
+        if (const char* commonProgramFiles = std::getenv("CommonProgramFiles")) {         // Windows (relocated Common Files)
             paths.push_back(std::string(commonProgramFiles) + "/OFX/Plugins/" + bundle + suffix);
         }
-#endif
     }
     return paths;
 }
@@ -175,8 +183,14 @@ protected:
     OFX::BooleanParam *_enableProcessing = nullptr;  // Master enable/disable for ComfyUI processing
     OFX::StringParam *_serverAddress = nullptr;
     OFX::IntParam *_serverPort = nullptr;
-    OFX::StringParam *_macMountPath = nullptr;        // macOS client mount path
-    OFX::StringParam *_winMountPath = nullptr;        // Windows server mount path (UNC, e.g., "\\\\192.168.1.110\\share")
+    // Per-OS mount paths — the SAME shared storage as seen from each platform.
+    // The plugin auto-selects the one matching the host it runs on for all local
+    // file I/O (see getLocalMountPath()); the ComfyUI server always reads/writes
+    // through the Windows path (the ComfyUI box is the Windows storage server),
+    // so _winMountPath doubles as the server mount in convertPathForComfyUI().
+    OFX::StringParam *_macMountPath = nullptr;        // macOS view  (e.g. /Volumes/silo2/002_COMFYUI)
+    OFX::StringParam *_winMountPath = nullptr;        // Windows view (UNC, e.g. \\192.168.1.110\silo2\002_COMFYUI) — also the ComfyUI server mount
+    OFX::StringParam *_linuxMountPath = nullptr;      // Linux view  (e.g. /mnt/silo2/002_COMFYUI)
     OFX::StringParam *_projectName = nullptr;         // Project name for file organization (e.g., "my_commercial")
     OFX::StringParam *_workflowName = nullptr;        // Workflow subdirectory (e.g., "segmentation")
     OFX::StringParam *_outputVersion = nullptr;       // Output version (e.g., "v001")
@@ -334,6 +348,12 @@ protected:
     // rejects it and ComfyUI fails with "Path not found".
     std::string getTrimmedStringParam(OFX::StringParam* param) const;
 
+    // Return the shared-storage mount path for the OS this plugin is running on
+    // (macOS -> _macMountPath, Windows -> _winMountPath, Linux -> _linuxMountPath).
+    // This is the "client" mount used for all local EXR read/write. It is chosen
+    // at compile time by platform, so the same saved project works on any host.
+    std::string getLocalMountPath() const;
+
     // Multi-input support
     // Writes all connected input clips to EXR files, returns map of input ID -> path
     // InputA = Source (primary), InputB = Source2, InputC = Source3
@@ -349,7 +369,7 @@ protected:
     json customizeWorkflow(const json& baseWorkflow, int frame, const std::map<std::string, std::string>& inputPaths);
 
     // Sequence input helpers
-    // Returns folder path: {macMountPath}/in/projects/{project}/{workflow}/{version}/{basename}/
+    // Returns folder path: {mount}/in/projects/{project}/{workflow}/{version}/{basename}/
     std::string constructInputFolderPath() const;
     // Writes frames [startFrame..endFrame] from _srcClip to the input folder, one frame at a
     // time on the calling (render) thread — satisfying the OFX main-thread constraint.

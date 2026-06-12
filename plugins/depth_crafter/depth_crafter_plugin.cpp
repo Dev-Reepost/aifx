@@ -102,7 +102,7 @@ json DepthCrafterPlugin::buildHardcodedWorkflow(int frame, const std::string& in
     int effectiveOverlap    = std::min(overlap, effectiveWindowSize - 1);
 
     std::string mountPath, project, workflow_name, version;
-    mountPath = getTrimmedStringParam(_macMountPath);
+    mountPath = getLocalMountPath();
     project = getTrimmedStringParam(_projectName);
     workflow_name = getTrimmedStringParam(_workflowName);
     version = getTrimmedStringParam(_outputVersion);
@@ -179,6 +179,7 @@ json DepthCrafterPlugin::buildHardcodedWorkflow(int frame, const std::string& in
                 {"start_frame", frame},
                 {"frame_pad", 4},
                 {"save_workflow", "none"},
+                {"create_path_if_missing", true},
                 {"images", json::array({"24", 0})}
             }},
             {"class_type", "SaveEXR"},

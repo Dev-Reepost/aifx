@@ -110,7 +110,7 @@ json NormalCrafterPlugin::buildHardcodedWorkflow(int frame, const std::string& i
     int effectiveWindowSize = (imageLoadCap > 0) ? std::min(windowSize, imageLoadCap) : windowSize;
 
     std::string mountPath, project, workflow_name, version;
-    mountPath = getTrimmedStringParam(_macMountPath);
+    mountPath = getLocalMountPath();
     project = getTrimmedStringParam(_projectName);
     workflow_name = getTrimmedStringParam(_workflowName);
     version = getTrimmedStringParam(_outputVersion);
@@ -180,6 +180,7 @@ json NormalCrafterPlugin::buildHardcodedWorkflow(int frame, const std::string& i
                 {"start_frame", frame},
                 {"frame_pad", 4},
                 {"save_workflow", "none"},
+                {"create_path_if_missing", true},
                 {"images", json::array({"2", 0})}
             }},
             {"class_type", "SaveEXR"},

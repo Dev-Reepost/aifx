@@ -24,7 +24,7 @@ is needed.
 ```
 aifx/
 ├── config/
-│   └── defaults-base.json           ← studio-wide: server + controls
+│   └── defaults-base.json           ← studio-wide: server + storage + controls
 ├── plugins/
 │   ├── depth_da3/
 │   │   ├── defaults-project.json    ← per-plugin: project block + overrides
@@ -73,15 +73,13 @@ own when deploying.
 ```jsonc
 {
   "server": {
-    "serverAddress":         "comfyui.example.local",
-    "serverPort":            8188,
-    "macMountPath":          "/Volumes/comfyui-share",
-    "winMountPath":          "\\\\HOSTNAME\\share",
-    "linuxMountPath":        "/mnt/comfyui-share",
-    "macComfyUIInputDir":    "/Volumes/comfyui-share/in",
-    "winComfyUIInputDir":    "\\\\HOSTNAME\\share\\in",
-    "linuxComfyUIInputDir":  "/mnt/comfyui-share/in",
-    "comfyUIInputDir":       "/mnt/comfyui-share/in"
+    "serverAddress":     "comfyui.example.local",
+    "serverPort":        8188
+  },
+  "storage": {
+    "macMountPath":      "/Volumes/comfyui-share",
+    "winMountPath":      "\\\\HOSTNAME\\share",
+    "linuxMountPath":    "/mnt/comfyui-share"
   },
   "controls": {
     "enableProcessing":  false,
@@ -98,59 +96,42 @@ own when deploying.
 }
 ```
 
-### `server` block — paths and the host (DCC) side
+### `server` block — the ComfyUI endpoint
 
 Lives in `config/defaults-base.json` (shared across all plugins).
 
-The plugin runs inside the host application (Flame / Nuke / Resolve / …),
-which may be on a different machine than the ComfyUI server. Both
-sides need to read/write a shared filesystem location and each side
-needs to address that location with its own OS-correct path.
-
 - `serverAddress`, `serverPort` — where the plugin sends ComfyUI
   workflow jobs over HTTP.
-- `macMountPath`, `winMountPath`, `linuxMountPath` — the path at which
-  the shared folder is mounted on the **host** machine. The plugin
-  reads the one that matches the OS it's running on.
-- `macComfyUIInputDir`, `winComfyUIInputDir`, `linuxComfyUIInputDir` —
-  the path at which the **ComfyUI server** sees the same shared
-  folder's `in/` directory. The plugin substitutes this path into the
-  workflow JSON when it submits a job, so ComfyUI's `LoadEXR` node
-  can find what the host just wrote.
-- `comfyUIInputDir` — legacy single-path field, kept for
-  compatibility.
+
+### `storage` block — the shared-storage mount paths
+
+Lives in `config/defaults-base.json`. These three values describe the
+**same** shared storage as it is mounted on each OS. The plugin runs
+inside the host application (Flame / Nuke / Resolve / …), which may be on
+a different machine than the ComfyUI server; both sides read/write the
+shared filesystem and each addresses it with its own OS-correct path.
+
+- `macMountPath`, `winMountPath`, `linuxMountPath` — the path at which the
+  shared folder is mounted on macOS / Windows / Linux respectively. The
+  plugin automatically uses the entry that matches the OS it is running on
+  for all local EXR I/O, so the same saved project works on any host.
+- The **Windows** path doubles as the **server** mount: AIFX assumes the
+  ComfyUI server is the Windows storage box, so when the plugin submits a
+  job it rewrites the local path into the Windows view (with backslashes)
+  and that is what ComfyUI's `LoadEXR` / `SaveEXR` nodes receive. Fill in
+  the entries for the machines in your pipeline; leave the rest blank.
 
 The Windows path uses **doubled backslashes** in JSON
 (`\\\\HOSTNAME\\share`) — each `\` is escaped, so `\\\\` in the file
 becomes a literal `\\` on the wire, which is a valid UNC path.
 
-#### Why there are input directories but no output directories
-
-This block defines `…ComfyUIInputDir` paths but deliberately has no
-`…OutputDir` counterpart. The asymmetry is intentional:
-
-- **The input path must be *declared* because it is an address handed
-  to a foreign process.** ComfyUI runs as a separate process, usually
-  on a separate machine, and has no idea where the host just wrote the
-  source frame. The plugin must inject an explicit "load from *here*"
-  path — expressed from ComfyUI's own filesystem vantage point — into
-  the workflow JSON it submits. That value cannot be inferred, so it
-  has to be configured (per-OS, because each side addresses the shared
-  drive differently).
-- **The output path is *derived*, not configured.** The plugin builds
-  it at runtime from pieces already present: the host-side `mountPath`
-  from this `server` block, plus the runtime `projectName` parameter and
-  the `workflowName` / `outputVersion` from the plugin's `project` block
-  (roughly `{mountPath}/{projectName}/…/{workflowName}/{outputVersion}`).
-  The plugin both writes the job request and reads the result back from
-  its *own* host-side mount, so it never needs to tell anyone else where
-  output lives. Adding an explicit output-dir field would only duplicate
-  the mount path and risk drifting out of sync with the parameters that
-  actually determine the folder.
-
-In short: **input is an address you must give to another process;
-output is a convention you reconstruct locally.** Only the former
-belongs in config.
+> **Output paths are derived, not configured.** The plugin builds the
+> output location at runtime from the storage mount plus the runtime
+> `projectName` parameter and the `workflowName` / `outputVersion` from
+> the `project` block (roughly
+> `{mount}/out/{projectName}/{workflowName}/{outputVersion}`). It both
+> writes the job request and reads the result back through its own mount,
+> so there is no separate output-directory field to keep in sync.
 
 ### `controls` block — runtime behaviour
 
@@ -225,6 +206,39 @@ This is why the output location never appears in the config file (see
 directories](#why-there-are-input-directories-but-no-output-directories)):
 it's assembled at render time from `mountPath` (config) plus the
 runtime `projectName`, `workflowName`, and `outputVersion`.
+
+### Status indicators (read-only runtime parameters)
+
+The parameter panel shows two read-only fields that the plugin updates
+automatically as a job moves through its lifecycle — they are not config
+keys and the artist never edits them:
+
+- **`jobStatus`** (label *Status*) — a short text line describing what
+  the plugin is doing right now (e.g. `Ready`, `Writing 48 frame(s) to
+  disk…`, `ComfyUI processing 48 frame(s) — 12s (poll 4)`,
+  `3 frame(s) done`).
+- **`jobStatusColor`** (label *Status Color*) — a colour swatch giving
+  the same information at a glance, so you can read progress without
+  parsing the text. It is the quickest way to see whether a clip is
+  idle, working, finished, or errored.
+
+The colour follows the processing lifecycle in order:
+
+| Colour | Meaning |
+|---|---|
+| **Gray** | Idle — no jobs running (`Ready`). |
+| **Cyan** | Collecting frames from the timeline (after *Collect & Submit*). |
+| **Orange** | Writing the input frames (EXRs) to the shared disk. |
+| **Amber** | Submitting the workflow to ComfyUI. |
+| **Yellow** | ComfyUI is processing the workflow. |
+| **Green** | All frames ready / job done. |
+| **Red** | Error — the job failed (the *Status* text carries the message). |
+
+Cyan → orange → amber → yellow trace a job from collection to
+completion; green means done and red means it stopped on an error.
+Frame-based plugins (one job per frame) skip the cyan collection step
+and go straight to yellow while frames render; sequence plugins
+(*Collect & Submit* a whole range at once) show the full progression.
 
 ## Per-plugin override examples
 
@@ -324,15 +338,13 @@ shapes:
 ```jsonc
 {
   "server": {
-    "serverAddress":         "127.0.0.1",
-    "serverPort":            8188,
-    "macMountPath":          "/Users/<you>/comfyui-share",
-    "winMountPath":          "C:\\Users\\<you>\\comfyui-share",
-    "linuxMountPath":        "/home/<you>/comfyui-share",
-    "macComfyUIInputDir":    "/Users/<you>/comfyui-share/in",
-    "winComfyUIInputDir":    "C:\\Users\\<you>\\comfyui-share\\in",
-    "linuxComfyUIInputDir":  "/home/<you>/comfyui-share/in",
-    "comfyUIInputDir":       "/Users/<you>/comfyui-share/in"
+    "serverAddress":   "127.0.0.1",
+    "serverPort":      8188
+  },
+  "storage": {
+    "macMountPath":    "/Users/<you>/comfyui-share",
+    "winMountPath":    "C:\\Users\\<you>\\comfyui-share",
+    "linuxMountPath":  "/home/<you>/comfyui-share"
   },
   "controls": {
     "enableProcessing": false,
@@ -344,18 +356,27 @@ shapes:
 }
 ```
 
-### Studio with a Linux ComfyUI server and macOS / Linux clients
+When the host and the ComfyUI server are the same machine, the host
+mount and the server mount are identical — fill in only the field for
+your OS.
+
+### Studio with a Windows ComfyUI / storage server and macOS / Linux clients
+
+AIFX assumes the ComfyUI server is the Windows storage box, so
+`winMountPath` is both the Windows clients' mount **and** the path
+written into the submitted workflow. Fill in `winMountPath` plus the
+field for each client OS you run.
 
 ```jsonc
 {
   "server": {
-    "serverAddress":         "comfy.studio.local",
-    "serverPort":            8188,
-    "macMountPath":          "/Volumes/comfy-share",
-    "linuxMountPath":        "/mnt/comfy-share",
-    "macComfyUIInputDir":    "/Volumes/comfy-share/in",
-    "linuxComfyUIInputDir":  "/mnt/comfy-share/in",
-    "comfyUIInputDir":       "/mnt/comfy-share/in"
+    "serverAddress":   "comfy.studio.local",
+    "serverPort":      8188
+  },
+  "storage": {
+    "macMountPath":    "/Volumes/comfy-share",
+    "winMountPath":    "\\\\HOSTNAME\\comfy-share",
+    "linuxMountPath":  "/mnt/comfy-share"
   },
   "controls": {
     "enableProcessing": false,
@@ -367,9 +388,9 @@ shapes:
 }
 ```
 
-(Windows fields can be omitted or left with `\\\\HOSTNAME\\share`
-placeholders if no Windows clients exist — the plugin only reads the
-field matching the running OS.)
+(`winMountPath` is required here even on a macOS/Linux client, because
+it is the path ComfyUI itself uses to read inputs and write outputs.
+The client-OS field is what this machine uses for its own local I/O.)
 
 ## What NOT to change
 

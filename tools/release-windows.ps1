@@ -73,6 +73,10 @@ New-Item -ItemType Directory -Force -Path $Stage | Out-Null
 
 foreach ($entry in $Targets) {
     $target = $entry[1]
+    # Drop any legacy top-level <bundle>\Resources\ directory. Resources live
+    # under Contents\Resources\ (OFX spec) and are only read from there; a
+    # top-level copy is a stale incremental-build leftover and must not ship.
+    Remove-Item -Recurse -Force "build\windows\${target}.ofx.bundle\Resources" -ErrorAction SilentlyContinue
     Copy-Item -Recurse "build\windows\${target}.ofx.bundle" -Destination $Stage
 }
 

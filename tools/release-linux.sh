@@ -95,6 +95,15 @@ echo ""
 echo "==> [3/3] Building all ${#TARGETS[@]} plugin targets..."
 cmake --build "$BUILD_DIR" --config Release --target "${TARGETS[@]}" --parallel
 
+# Drop the legacy top-level <bundle>/Resources/ directory. Resources are packaged
+# under Contents/Resources/ (OFX spec) and only ever read from there; the old
+# top-level copy is a stale leftover from incremental builds predating that
+# layout change, and it shipped duplicate (out-of-date) config/workflow files in
+# earlier releases. Remove it from each bundle before packaging.
+for target in "${TARGETS[@]}"; do
+    rm -rf "$BUILD_DIR/${target}.ofx.bundle/Resources"
+done
+
 # --- Verify ------------------------------------------------------------------
 echo ""
 echo "==> Verifying bundles..."

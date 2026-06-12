@@ -212,6 +212,8 @@ BasePlugin::BasePlugin(OfxImageEffectHandle handle)
     , _serverAddress(nullptr)
     , _serverPort(nullptr)
     , _macMountPath(nullptr)
+    , _winMountPath(nullptr)
+    , _linuxMountPath(nullptr)
     , _projectName(nullptr)
     , _workflowName(nullptr)
     , _outputVersion(nullptr)
@@ -564,6 +566,7 @@ BasePlugin::BasePlugin(OfxImageEffectHandle handle)
     _serverPort = fetchIntParam("serverPort");
     _macMountPath = fetchStringParam("macMountPath");
     _winMountPath = fetchStringParam("winMountPath");
+    try { _linuxMountPath = fetchStringParam("linuxMountPath"); } catch (...) { _linuxMountPath = nullptr; }
     _projectName = fetchStringParam("projectName");
     _workflowName = fetchStringParam("workflowName");
     _outputVersion = fetchStringParam("outputVersion");
@@ -680,6 +683,7 @@ void BasePlugin::changedParam(const OFX::InstanceChangedArgs &args,
     if (paramName == "projectName" || paramName == "workflowName" ||
         paramName == "outputVersion" || paramName == "workflowFilePath" ||
         paramName == "macMountPath"  || paramName == "winMountPath" ||
+        paramName == "linuxMountPath" ||
         paramName == "resolution"    || paramName == "maxResolution") {
         std::lock_guard<std::mutex> lock(_cacheMutex);
         if (!_cacheDimensions.empty() || !_cacheFileExists.empty()) {
@@ -725,14 +729,14 @@ void BasePlugin::changedParam(const OFX::InstanceChangedArgs &args,
         try {
             std::string project, mountPath;
             project = getTrimmedStringParam(_projectName);
-            mountPath = getTrimmedStringParam(_macMountPath);
+            mountPath = getLocalMountPath();
 
             if (project.empty()) {
                 if (_logger) { _logger->warn("  ABORT: project name is empty"); _logger->flush(); }
                 return;
             }
             if (mountPath.empty()) {
-                if (_logger) { _logger->warn("  ABORT: Mac mount path is empty — set it in the Server tab"); _logger->flush(); }
+                if (_logger) { _logger->warn("  ABORT: no mount path set for this OS — fill in the macOS / Windows / Linux mount path for this machine in the Server tab"); _logger->flush(); }
                 return;
             }
 
@@ -845,7 +849,7 @@ void BasePlugin::executePendingCollect()
 
         std::string mountPath, project, workflowName, version, serverAddress;
         int serverPort = 0;
-        mountPath = getTrimmedStringParam(_macMountPath);
+        mountPath = getLocalMountPath();
         project = getTrimmedStringParam(_projectName);
         workflowName = getTrimmedStringParam(_workflowName);
         version = getTrimmedStringParam(_outputVersion);
@@ -867,7 +871,7 @@ void BasePlugin::executePendingCollect()
             return;
         }
         if (mountPath.empty()) {
-            if (_logger) { _logger->warn("  ABORT: Mac mount path is empty"); _logger->flush(); }
+            if (_logger) { _logger->warn("  ABORT: no mount path set for this OS (macOS/Windows/Linux mount path for this machine is empty in the Server tab)"); _logger->flush(); }
             return;
         }
 
@@ -1307,7 +1311,7 @@ void BasePlugin::executeWorkflow(const OFX::RenderArguments &args)
     std::string address, mountPath, serverMount, project, workflowName, version;
     _serverAddress->getValue(address);
     int port = _serverPort->getValue();
-    mountPath = getTrimmedStringParam(_macMountPath);
+    mountPath = getLocalMountPath();
     serverMount = getTrimmedStringParam(_winMountPath);
     project = getTrimmedStringParam(_projectName);
     workflowName = getTrimmedStringParam(_workflowName);
@@ -1733,7 +1737,7 @@ std::string BasePlugin::writeInputImage(OFX::Image* img, int frame, const std::s
 
     // Get path components
     std::string mountPath, project, workflow, version;
-    mountPath = getTrimmedStringParam(_macMountPath);
+    mountPath = getLocalMountPath();
     project = getTrimmedStringParam(_projectName);
     workflow = getTrimmedStringParam(_workflowName);
     version = getTrimmedStringParam(_outputVersion);
@@ -1836,7 +1840,7 @@ std::string BasePlugin::parseOutputPath(const json& history, int frame)
 
     // Get path components
     std::string mountPath, project, workflow, version;
-    mountPath = getTrimmedStringParam(_macMountPath);
+    mountPath = getLocalMountPath();
     project = getTrimmedStringParam(_projectName);
     workflow = getTrimmedStringParam(_workflowName);
     version = getTrimmedStringParam(_outputVersion);
@@ -2006,43 +2010,81 @@ std::string BasePlugin::getTrimmedStringParam(OFX::StringParam* param) const
     return trimmed;
 }
 
+std::string BasePlugin::getLocalMountPath() const
+{
+    // The shared storage seen from the OS this plugin is running on. Selected at
+    // compile time so a project saved on one host works on another without
+    // re-pointing the path. Falls back across the sibling fields if the
+    // platform-specific one is empty, so a partially-filled Server tab still
+    // resolves to *something* usable instead of silently producing empty paths.
+#if defined(_WIN32)
+    std::string primary = getTrimmedStringParam(_winMountPath);
+    std::string a = getTrimmedStringParam(_macMountPath);
+    std::string b = getTrimmedStringParam(_linuxMountPath);
+#elif defined(__APPLE__)
+    std::string primary = getTrimmedStringParam(_macMountPath);
+    std::string a = getTrimmedStringParam(_linuxMountPath);
+    std::string b = getTrimmedStringParam(_winMountPath);
+#else // Linux and other POSIX
+    std::string primary = getTrimmedStringParam(_linuxMountPath);
+    std::string a = getTrimmedStringParam(_macMountPath);
+    std::string b = getTrimmedStringParam(_winMountPath);
+#endif
+    if (!primary.empty()) return primary;
+    if (!a.empty())       return a;
+    return b;
+}
+
 std::string BasePlugin::convertPathForComfyUI(const std::string& localPath)
 {
-    // Convert client-side path to server-side path
-    // Example: /Volumes/silo2/002_COMFYUI/in/test.exr -> Z:\in\test.exr
+    // Rewrite a path from THIS machine's mount namespace into the ComfyUI
+    // server's namespace. The ComfyUI box is the Windows storage server, so the
+    // server mount is always the Windows view and the result uses backslashes.
+    // Example: /mnt/silo2/002_COMFYUI/in/x  ->  \\192.168.1.110\silo2\002_COMFYUI\in\x
 
     if (_logger) _logger->info("Converting path for ComfyUI: {}", localPath);
 
-    // Get mount paths
-    std::string clientMount, serverMount;
-    clientMount = getTrimmedStringParam(_macMountPath);
-    serverMount = getTrimmedStringParam(_winMountPath);
+    const std::string clientMount = getLocalMountPath();
+    const std::string serverMount = getTrimmedStringParam(_winMountPath);
 
     if (_logger) {
-        _logger->info("  Client mount: {}", clientMount);
-        _logger->info("  Server mount: {}", serverMount);
+        _logger->info("  Client mount (this host): {}", clientMount);
+        _logger->info("  Server mount (ComfyUI):   {}", serverMount);
     }
 
-    std::string windowsPath = localPath;
+    // No server mount configured: assume ComfyUI sees the very same path this
+    // machine does (single-box setup, or identical mount point). Return the path
+    // unchanged rather than stripping the client mount and emitting a rootless
+    // "\in\..." path — that produced empty server paths and crashed jobs.
+    if (serverMount.empty()) {
+        if (_logger) _logger->warn("  No Windows/server mount set — leaving path unchanged");
+        return localPath;
+    }
 
-    // Replace client mount path with server mount point
-    // Example: /Volumes/silo2/002_COMFYUI -> Z:
-    if (windowsPath.find(clientMount) == 0) {
-        windowsPath.replace(0, clientMount.length(), serverMount);
-        if (_logger) _logger->info("  After mount replacement: {}", windowsPath);
+    std::string serverPath = localPath;
+
+    // Swap the client mount prefix for the server mount. Only rewrite when the
+    // path actually starts with the client mount; otherwise leave it intact (we
+    // must never drop the prefix and leave a rootless path).
+    if (!clientMount.empty() && serverPath.rfind(clientMount, 0) == 0) {
+        serverPath.replace(0, clientMount.length(), serverMount);
+        if (_logger) _logger->info("  After mount replacement: {}", serverPath);
+    } else if (clientMount.empty()) {
+        if (_logger) _logger->warn("  No client mount for this host — set the mount path for this OS in the Server tab; leaving path unchanged");
+        return localPath;
     } else {
-        if (_logger) _logger->warn("  Path doesn't start with client mount! Using as-is");
+        if (_logger) _logger->warn("  Path does not start with the client mount '{}' — leaving as-is", clientMount);
     }
 
-    // Replace all forward slashes with backslashes
-    std::replace(windowsPath.begin(), windowsPath.end(), '/', '\\');
+    // The server is Windows: normalise to backslashes.
+    std::replace(serverPath.begin(), serverPath.end(), '/', '\\');
 
-    if (_logger) _logger->info("  Windows path: {}", windowsPath);
+    if (_logger) _logger->info("  Server path: {}", serverPath);
 
-    // Return the raw Windows path. nlohmann/json escapes backslashes automatically
-    // when this string is assigned to a JSON field. The customizeWorkflow() string-
-    // replacement path is responsible for escaping when substituting into raw JSON text.
-    return windowsPath;
+    // nlohmann/json escapes backslashes automatically when this is assigned to a
+    // JSON field; customizeWorkflow()'s raw string-replacement path does its own
+    // escaping when substituting into raw JSON text.
+    return serverPath;
 }
 
 std::string BasePlugin::constructExpectedOutputPath(int frame)
@@ -2056,7 +2098,7 @@ std::string BasePlugin::constructExpectedOutputPath(int frame)
     // Example: /Volumes/silo2/002_COMFYUI/out/TEST_SAM/segmentation/v001/shot01.0056.exr
 
     std::string mountPath, project, workflow, version;
-    mountPath = getTrimmedStringParam(_macMountPath);
+    mountPath = getLocalMountPath();
     project = getTrimmedStringParam(_projectName);
     workflow = getTrimmedStringParam(_workflowName);
     version = getTrimmedStringParam(_outputVersion);
@@ -2085,7 +2127,7 @@ std::string BasePlugin::constructInputPath(int frame, const std::string& suffix)
     // With suffix: /Volumes/silo2/002_COMFYUI/in/projects/TEST_SAM/segmentation/v001/shot01_B.0056.exr
 
     std::string mountPath, project, workflow, version;
-    mountPath = getTrimmedStringParam(_macMountPath);
+    mountPath = getLocalMountPath();
     project = getTrimmedStringParam(_projectName);
     workflow = getTrimmedStringParam(_workflowName);
     version = getTrimmedStringParam(_outputVersion);
@@ -2108,9 +2150,9 @@ std::string BasePlugin::constructInputPath(int frame, const std::string& suffix)
 std::string BasePlugin::constructInputFolderPath() const
 {
     // Returns the folder that holds the full EXR sequence for sequence-mode plugins.
-    // Pattern: {macMountPath}/in/projects/{project}/{workflow}/{version}/{basename}/
+    // Pattern: {mount}/in/projects/{project}/{workflow}/{version}/{basename}/
     std::string mountPath, project, workflow, version;
-    mountPath = getTrimmedStringParam(_macMountPath);
+    mountPath = getLocalMountPath();
     project = getTrimmedStringParam(_projectName);
     workflow = getTrimmedStringParam(_workflowName);
     version = getTrimmedStringParam(_outputVersion);
@@ -2559,7 +2601,7 @@ json BasePlugin::customizeWorkflow(const json& baseWorkflow, int frame, const st
 
     // Get parameters for replacements
     std::string mountPath, project, workflowName, version;
-    mountPath = getTrimmedStringParam(_macMountPath);
+    mountPath = getLocalMountPath();
     project = getTrimmedStringParam(_projectName);
     workflowName = getTrimmedStringParam(_workflowName);
     version = getTrimmedStringParam(_outputVersion);
@@ -2717,7 +2759,7 @@ void BasePlugin::renderBlocking(const OFX::RenderArguments &args)
 
     // Pre-create output directory on CLIENT side (will sync to SERVER via network mount)
     std::string mountPath, workflowName, version, serverMount;
-    mountPath = getTrimmedStringParam(_macMountPath);
+    mountPath = getLocalMountPath();
     workflowName = getTrimmedStringParam(_workflowName);
     version = getTrimmedStringParam(_outputVersion);
     serverMount = getTrimmedStringParam(_winMountPath);
@@ -2968,7 +3010,7 @@ void BasePlugin::renderAsync(const OFX::RenderArguments &args)
 
         // 2a. Active job guard — build the output prefix key for this configuration
         std::string mountPath, project, workflowName, version;
-        mountPath = getTrimmedStringParam(_macMountPath);
+        mountPath = getLocalMountPath();
         project = getTrimmedStringParam(_projectName);
         workflowName = getTrimmedStringParam(_workflowName);
         version = getTrimmedStringParam(_outputVersion);
@@ -3029,7 +3071,7 @@ void BasePlugin::renderAsync(const OFX::RenderArguments &args)
 
         // Get mount path info for directory creation
         std::string mountPath, workflowName, version;
-        mountPath = getTrimmedStringParam(_macMountPath);
+        mountPath = getLocalMountPath();
         workflowName = getTrimmedStringParam(_workflowName);
         version = getTrimmedStringParam(_outputVersion);
 
@@ -4125,9 +4167,13 @@ void BasePlugin::describeCommonParameters(OFX::ImageEffectDescriptor &desc,
 
     OFX::StringParamDescriptor *workflowFile = desc.defineStringParam("workflowFilePath");
     workflowFile->setLabel("Workflow File");
-    workflowFile->setHint("Path to workflow JSON file. Use 'resources/workflows/filename.json' for bundled workflows, or absolute path for custom workflows. Leave empty to use hardcoded workflow.");
+    workflowFile->setHint("Path to workflow JSON file. Use 'resources/workflow/<name>.json' for the bundled workflow, or an absolute path for a custom workflow. Leave empty to use the plugin's built-in hardcoded workflow.");
     workflowFile->setStringType(OFX::eStringTypeFilePath);
-    std::string workflowFileDefault = "resources/workflows/sam_segmentation.json";
+    // Neutral fallback: the per-plugin defaults-project.json supplies the correct
+    // bundled workflow path via config. If config can't be found, default to empty
+    // (use the built-in hardcoded workflow) rather than a bogus path that would
+    // log "could not resolve workflow path" every job.
+    std::string workflowFileDefault = "";
     if (configDefaults && configDefaults->contains("project") && (*configDefaults)["project"].contains("workflowFile")) {
         workflowFileDefault = (*configDefaults)["project"]["workflowFile"].get<std::string>();
     }
@@ -4324,30 +4370,60 @@ void BasePlugin::describeCommonParameters(OFX::ImageEffectDescriptor &desc,
     serverPort->setParent(*serverGroup);
     page->addChild(*serverPort);
 
+    // ==== STORAGE MOUNTS GROUP ====
+    // The shared-storage mount paths live in their own group, separate from the
+    // ComfyUI server connection above — they describe where the shared storage
+    // is mounted on each OS, not the ComfyUI endpoint.
+    OFX::GroupParamDescriptor *mountGroup = desc.defineGroupParam("mountGroup");
+    mountGroup->setLabel("Storage Mounts");
+    mountGroup->setOpen(false);  // Collapsed by default
+    if (!skipGroupHeaders) page->addChild(*mountGroup);
+
+    // ---- Shared-storage mount paths (one per OS) --------------------------
+    // All three describe the SAME storage seen from each platform. The plugin
+    // uses the one matching the host it runs on for local EXR I/O (macOS uses
+    // the macOS path, etc.). The ComfyUI server is the Windows storage box, so
+    // the Windows path is also what gets written into the workflow sent to
+    // ComfyUI. Fill in the entries for the machines in your pipeline; leave the
+    // rest blank.
     OFX::StringParamDescriptor *macMount = desc.defineStringParam("macMountPath");
     macMount->setLabel("macOS Mount Path");
-    macMount->setHint("macOS client mount path (e.g., /Volumes/silo2/002_COMFYUI)");
+    macMount->setHint("This shared storage as mounted on macOS hosts (e.g., /Volumes/silo2/002_COMFYUI). "
+                      "Used for local EXR I/O when the plugin runs on macOS.");
     macMount->setStringType(OFX::eStringTypeDirectoryPath);
-    // Use config default if available, otherwise fallback to hardcoded default
     std::string macMountPathDefault = "/Volumes/silo2/002_COMFYUI";
-    if (configDefaults && configDefaults->contains("server") && (*configDefaults)["server"].contains("macMountPath")) {
-        macMountPathDefault = (*configDefaults)["server"]["macMountPath"].get<std::string>();
+    if (configDefaults && configDefaults->contains("storage") && (*configDefaults)["storage"].contains("macMountPath")) {
+        macMountPathDefault = (*configDefaults)["storage"]["macMountPath"].get<std::string>();
     }
     macMount->setDefault(macMountPathDefault.c_str());
-    macMount->setParent(*serverGroup);
+    macMount->setParent(*mountGroup);
     page->addChild(*macMount);
 
     OFX::StringParamDescriptor *winMount = desc.defineStringParam("winMountPath");
     winMount->setLabel("Windows Mount Path");
-    winMount->setHint("Windows server mount path (UNC: \\\\server\\share)");
-    // Use config default if available, otherwise fallback to hardcoded default
+    winMount->setHint("This shared storage as mounted on Windows / on the ComfyUI server (UNC: \\\\server\\share). "
+                      "Used for local EXR I/O on Windows hosts AND as the path written into the ComfyUI workflow "
+                      "(the ComfyUI server reads/writes through this path).");
     std::string winMountPathDefault = "\\\\192.168.1.110\\silo2\\002_COMFYUI";
-    if (configDefaults && configDefaults->contains("server") && (*configDefaults)["server"].contains("winMountPath")) {
-        winMountPathDefault = (*configDefaults)["server"]["winMountPath"].get<std::string>();
+    if (configDefaults && configDefaults->contains("storage") && (*configDefaults)["storage"].contains("winMountPath")) {
+        winMountPathDefault = (*configDefaults)["storage"]["winMountPath"].get<std::string>();
     }
     winMount->setDefault(winMountPathDefault.c_str());
-    winMount->setParent(*serverGroup);
+    winMount->setParent(*mountGroup);
     page->addChild(*winMount);
+
+    OFX::StringParamDescriptor *linuxMount = desc.defineStringParam("linuxMountPath");
+    linuxMount->setLabel("Linux Mount Path");
+    linuxMount->setHint("This shared storage as mounted on Linux hosts (e.g., /mnt/silo2/002_COMFYUI). "
+                        "Used for local EXR I/O when the plugin runs on Linux (e.g., Flame on Linux).");
+    linuxMount->setStringType(OFX::eStringTypeDirectoryPath);
+    std::string linuxMountPathDefault = "/mnt/silo2/002_COMFYUI";
+    if (configDefaults && configDefaults->contains("storage") && (*configDefaults)["storage"].contains("linuxMountPath")) {
+        linuxMountPathDefault = (*configDefaults)["storage"]["linuxMountPath"].get<std::string>();
+    }
+    linuxMount->setDefault(linuxMountPathDefault.c_str());
+    linuxMount->setParent(*mountGroup);
+    page->addChild(*linuxMount);
 }
 
 } // namespace ComfyUI

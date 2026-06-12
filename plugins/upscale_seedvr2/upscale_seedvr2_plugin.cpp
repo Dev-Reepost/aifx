@@ -216,7 +216,7 @@ json UpscaleSeedVR2Plugin::buildHardcodedWorkflow(int frame, const std::string& 
     std::string attentionMode   = getAttentionModeName();
 
     std::string mountPath, project, workflowName, version;
-    mountPath = getTrimmedStringParam(_macMountPath);
+    mountPath = getLocalMountPath();
     project = getTrimmedStringParam(_projectName);
     workflowName = getTrimmedStringParam(_workflowName);
     version = getTrimmedStringParam(_outputVersion);
@@ -324,6 +324,7 @@ json UpscaleSeedVR2Plugin::buildHardcodedWorkflow(int frame, const std::string& 
                 {"start_frame",     frame},
                 {"frame_pad",       4},
                 {"save_workflow",   "none"},
+                {"create_path_if_missing", true},
                 {"images",          json::array({"44", 0})}
             }},
             {"class_type", "SaveEXR"},

@@ -171,7 +171,7 @@ json MatteMaMaPlugin::buildHardcodedWorkflow(int frame, const std::string& input
 
     // Output path
     std::string mountPath, project, workflow_name, version;
-    mountPath = getTrimmedStringParam(_macMountPath);
+    mountPath = getLocalMountPath();
     project = getTrimmedStringParam(_projectName);
     workflow_name = getTrimmedStringParam(_workflowName);
     version = getTrimmedStringParam(_outputVersion);

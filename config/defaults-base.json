@@ -1,14 +1,12 @@
 {
   "server": {
     "serverAddress": "192.168.1.211",
-    "serverPort": 8388,
+    "serverPort": 8388
+  },
+  "storage": {
     "macMountPath": "/Volumes/silo2/002_COMFYUI",
     "winMountPath": "\\\\192.168.1.110\\silo2\\002_COMFYUI",
-    "linuxMountPath": "/mnt/silo2/002_COMFYUI",
-    "macComfyUIInputDir": "/Volumes/silo2/002_COMFYUI/in",
-    "winComfyUIInputDir": "\\\\192.168.1.110\\silo2\\002_COMFYUI\\in",
-    "linuxComfyUIInputDir": "/mnt/silo2/002_COMFYUI/in",
-    "comfyUIInputDir": "/Volumes/silo2/002_COMFYUI/in"
+    "linuxMountPath": "/mnt/silo2/002_COMFYUI"
   },
   "controls": {
     "enableProcessing": false,

@@ -67,6 +67,13 @@ STAGE="dist/staging/${TOP}"
 rm -rf dist
 mkdir -p "$STAGE"
 
+# Drop any legacy top-level <bundle>/Resources/ directory. Resources live under
+# Contents/Resources/ (OFX spec) and are only read from there; a top-level copy
+# is a stale incremental-build leftover and must not ship.
+for bundle in build/Release/*.ofx.bundle; do
+    rm -rf "$bundle/Resources"
+done
+
 cp -R build/Release/*.ofx.bundle "$STAGE/"
 
 cat > "$STAGE/README.txt" <<EOF
