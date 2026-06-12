@@ -77,9 +77,12 @@ own when deploying.
     "serverPort":        8188
   },
   "storage": {
-    "macMountPath":      "/Volumes/comfyui-share",
-    "winMountPath":      "\\\\HOSTNAME\\share",
-    "linuxMountPath":    "/mnt/comfyui-share"
+    "serverMountPath":   "\\\\HOSTNAME\\share",
+    "localMountPath": {
+      "macos":           "/Volumes/comfyui-share",
+      "windows":         "\\\\HOSTNAME\\share",
+      "linux":           "/mnt/comfyui-share"
+    }
   },
   "controls": {
     "enableProcessing":  false,
@@ -103,27 +106,34 @@ Lives in `config/defaults-base.json` (shared across all plugins).
 - `serverAddress`, `serverPort` — where the plugin sends ComfyUI
   workflow jobs over HTTP.
 
-### `storage` block — the shared-storage mount paths
+### `storage` block — the shared-storage mounts
 
-Lives in `config/defaults-base.json`. These three values describe the
-**same** shared storage as it is mounted on each OS. The plugin runs
-inside the host application (Flame / Nuke / Resolve / …), which may be on
-a different machine than the ComfyUI server; both sides read/write the
-shared filesystem and each addresses it with its own OS-correct path.
+Lives in `config/defaults-base.json`. The plugin runs inside the host
+application (Flame / Nuke / Resolve / …), which may be on a different
+machine than the ComfyUI server; both sides read/write the **same** shared
+storage but mount it at different paths. So the panel exposes two mounts —
+this surfaces in the **Storage Mounts** group of the parameter panel as
+**Local Storage Mount** and **ComfyUI Server Mount**:
 
-- `macMountPath`, `winMountPath`, `linuxMountPath` — the path at which the
-  shared folder is mounted on macOS / Windows / Linux respectively. The
-  plugin automatically uses the entry that matches the OS it is running on
-  for all local EXR I/O, so the same saved project works on any host.
-- The **Windows** path doubles as the **server** mount: AIFX assumes the
-  ComfyUI server is the Windows storage box, so when the plugin submits a
-  job it rewrites the local path into the Windows view (with backslashes)
-  and that is what ComfyUI's `LoadEXR` / `SaveEXR` nodes receive. Fill in
-  the entries for the machines in your pipeline; leave the rest blank.
+- `serverMountPath` — the shared storage as mounted on the **ComfyUI
+  server** (typically a Windows box, so a UNC path). This is the path
+  written into the workflow sent to ComfyUI: its `LoadEXR` / `SaveEXR`
+  nodes read inputs and write outputs through it.
+- `localMountPath` — the shared storage as mounted on **this host**, used
+  for the plugin's own EXR I/O. Because a plugin bundle only ever runs on
+  the OS it was built for, this is given as an object keyed by OS
+  (`macos` / `windows` / `linux`); the build for each platform seeds the
+  **Local Storage Mount** default from its own entry. If you leave the
+  field blank at runtime, the plugin falls back to `serverMountPath` (use
+  this when the host reaches the storage at the same path as the server).
 
-The Windows path uses **doubled backslashes** in JSON
-(`\\\\HOSTNAME\\share`) — each `\` is escaped, so `\\\\` in the file
-becomes a literal `\\` on the wire, which is a valid UNC path.
+At submit time the plugin rewrites the local path into the server view
+(swapping the local-mount prefix for the server-mount prefix, with
+backslashes) and that is what ComfyUI receives.
+
+UNC paths use **doubled backslashes** in JSON (`\\\\HOSTNAME\\share`) —
+each `\` is escaped, so `\\\\` in the file becomes a literal `\\` on the
+wire, which is a valid UNC path.
 
 > **Output paths are derived, not configured.** The plugin builds the
 > output location at runtime from the storage mount plus the runtime
@@ -342,9 +352,12 @@ shapes:
     "serverPort":      8188
   },
   "storage": {
-    "macMountPath":    "/Users/<you>/comfyui-share",
-    "winMountPath":    "C:\\Users\\<you>\\comfyui-share",
-    "linuxMountPath":  "/home/<you>/comfyui-share"
+    "serverMountPath": "/home/<you>/comfyui-share",
+    "localMountPath": {
+      "macos":         "/Users/<you>/comfyui-share",
+      "windows":       "C:\\Users\\<you>\\comfyui-share",
+      "linux":         "/home/<you>/comfyui-share"
+    }
   },
   "controls": {
     "enableProcessing": false,
@@ -356,16 +369,16 @@ shapes:
 }
 ```
 
-When the host and the ComfyUI server are the same machine, the host
-mount and the server mount are identical — fill in only the field for
-your OS.
+When the host and the ComfyUI server are the same machine, the local
+mount and the server mount are identical — you can leave **Local Storage
+Mount** blank at runtime and it falls back to `serverMountPath`.
 
 ### Studio with a Windows ComfyUI / storage server and macOS / Linux clients
 
-AIFX assumes the ComfyUI server is the Windows storage box, so
-`winMountPath` is both the Windows clients' mount **and** the path
-written into the submitted workflow. Fill in `winMountPath` plus the
-field for each client OS you run.
+The ComfyUI server is the Windows storage box, so `serverMountPath` is the
+UNC path written into every submitted workflow. `localMountPath` carries
+each client OS's own view of the same share; the build for each platform
+seeds its **Local Storage Mount** default from the matching entry.
 
 ```jsonc
 {
@@ -374,9 +387,12 @@ field for each client OS you run.
     "serverPort":      8188
   },
   "storage": {
-    "macMountPath":    "/Volumes/comfy-share",
-    "winMountPath":    "\\\\HOSTNAME\\comfy-share",
-    "linuxMountPath":  "/mnt/comfy-share"
+    "serverMountPath": "\\\\HOSTNAME\\comfy-share",
+    "localMountPath": {
+      "macos":         "/Volumes/comfy-share",
+      "windows":       "\\\\HOSTNAME\\comfy-share",
+      "linux":         "/mnt/comfy-share"
+    }
   },
   "controls": {
     "enableProcessing": false,
@@ -388,9 +404,9 @@ field for each client OS you run.
 }
 ```
 
-(`winMountPath` is required here even on a macOS/Linux client, because
-it is the path ComfyUI itself uses to read inputs and write outputs.
-The client-OS field is what this machine uses for its own local I/O.)
+(`serverMountPath` is the path ComfyUI itself uses to read inputs and
+write outputs; the **Local Storage Mount** is what each client machine
+uses for its own local I/O.)
 
 ## What NOT to change
 

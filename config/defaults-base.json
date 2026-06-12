@@ -4,9 +4,12 @@
     "serverPort": 8388
   },
   "storage": {
-    "macMountPath": "/Volumes/silo2/002_COMFYUI",
-    "winMountPath": "\\\\192.168.1.110\\silo2\\002_COMFYUI",
-    "linuxMountPath": "/mnt/silo2/002_COMFYUI"
+    "serverMountPath": "\\\\192.168.1.110\\silo2\\002_COMFYUI",
+    "localMountPath": {
+      "macos": "/Volumes/silo2/002_COMFYUI",
+      "windows": "\\\\192.168.1.110\\silo2\\002_COMFYUI",
+      "linux": "/Volumes/silo2/002_COMFYUI"
+    }
   },
   "controls": {
     "enableProcessing": false,

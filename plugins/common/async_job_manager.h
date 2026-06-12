@@ -72,6 +72,13 @@ struct AsyncJob {
     int pollCount;                                          // Number of times we've polled for this job
     SubmissionStatus submissionStatus;                      // Track async submission progress
 
+    // When ComfyUI first reported the job complete but the output file was not
+    // yet visible on this host's mount. Default-constructed (epoch) means "not
+    // seen yet". Used to grant a bounded grace period for the output to appear,
+    // since on networked storage (NFS/SMB) the file written by the ComfyUI
+    // server lags its completion report on the client's view of the share.
+    std::chrono::steady_clock::time_point completedFileWaitStart{};
+
     AsyncJob()
         : frame(-1)
         , submittedTime(std::chrono::steady_clock::now())
@@ -442,6 +449,29 @@ private:
      * @return true if file exists, false otherwise
      */
     bool verifyOutputFile(const std::string& path) const;
+
+    /**
+     * @brief Decide whether to keep waiting for a completed job's output file.
+     *
+     * ComfyUI runs on the storage server and writes the EXR there; this host
+     * sees the same share over the network, where the new file can lag the
+     * server's completion report by a short interval. When a job is reported
+     * complete but its output is not yet visible, we wait a bounded grace
+     * period (re-checking each poll) before declaring failure, instead of
+     * failing on the first miss.
+     *
+     * @param job The job whose output is missing (its wait-start is stamped on
+     *            first call). Mutated to record when the wait began.
+     * @return true if still within the grace window (caller should keep
+     *         polling); false if the grace has expired (caller should fail).
+     */
+    bool shouldKeepWaitingForOutput(AsyncJob& job) const;
+
+    // Grace window for a completed job's output file to become visible on a
+    // networked mount before the job is declared failed. Sized to cover typical
+    // SMB/NFS negative-lookup cache TTLs, since the file is written by the
+    // ComfyUI server and read back over the share by this host.
+    static constexpr double kOutputFileGraceSeconds = 30.0;
 
     // ========================================================================
     // Member Variables

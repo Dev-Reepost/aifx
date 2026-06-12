@@ -880,13 +880,23 @@ bool AsyncJobManager::checkJobCompletion(AsyncJob& job)
                                          job.frame);
                         }
                         return true;
+                    } else if (shouldKeepWaitingForOutput(job)) {
+                        // Success reported but the output isn't visible on this
+                        // host's mount yet. On networked storage the file lags the
+                        // server's completion report; wait out a bounded grace
+                        // period, re-checking on each poll, before failing.
+                        if (_logger) {
+                            _logger->info("AsyncJobManager: Frame {} reported success but output not visible yet — waiting for it to appear: {}",
+                                          job.frame, job.outputPath);
+                        }
+                        return false;  // still pending
                     } else {
-                        // Success reported but file missing - log full history for diagnosis
+                        // Grace expired - file genuinely missing. Log full history for diagnosis.
                         job.status = JobStatus::FAILED;
                         job.errorMessage = "Output file not found: " + job.outputPath;
                         if (_logger) {
-                            _logger->error("AsyncJobManager: Frame {} - output file missing: {}",
-                                          job.frame, job.outputPath);
+                            _logger->error("AsyncJobManager: Frame {} - output file missing after {:.0f}s grace: {}",
+                                          job.frame, kOutputFileGraceSeconds, job.outputPath);
                             _logger->error("AsyncJobManager: ComfyUI history response (for diagnosis): {}",
                                           history.dump(2));
                         }
@@ -1035,6 +1045,20 @@ bool AsyncJobManager::verifyOutputFile(const std::string& path) const
     bool exists = file.good();
     file.close();
     return exists;
+}
+
+bool AsyncJobManager::shouldKeepWaitingForOutput(AsyncJob& job) const
+{
+    auto now = std::chrono::steady_clock::now();
+
+    // Stamp the moment we first saw "complete but output missing".
+    if (job.completedFileWaitStart.time_since_epoch().count() == 0) {
+        job.completedFileWaitStart = now;
+        return true;  // start of the grace window
+    }
+
+    double waited = std::chrono::duration<double>(now - job.completedFileWaitStart).count();
+    return waited < kOutputFileGraceSeconds;
 }
 
 } // namespace ComfyUI

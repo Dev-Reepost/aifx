@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.7] - 2026-06-12
+
+Storage-mount UX simplification and a networked-output reliability fix, both
+surfaced by real Flame-on-Linux jobs against the 0.1.6 build.
+
+### Fixed
+
+- **Jobs no longer fail with a false "output file not found" on networked
+  storage.** When ComfyUI reported a frame complete, the plugin checked for the
+  output EXR exactly once and failed immediately if it wasn't there. On an
+  SMB/NFS share the file written by the ComfyUI server lags its completion
+  report on the client's view, so the check raced and lost — the frame was
+  marked failed even though the EXR materialised a moment later (a re-submit
+  then found it cached and read it fine). The plugin now waits a bounded grace
+  period (30 s, re-checking each poll) for the output to become visible before
+  declaring failure.
+
+### Changed
+
+- **Storage mounts reduced from three per-OS fields to two.** The panel's
+  **Storage Mounts** group now has **Local Storage Mount** (this host's view of
+  the share, for the plugin's local EXR I/O) and **ComfyUI Server Mount** (the
+  server's view, written into the workflow), replacing the macOS / Windows /
+  Linux trio. A plugin bundle only runs on the OS it was built for, so a single
+  "local" field suffices; per-OS defaults still live in config
+  (`storage.localMountPath.{macos,windows,linux}`) and each platform build seeds
+  its Local Storage Mount default from the matching entry. Local falls back to
+  the server mount when blank (single-box setups). Internal parameter names
+  changed (`macMountPath` / `winMountPath` / `linuxMountPath` →
+  `localMountPath` / `serverMountPath`), so existing saved projects re-default
+  these two fields once.
+
 ## [0.1.6] - 2026-06-12
 
 Path-management rationalization. With the Flame instancing crash fixed in 0.1.5,
