@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.9] - 2026-06-16
+
+Follow-up to 0.1.8: with the Resolve crash gone, the next real Resolve Studio
+job reached submission and surfaced a use-after-free in the ComfyUI client.
+Linux binaries only.
+
+### Fixed
+
+- **ComfyUI submission no longer fails after editing the Server params.**
+  `AsyncJobManager` holds a non-owning `Client*` captured once at construction,
+  but changing **Server Address** or **Port** ran `_comfyClient.reset(new
+  Client(...))`, destroying the very object the job manager (and its background
+  submission/polling thread) still pointed at. At Collect & Submit the freed
+  client was dereferenced — surfacing as a submit failure with an empty host and
+  garbage port (`Failed to connect to ComfyUI server at :-508401456`) and
+  `std::bad_alloc`. The server address is now updated **in place**
+  (`Client::setServerAddress()`), keeping the pointer stable; the client's
+  `hostname`/`port` are mutex-guarded and read as an atomic snapshot per request,
+  so an in-place update can't tear-read against an in-flight background request.
+
+### Changed
+
+- **Shipped config and code/test examples no longer contain the studio's real
+  internal network details.** The seed `defaults.json`, the hardcoded mount
+  fallbacks, and a few comments/tests carried the real ComfyUI server IP, SMB
+  share, and mount paths. They are now the generic placeholders already used in
+  `docs/configuration.md` (`comfyui.example.local:8188`, `\\HOSTNAME\share`,
+  `/Volumes/comfyui-share`, `/mnt/comfyui-share`). No behaviour change — these
+  are only seed defaults users override in the panel.
+
 ## [0.1.8] - 2026-06-16
 
 A crash fix for DaVinci Resolve on Linux, surfaced by a real Resolve Studio job

@@ -794,11 +794,21 @@ void BasePlugin::changedParam(const OFX::InstanceChangedArgs &args,
 
         if (_logger) _logger->info("Updating ComfyUI server to {}:{}", address, port);
 
-        // Create new client with updated server info
+        // Update the server address IN PLACE — do NOT recreate the Client.
+        // AsyncJobManager holds a raw (non-owning) Client* captured once at
+        // construction; destroying the Client here while a job (or its background
+        // submission/polling thread) still references it is a use-after-free —
+        // observed as a submit failure with an empty host / garbage port
+        // (":-508401456") and std::bad_alloc. setServerAddress() mutates the
+        // existing object under its own lock, keeping the pointer stable.
         std::string serverUrl = address + ":" + std::to_string(port);
-        _comfyClient.reset(new Client(serverUrl));
+        if (_comfyClient) {
+            _comfyClient->setServerAddress(serverUrl);
+        } else {
+            _comfyClient.reset(new Client(serverUrl));
+        }
 
-        if (_logger) _logger->info("ComfyUI client recreated successfully");
+        if (_logger) _logger->info("ComfyUI server updated successfully");
     }
 }
 

@@ -18,8 +18,6 @@ namespace ComfyUI {
 // PIMPL implementation
 class Client::Impl {
 public:
-    std::string hostname;
-    int port;
     std::string inputDir;
     std::string outputDir;
     std::string clientId;
@@ -28,21 +26,43 @@ public:
         parseServerAddress(addr);
     }
 
+    // hostname/port are read on background submission/polling threads while the
+    // UI thread may update them via setServerAddress() (when the user edits the
+    // Server params). Guard them with a mutex and only ever touch them through
+    // the accessors below, so an in-flight request can't tear-read a half-written
+    // address (which would surface as an empty host / garbage port).
     void parseServerAddress(const std::string& addr) {
+        std::string h;
+        int p;
         // Parse "hostname:port" format
         size_t colonPos = addr.find(':');
         if (colonPos != std::string::npos) {
-            hostname = addr.substr(0, colonPos);
-            port = std::stoi(addr.substr(colonPos + 1));
+            h = addr.substr(0, colonPos);
+            p = std::stoi(addr.substr(colonPos + 1));
         } else {
-            hostname = addr;
-            port = 8188; // Default ComfyUI port
+            h = addr;
+            p = 8188; // Default ComfyUI port
         }
+        std::lock_guard<std::mutex> lk(_addrMutex);
+        _hostname = std::move(h);
+        _port = p;
+    }
+
+    // Atomic snapshot of (hostname, port) for building a request.
+    std::pair<std::string, int> hostPort() const {
+        std::lock_guard<std::mutex> lk(_addrMutex);
+        return {_hostname, _port};
     }
 
     std::string getServerAddress() const {
-        return hostname + ":" + std::to_string(port);
+        std::lock_guard<std::mutex> lk(_addrMutex);
+        return _hostname + ":" + std::to_string(_port);
     }
+
+private:
+    mutable std::mutex _addrMutex;
+    std::string _hostname;
+    int _port = 8188;
 };
 
 Client::Client(const std::string& serverAddress)
@@ -55,7 +75,8 @@ Client::~Client() = default;
 
 bool Client::testConnection() {
     try {
-        httplib::Client client(m_impl->hostname, m_impl->port);
+        auto hp = m_impl->hostPort();
+        httplib::Client client(hp.first, hp.second);
         client.set_connection_timeout(5, 0); // 5 seconds
 
         // Try to GET /system_stats or root endpoint
@@ -86,7 +107,8 @@ std::string Client::queuePrompt(const json& workflow, const std::string& clientI
     try {
         // Create HTTP client
         auto clientStart = std::chrono::steady_clock::now();
-        httplib::Client client(m_impl->hostname, m_impl->port);
+        auto hp = m_impl->hostPort();
+        httplib::Client client(hp.first, hp.second);
         client.set_connection_timeout(10, 0); // 10 seconds
 
         auto clientDuration = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -165,7 +187,8 @@ json Client::getHistory(const std::string& promptId) {
     auto startTime = std::chrono::steady_clock::now();
 
     try {
-        httplib::Client client(m_impl->hostname, m_impl->port);
+        auto hp = m_impl->hostPort();
+        httplib::Client client(hp.first, hp.second);
         client.set_connection_timeout(10, 0);
 
         // GET /history/{prompt_id}
@@ -220,7 +243,8 @@ json Client::getHistory(const std::string& promptId) {
 
 bool Client::interruptExecution(const std::string& clientId) {
     try {
-        httplib::Client client(m_impl->hostname, m_impl->port);
+        auto hp = m_impl->hostPort();
+        httplib::Client client(hp.first, hp.second);
         client.set_connection_timeout(5, 0);
 
         // POST to /interrupt
@@ -290,8 +314,9 @@ void Client::monitorExecution(const std::string& promptId, EventCallback callbac
         ix::WebSocket webSocket;
 
         // Build WebSocket URL: ws://hostname:port/ws?clientId=xxx
+        auto hp = m_impl->hostPort();
         std::stringstream url;
-        url << "ws://" << m_impl->hostname << ":" << m_impl->port
+        url << "ws://" << hp.first << ":" << hp.second
             << "/ws?clientId=" << m_impl->clientId;
 
         webSocket.setUrl(url.str());
