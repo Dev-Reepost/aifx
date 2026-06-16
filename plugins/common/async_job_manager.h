@@ -11,6 +11,7 @@
 #include <mutex>
 #include <thread>
 #include <atomic>
+#include <condition_variable>
 #include <functional>
 #include <chrono>
 #include <nlohmann/json.hpp>
@@ -492,6 +493,15 @@ private:
     // Background sequence write thread (tracked so destructor can join it)
     std::thread _writeThread;                      // Background fetch+write+submit thread
     std::mutex _writeThreadMutex;                  // Protects _writeThread join/replace
+
+    // Per-frame submitJobAsync() launches detached worker threads. They are not
+    // joinable, so the destructor cannot wait on them directly. Track the number
+    // in flight and block in ~AsyncJobManager until it drains, so a detached
+    // worker can never call back into a destroyed manager / client / plugin
+    // (use-after-free on plugin teardown mid-submission).
+    std::atomic<int> _activeAsyncSubmits{0};
+    std::mutex _asyncSubmitMutex;
+    std::condition_variable _asyncSubmitCv;
 
     // Completion callback
     std::mutex _callbackMutex;                     // Protects callback

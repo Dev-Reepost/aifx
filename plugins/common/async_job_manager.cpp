@@ -49,6 +49,18 @@ AsyncJobManager::~AsyncJobManager()
     // Signal shutdown — the write thread checks this flag between frames
     _shutdown = true;
 
+    // Drain any in-flight per-frame submitJobAsync() workers. They are detached
+    // (not joinable) but each holds the manager (this), the Client*, and the
+    // BasePlugin*; if one outlived us it would dereference freed objects. Block
+    // until the counter hits zero. Workers re-check _shutdown and bail early, so
+    // this is bounded by at most one in-progress EXR write / ComfyUI POST.
+    {
+        std::unique_lock<std::mutex> lk(_asyncSubmitMutex);
+        if (_activeAsyncSubmits.load() != 0 && _logger)
+            _logger->info("AsyncJobManager: Waiting for {} async submit worker(s)", _activeAsyncSubmits.load());
+        _asyncSubmitCv.wait(lk, [this]{ return _activeAsyncSubmits.load() == 0; });
+    }
+
     // Join the write thread FIRST: it holds raw OFX clip pointers that
     // become invalid as soon as the host tears down the plugin instance.
     // Joining here ensures fetchImage() is never called on a dead clip.
@@ -168,9 +180,30 @@ void AsyncJobManager::submitJobAsync(int frame,
         }
     }
 
-    // Launch background thread to handle I/O and submission
-    // Note: We detach the thread because we don't need to wait for it
+    // Launch background thread to handle I/O and submission.
+    // We detach the thread (the render thread must not block), but track it via
+    // _activeAsyncSubmits so ~AsyncJobManager can drain in-flight workers before
+    // the manager / client / plugin are destroyed. The counter is bumped here
+    // (before launch) and dropped by the RAII guard at the top of the worker.
+    _activeAsyncSubmits.fetch_add(1);
     std::thread([this, frame, imageDataMap, inputPathMap, outputPath, basePlugin, startTime]() {
+        // Decrement + notify on every exit path (normal, early-out, exception).
+        struct SubmitGuard {
+            AsyncJobManager* m;
+            ~SubmitGuard() {
+                // Decrement AND notify under the lock: the waiting destructor
+                // must not return (and destroy the CV) between our decrement and
+                // our notify. Holding the lock across both forces it to wait
+                // until we are done touching the CV.
+                std::lock_guard<std::mutex> lk(m->_asyncSubmitMutex);
+                m->_activeAsyncSubmits.fetch_sub(1);
+                m->_asyncSubmitCv.notify_all();
+            }
+        } submitGuard{this};
+
+        // Teardown started before we got going — don't touch basePlugin/_comfyClient.
+        if (_shutdown.load()) return;
+
         try {
             auto writeStartTime = std::chrono::steady_clock::now();
 
@@ -206,6 +239,10 @@ void AsyncJobManager::submitJobAsync(int frame,
                     it->second.submissionStatus = SubmissionStatus::PENDING_SUBMIT;
                 }
             }
+
+            // Bail before calling back into the plugin/client if teardown began
+            // during the (slow) EXR write above.
+            if (_shutdown.load()) return;
 
             // Build workflow (need to call back to BasePlugin)
             auto workflowStartTime = std::chrono::steady_clock::now();

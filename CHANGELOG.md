@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.10] - 2026-06-16
+
+A teardown-time crash fix found while auditing the job lifecycle after 0.1.9.
+Linux binaries only.
+
+### Fixed
+
+- **No use-after-free when a plugin is torn down mid-submission.** The per-frame
+  async path (`submitJobAsync`, used by per-frame plugins such as DepthAnything3)
+  launched a **detached** worker thread that captures the job manager, the
+  ComfyUI `Client`, and the plugin, then calls back into all three to build and
+  submit the workflow. The destructor joined the monitor and sequence-write
+  threads but could not join this detached worker, so deleting the node /
+  closing the project / switching clips while a submission was in flight could
+  leave the worker dereferencing freed objects. `~AsyncJobManager` now tracks
+  in-flight workers with a counter + condition variable and **drains** them
+  before its members are destroyed, and workers re-check the shutdown flag and
+  bail early (notify is done under the lock to avoid a condition-variable
+  teardown race). This is the lifecycle sibling of the client-recreation
+  use-after-free fixed in 0.1.9.
+
 ## [0.1.9] - 2026-06-16
 
 Follow-up to 0.1.8: with the Resolve crash gone, the next real Resolve Studio
