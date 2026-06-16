@@ -12,9 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 A "File exists already" failure surfaced by a real SeedVR2 upscale on DaVinci
 Resolve (Linux): a multi-minute sequence job that completed the upscale but
 crashed at save. Root-caused to duplicate in-flight submissions, plus a cache
-toggle that never did anything. Ships Linux and Windows binaries; the fix is in
-shared code, so the Windows build (rebuilt from the 0.1.11 source) carries the
-same fix. macOS is unchanged from 0.1.7.
+toggle that never did anything. Ships Linux, Windows, and macOS binaries; the
+fix is in shared code, so the Windows and macOS builds (rebuilt from the 0.1.11
+source) carry the same fix.
 
 ### Fixed
 
