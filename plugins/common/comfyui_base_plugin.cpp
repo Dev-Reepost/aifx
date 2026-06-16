@@ -12,6 +12,7 @@
 #include <thread>
 #include <cstring>
 #include <filesystem>
+#include <system_error>
 #include <algorithm>
 
 #ifdef _WIN32
@@ -702,10 +703,18 @@ void BasePlugin::changedParam(const OFX::InstanceChangedArgs &args,
     static const std::unordered_set<std::string> kSystemParams = {
         "jobStatus", "jobStatusColor", "refreshTrigger", "asyncMode", "placeholderMode"
     };
-    if (isSequencePlugin() && kSystemParams.find(paramName) == kSystemParams.end()) {
+    // A genuine output-affecting parameter change invalidates any in-flight job.
+    // The "collectAndSubmit" button is an action, not an output parameter, so it
+    // must NOT land here: otherwise every press cancels the running job locally
+    // (without stopping it on the server), the orphaned job still writes its
+    // output, and the next submit collides on it ("File exists already").
+    if (isSequencePlugin() && paramName != "collectAndSubmit" &&
+        kSystemParams.find(paramName) == kSystemParams.end()) {
         if (!_pendingSequenceOutputPrefix.empty()) {
-            if (_logger) _logger->info("Parameter '{}' changed - cancelling pending sequence job (startFrame={})", paramName, _sequenceStartFrame);
-            if (_jobManager) _jobManager->cancelJob(_sequenceStartFrame);
+            if (_logger) _logger->info("Parameter '{}' changed - cancelling in-flight sequence job (startFrame={})", paramName, _sequenceStartFrame);
+            // Interrupt on the server too — a local-only cancel leaves the job
+            // running, so it would still write its output and block the resubmit.
+            if (_jobManager) _jobManager->cancelAllJobs(/*interruptServer=*/true);
             _pendingSequenceOutputPrefix.clear();
         }
     }
@@ -906,6 +915,29 @@ void BasePlugin::executePendingCollect()
             try { if (_jobStatus)      _jobStatus->setValue(text); }      catch (...) {}
             try { if (_jobStatusColor) _jobStatusColor->setValue(sr, sg, sb); } catch (...) {}
         };
+
+        // In-flight de-duplication. The disk cache check below only sees outputs
+        // already written, not a job still running (a sequence job can take many
+        // minutes). Without this guard, a second Collect & Submit during that
+        // window queues a duplicate that SaveEXR later aborts with "File exists
+        // already" once the first job writes its frames. If a job for this exact
+        // output is already queued/processing, ignore the press.
+        {
+            std::string outputPrefix = outputDir + "/" + base;
+            if (_jobManager && _pendingSequenceOutputPrefix == outputPrefix) {
+                JobStatus st = _jobManager->getJobStatus(_sequenceStartFrame);
+                if (st == JobStatus::QUEUED || st == JobStatus::PROCESSING) {
+                    if (_logger) {
+                        _logger->info("  Sequence job already in flight for '{}' (startFrame={}) — ignoring duplicate Collect & Submit",
+                                      outputPrefix, _sequenceStartFrame);
+                        _logger->flush();
+                    }
+                    setStatus("Already processing this shot — duplicate submission ignored", 1.0, 0.55, 0.0);
+                    return;
+                }
+            }
+        }
+
         setStatus("Collecting: 0 / " + std::to_string(nTotal), 0.0, 0.7, 1.0);
 
         for (int t = startFrame; t <= endFrame; ++t) {
@@ -970,8 +1002,14 @@ void BasePlugin::executePendingCollect()
             _logger->flush();
         }
 
-        // Output cache check — same logic as before.
+        // Output cache check.
+        //   Cache ON  : if every output frame already exists, serve it and skip
+        //               submission entirely.
+        //   Cache OFF : never reuse — fall through and delete any existing frames
+        //               first, because the SaveEXR node refuses to overwrite and
+        //               would abort the whole job with "File exists already".
         {
+            const bool useCache = !_enableCache || _enableCache->getValue();
             int nFrames = endFrame - startFrame + 1;
             int existingCount = 0;
             for (int t = startFrame; t <= endFrame; ++t) {
@@ -981,7 +1019,7 @@ void BasePlugin::executePendingCollect()
                 if (std::filesystem::exists(ss.str())) ++existingCount;
             }
 
-            if (existingCount == nFrames) {
+            if (useCache && existingCount == nFrames) {
                 if (_logger) {
                     _logger->info("  All {} output frame(s) cached on disk — skipping submission", nFrames);
                     _logger->flush();
@@ -989,6 +1027,9 @@ void BasePlugin::executePendingCollect()
                 return;
             }
 
+            // Either the cache is disabled, or only some frames exist. In both
+            // cases we are about to (re)submit, so clear any existing outputs in
+            // range to keep SaveEXR from aborting on a pre-existing file.
             if (existingCount > 0) {
                 int deleted = 0;
                 for (int t = startFrame; t <= endFrame; ++t) {
@@ -1377,8 +1418,11 @@ void BasePlugin::executeWorkflow(const OFX::RenderArguments &args)
     std::string expectedOutputPath = constructExpectedOutputPath(frame);
     if (_logger) _logger->info("Expected output path: {}", expectedOutputPath);
 
+    // Cache ON: reuse an existing output. Cache OFF: never reuse — the existing
+    // file is removed below so the SaveEXR node won't abort on "File exists".
+    const bool useCache = !_enableCache || _enableCache->getValue();
     std::ifstream cachedFile(expectedOutputPath);
-    if (cachedFile.good()) {
+    if (cachedFile.good() && useCache) {
         cachedFile.close();
         if (_logger) _logger->info("✓ Output file already exists (cached): {}", expectedOutputPath);
         if (_logger) _logger->info("Skipping workflow submission, using cached result");
@@ -1415,6 +1459,15 @@ void BasePlugin::executeWorkflow(const OFX::RenderArguments &args)
 
         progressUpdate(1.0);
         return;
+    }
+
+    // Cache disabled but an old output is present: delete it so SaveEXR can
+    // rewrite the frame instead of aborting with "File exists already".
+    if (!useCache) {
+        std::error_code ec;
+        if (std::filesystem::remove(expectedOutputPath, ec) && _logger) {
+            _logger->info("Cache disabled — removed stale output before re-submission: {}", expectedOutputPath);
+        }
     }
 
     if (_logger) _logger->info("Output file does not exist, proceeding with workflow submission");
@@ -2904,6 +2957,23 @@ void BasePlugin::renderAsync(const OFX::RenderArguments &args)
 
     auto cacheCheckDuration = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::steady_clock::now() - cacheCheckStart);
+
+    // Cache OFF: discard any existing output so the SaveEXR node (which refuses
+    // to overwrite) can write a fresh frame, then fall through to re-render.
+    const bool useCache = !_enableCache || _enableCache->getValue();
+    if (fileExists && !useCache) {
+        if (_logger) {
+            _logger->info("Frame {}: Cache disabled — removing stale output and re-rendering: {}",
+                         frame, cachedPath);
+        }
+        std::error_code ec;
+        std::filesystem::remove(cachedPath, ec);
+        {
+            std::lock_guard<std::mutex> lock(_cacheMutex);
+            _cacheFileExists.erase(cachedPath);
+        }
+        fileExists = false;
+    }
 
     if (fileExists) {
         if (_logger) {

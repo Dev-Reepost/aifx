@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.11] - 2026-06-16
+
+A "File exists already" failure surfaced by a real SeedVR2 upscale on DaVinci
+Resolve (Linux): a multi-minute sequence job that completed the upscale but
+crashed at save. Root-caused to duplicate in-flight submissions, plus a cache
+toggle that never did anything. Linux binaries only; the fix is in shared code,
+so other platforms can be rebuilt from this source without behaviour change.
+
+### Fixed
+
+- **No more "File exists already" aborts from the HQ-Image-Save `SaveEXR` node.**
+  That node refuses to overwrite, so a second submission for the same output
+  frame is fatal once the first job has written it. Two holes let duplicates
+  through, both now closed:
+  - **In-flight de-duplication.** The output cache check only sees files already
+    written, never a job still running — and a sequence upscale can run for many
+    minutes. A second **Collect & Submit** during that window queued a duplicate
+    that died at save when the first job wrote its frames. The submit path now
+    ignores a press while a job for the same output prefix is `QUEUED`/`PROCESSING`
+    ("Already processing this shot — duplicate submission ignored").
+  - **Button no longer cancels-and-forgets.** Pressing Collect & Submit tripped
+    the generic parameter-invalidation branch, which marked the job cancelled
+    **locally only** — the ComfyUI server kept running it, wrote its output, and
+    blocked the resubmit. The button is now excluded from that branch, and a
+    genuine output-affecting parameter change **interrupts the server**
+    (`cancelAllJobs(interruptServer=true)`) instead of a local-only cancel, so an
+    invalidated job stops before it can write.
+
+### Changed
+
+- **The "Enable Cache" toggle now actually works.** It was defined and fetched
+  but its value was never read, so the plugin always behaved cache-on (reuse an
+  existing output) and the cache-off path did not exist. Now: **cache on** serves
+  an existing output and skips submission; **cache off** deletes any stale output
+  first (single-frame and sequence paths alike) so `SaveEXR` writes into a clean
+  slot instead of aborting. Wired into all three submission paths
+  (`renderAsync`, `executeWorkflow`, and the sequence Collect & Submit).
+
 ## [0.1.10] - 2026-06-16
 
 A teardown-time crash fix found while auditing the job lifecycle after 0.1.9.
