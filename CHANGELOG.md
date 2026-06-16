@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.8] - 2026-06-16
+
+A crash fix for DaVinci Resolve on Linux, surfaced by a real Resolve Studio job
+at "Collect Process". Linux binaries only — macOS/Windows are unchanged from
+0.1.7.
+
+### Fixed
+
+- **No more SIGSEGV in DaVinci Resolve on Linux at Collect & Submit.** The
+  plugins linked `libstdc++` dynamically, leaving `std::filesystem` symbols as
+  undefined, preemptible imports in each `.ofx`. Resolve loads its
+  `libProResRAW.so` — which statically baked in an *older* libstdc++ and
+  re-exports its C++ symbols globally — into the process before the plugin. The
+  dynamic linker then bound the plugin's `std::filesystem::path` calls to that
+  stale copy, whose internal layout differs, and the first real filesystem call
+  (`std::filesystem::exists()` in the frame-collection loop) dereferenced
+  garbage → crash (`signal 11`, `fault_addr=0x2b`). The plugins now link the C++
+  runtime statically (`-static-libstdc++ -static-libgcc`); combined with the
+  existing version-script (`local: *`) + `-Bsymbolic` hardening, `std::filesystem`
+  is now a local, non-preemptible symbol and the C++ runtime is fully
+  self-contained — immune to whatever libstdc++ the host drags into the global
+  scope. This is the import-side counterpart to the export-side interposition fix
+  in 0.1.5 (which stopped Flame binding to the plugin's symbols); the two hosts
+  crashed in opposite directions for the same underlying ELF-scope reason.
+
+### Changed
+
+- **Linux source builds now require the static C++ runtime (`libstdc++.a`).** It
+  ships with the g++ dev package on Debian/Ubuntu (`build-essential`) but is a
+  separate CRB-repo package on Rocky/RHEL (`libstdc++-static`).
+  `tools/setup-env.sh` now probes for it and offers a distro-aware install, and
+  `tools/release-linux.sh` preflight-checks it with a clear install hint.
+
 ## [0.1.7] - 2026-06-12
 
 Storage-mount UX simplification and a networked-output reliability fix, both

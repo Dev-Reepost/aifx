@@ -127,6 +127,71 @@ check_prerequisites() {
     log_success "Prerequisites check passed"
 }
 
+# Ensure the STATIC C++ runtime is installed (Linux only).
+#
+# Each .ofx links libstdc++/libgcc statically (-static-libstdc++ -static-libgcc,
+# set in plugins/CMakeLists.txt) so the plugin carries its own std::filesystem /
+# std::string and can't bind to the host's. DaVinci Resolve loads libProResRAW.so
+# — which re-exports an older statically-linked libstdc++ — into the global symbol
+# scope; a dynamically-linked plugin then binds std::filesystem to that stale copy
+# and SIGSEGVs the first time it touches the filesystem (Collect & Submit).
+#
+# Static linkage needs libstdc++.a, which on Debian/Ubuntu ships with the g++ dev
+# package (build-essential) but on Rocky/RHEL/Fedora is a separate package
+# (libstdc++-static) living in the CRB repo, NOT installed by default.
+check_cxx_runtime() {
+    [[ "$PLATFORM" != "linux" ]] && return 0
+
+    log_info "Checking C++ build toolchain (compiler + static runtime)..."
+
+    # Compiler first.
+    CXX_BIN="$(command -v g++ || command -v clang++ || true)"
+    if [[ -z "$CXX_BIN" ]]; then
+        log_error "No C++ compiler (g++/clang++) found."
+        echo "  Debian/Ubuntu: sudo apt-get install build-essential"
+        echo "  Rocky/RHEL:    sudo dnf install gcc-c++"
+        echo "  Fedora:        sudo dnf install gcc-c++"
+        exit 1
+    fi
+
+    # Probe a real static-libstdc++ link — the only reliable test.
+    if echo 'int main(){}' | "$CXX_BIN" -static-libstdc++ -static-libgcc -x c++ - -o /dev/null 2>/dev/null; then
+        log_success "Static C++ runtime present (-static-libstdc++ links)"
+        return 0
+    fi
+
+    log_warning "Static C++ runtime (libstdc++.a) missing — plugins will crash in DaVinci Resolve without it."
+
+    # Pick an installer by package manager.
+    if command -v dnf &> /dev/null; then
+        log_info "On Rocky/RHEL/Fedora this is the 'libstdc++-static' package (Rocky/RHEL: in the CRB repo)."
+        read -p "Install it now with dnf (may enable the CRB repo)? (y/n): " -n 1 -r; echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            # CRB only exists on RHEL-clones (Rocky/Alma); on Fedora the package is in the main repo.
+            sudo dnf config-manager --set-enabled crb 2>/dev/null || true
+            sudo dnf install -y libstdc++-static
+        fi
+    elif command -v apt-get &> /dev/null; then
+        log_info "On Debian/Ubuntu the static lib ships with the g++ dev package."
+        read -p "Install build-essential now with apt-get? (y/n): " -n 1 -r; echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            sudo apt-get update && sudo apt-get install -y build-essential
+        fi
+    else
+        log_error "Unknown package manager — install the static libstdc++ manually (libstdc++-static / static g++ dev)."
+    fi
+
+    # Re-probe; fail hard if still unavailable so the dev hits this now, not at link time.
+    if echo 'int main(){}' | "$CXX_BIN" -static-libstdc++ -static-libgcc -x c++ - -o /dev/null 2>/dev/null; then
+        log_success "Static C++ runtime now available"
+    else
+        log_error "Static C++ runtime still missing. Install it, then re-run setup."
+        echo "  Rocky/RHEL: sudo dnf config-manager --set-enabled crb && sudo dnf install libstdc++-static"
+        echo "  Ubuntu:     sudo apt-get install build-essential"
+        exit 1
+    fi
+}
+
 # Install Conan
 setup_conan() {
     log_info "Setting up Conan package manager..."
@@ -294,6 +359,7 @@ main() {
     detect_platform
     check_aifx_root
     check_prerequisites
+    check_cxx_runtime
     setup_conan
     setup_directories
     setup_env_vars

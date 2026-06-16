@@ -95,11 +95,39 @@ target_include_directories(ComfyUICommon PUBLIC
 # OfxGetPlugin and the plugin would fail to load. The version script's explicit
 # `global:` list is the authoritative, origin-agnostic export control.)
 # See plugins/ofx_exports.version.
+#
+# The export controls above stop the host from binding to OUR symbols. The
+# REVERSE direction — us binding to the host's symbols — needs a second fix, and
+# the C++ runtime itself is the vector. We link libstdc++/libgcc dynamically by
+# default, so std::filesystem / std::string / exception-unwinding symbols are
+# undefined, preemptible imports in the .ofx. DaVinci Resolve loads
+# libProResRAW.so into the global symbol scope BEFORE our plugin, and that
+# Blackmagic library statically baked in an OLDER libstdc++ and re-exports its
+# C++ symbols globally (e.g. std::filesystem::path::_M_split_cmpts). The dynamic
+# linker then binds our std::filesystem calls to ProResRAW's stale copy, whose
+# internal std::filesystem::path layout differs from ours — SIGSEGV at the first
+# std::filesystem::exists() in Collect & Submit (observed: signal 11,
+# fault_addr=0x2b, Resolve/Linux only). -Bsymbolic can't help: with libstdc++
+# dynamic there is no local definition to bind to.
+#
+# Fix: link the C++ runtime statically (-static-libstdc++ -static-libgcc). The
+# plugin then carries its OWN std::filesystem implementation; the version script
+# turns those symbols local (local symbols are never preemptible) and -Bsymbolic
+# binds our calls to them. The C++ runtime is fully self-contained and immune to
+# whatever libstdc++ the host dragged into the global scope. As a bonus this also
+# protects against a host whose bundled libstdc++ is OLDER than the GLIBCXX
+# version our code needs.
+#
+# This needs the static C++ archives at link time. The native Linux release
+# build (tools/release-linux.sh, run on Rocky) preflight-checks for them and
+# tells you to `dnf install libstdc++-static` (CRB repo) if missing.
 function(aifx_harden_ofx_exports _tgt)
     if(UNIX AND NOT APPLE)
         target_link_options(${_tgt} PRIVATE
             "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/ofx_exports.version"
-            "-Wl,-Bsymbolic")
+            "-Wl,-Bsymbolic"
+            "-static-libstdc++"
+            "-static-libgcc")
         # Relink when the export list changes.
         set_property(TARGET ${_tgt} APPEND PROPERTY
             LINK_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/ofx_exports.version")

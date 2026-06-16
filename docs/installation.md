@@ -115,6 +115,15 @@ guide.
   - Linux: GCC 10+ or Clang 12+
   - Windows: Visual Studio 2022 with the C++ workload
 - **Git**
+- Linux only: the **static C++ runtime** (`libstdc++.a`). Each `.ofx` links
+  libstdc++/libgcc statically so it carries its own `std::filesystem` — without
+  this the plugin binds to the host's C++ runtime and crashes in DaVinci Resolve.
+  It ships with the g++ dev package on Debian/Ubuntu (`build-essential`); on
+  Rocky/RHEL it is a separate CRB-repo package:
+  ```bash
+  sudo dnf config-manager --set-enabled crb && sudo dnf install libstdc++-static
+  ```
+  (`tools/setup-env.sh` checks for this and offers to install it.)
 
 ### Set up the build environment
 

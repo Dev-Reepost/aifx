@@ -54,6 +54,23 @@ if ! command -v g++ >/dev/null 2>&1 && ! command -v clang++ >/dev/null 2>&1; the
     exit 1
 fi
 
+# Static C++ runtime must be present. Each .ofx links libstdc++/libgcc
+# statically (-static-libstdc++ -static-libgcc, set in plugins/CMakeLists.txt)
+# so the plugin carries its own std::filesystem/std::string and cannot bind to
+# the host's. DaVinci Resolve loads libProResRAW.so — which re-exports an older
+# libstdc++ — into the global symbol scope, and a dynamically-linked plugin then
+# crashes (SIGSEGV) the first time it touches std::filesystem. Static linkage
+# needs the static archives, which on Rocky/RHEL ship in the (CRB-repo)
+# 'libstdc++-static' package and are NOT installed by default.
+CXX_FOR_CHECK="$(command -v g++ || command -v clang++)"
+if ! echo 'int main(){}' | "$CXX_FOR_CHECK" -static-libstdc++ -static-libgcc -x c++ - -o /dev/null 2>/dev/null; then
+    echo "[ERROR] The static C++ runtime (libstdc++.a) is missing — '-static-libstdc++' fails to link." >&2
+    echo "        On Rocky/RHEL 9:  sudo dnf config-manager --set-enabled crb && sudo dnf install libstdc++-static" >&2
+    echo "        On Ubuntu/Debian: it ships with the g++ dev package (build-essential)." >&2
+    echo "        This is required: without it the .ofx links libstdc++ dynamically and crashes in DaVinci Resolve." >&2
+    exit 1
+fi
+
 # cmake must be >= REQUIRED_CMAKE.
 CMAKE_VERSION="$(cmake --version | head -1 | grep -oE '[0-9]+\.[0-9]+(\.[0-9]+)?')"
 if [[ "$(printf '%s\n%s\n' "$REQUIRED_CMAKE" "$CMAKE_VERSION" | sort -V | head -1)" != "$REQUIRED_CMAKE" ]]; then
