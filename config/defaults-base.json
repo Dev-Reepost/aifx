@@ -1,14 +1,14 @@
 {
   "server": {
-    "serverAddress": "192.168.1.211",
-    "serverPort": 8388
+    "serverAddress": "comfyui.example.local",
+    "serverPort": 8188
   },
   "storage": {
-    "serverMountPath": "\\\\192.168.1.110\\silo2\\002_COMFYUI",
+    "serverMountPath": "\\\\HOSTNAME\\share",
     "localMountPath": {
-      "macos": "/Volumes/silo2/002_COMFYUI",
-      "windows": "\\\\192.168.1.110\\silo2\\002_COMFYUI",
-      "linux": "/Volumes/silo2/002_COMFYUI"
+      "macos": "/Volumes/comfyui-share",
+      "windows": "\\\\HOSTNAME\\share",
+      "linux": "/mnt/comfyui-share"
     }
   },
   "controls": {

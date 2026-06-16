@@ -27,10 +27,9 @@ import AppKit
 // =============================================================================
 
 struct SiteConfig {
-    /// ComfyUI server hostname or IP (e.g. "192.168.1.211" or "comfyui.local").
+    /// ComfyUI server hostname or IP (e.g. "comfyui.example.local" or "127.0.0.1").
     var serverAddress: String = "127.0.0.1"
-    /// ComfyUI HTTP port (default 8188 for stock ComfyUI; we ship 8388 for the
-    /// Reepost studio convention).
+    /// ComfyUI HTTP port (8188 is the stock ComfyUI default).
     var serverPort: Int = 8188
 
     /// The shared-folder path **as this operator's Mac sees it** —

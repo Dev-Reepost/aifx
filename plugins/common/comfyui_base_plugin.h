@@ -187,8 +187,8 @@ protected:
     // I/O) and as the ComfyUI server sees it (written into the workflow). They
     // differ because the host running the plugin and the ComfyUI box are
     // different machines mounting the same share at different paths.
-    OFX::StringParam *_localMountPath = nullptr;      // This host's mount  (e.g. /Volumes/silo2/002_COMFYUI or /mnt/silo2/002_COMFYUI)
-    OFX::StringParam *_serverMountPath = nullptr;     // ComfyUI server's mount (UNC, e.g. \\192.168.1.110\silo2\002_COMFYUI)
+    OFX::StringParam *_localMountPath = nullptr;      // This host's mount  (e.g. /Volumes/comfyui-share or /mnt/comfyui-share)
+    OFX::StringParam *_serverMountPath = nullptr;     // ComfyUI server's mount (UNC, e.g. \\HOSTNAME\share)
     OFX::StringParam *_projectName = nullptr;         // Project name for file organization (e.g., "my_commercial")
     OFX::StringParam *_workflowName = nullptr;        // Workflow subdirectory (e.g., "segmentation")
     OFX::StringParam *_outputVersion = nullptr;       // Output version (e.g., "v001")

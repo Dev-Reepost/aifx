@@ -590,7 +590,7 @@ void SAM3SegmentationPluginFactory::describeInContext(OFX::ImageEffectDescriptor
     dstClip->addSupportedComponent(OFX::ePixelComponentRGB);
     dstClip->setSupportsTiles(false);
 
-    // Load config defaults (port 8388, studio-specific paths)
+    // Load config defaults (server address, port, mount paths)
     json configDefaults = loadSAM3ConfigDefaults();
 
     // Pass config so BasePlugin::describeCommonParameters can set correct defaults

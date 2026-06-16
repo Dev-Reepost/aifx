@@ -454,8 +454,8 @@ int main(int argc, char** argv) {
             std::cout << "  --help, -h          Show this help message\n";
             std::cout << "\nExamples:\n";
             std::cout << "  " << argv[0] << "\n";
-            std::cout << "  " << argv[0] << " --server 192.168.1.211:8188\n";
-            std::cout << "  " << argv[0] << " --server 192.168.1.211:8188 --require-server\n\n";
+            std::cout << "  " << argv[0] << " --server 127.0.0.1:8188\n";
+            std::cout << "  " << argv[0] << " --server 127.0.0.1:8188 --require-server\n\n";
             return 0;
         }
     }

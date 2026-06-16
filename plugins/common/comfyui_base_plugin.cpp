@@ -1744,8 +1744,8 @@ std::string BasePlugin::writeInputImage(OFX::Image* img, int frame, const std::s
 
     // Build path matching output pattern: basename[_suffix].frame.exr
     // Input and output now use the same naming convention for consistency
-    // Example: /Volumes/silo2/002_COMFYUI/in/projects/acme_spot/segmentation/v001/shot01.0001.exr
-    // With suffix: /Volumes/silo2/002_COMFYUI/in/projects/acme_spot/segmentation/v001/shot01_B.0001.exr
+    // Example: /Volumes/comfyui-share/in/projects/acme_spot/segmentation/v001/shot01.0001.exr
+    // With suffix: /Volumes/comfyui-share/in/projects/acme_spot/segmentation/v001/shot01_B.0001.exr
     std::ostringstream filename;
     filename << mountPath << "/in/projects/"
              << project << "/"
@@ -1931,7 +1931,7 @@ std::string BasePlugin::parseOutputPath(const json& history, int frame)
                     if (_logger) _logger->info("Constructed SaveEXR filename: {}", constructedFilename);
 
                     // Build full path
-                    // Output: /Volumes/silo2/002_COMFYUI/out/<PROJECT>/<WORKFLOW>/<VERSION>/{filename}
+                    // Output: /Volumes/comfyui-share/out/<PROJECT>/<WORKFLOW>/<VERSION>/{filename}
                     std::ostringstream fullPath;
                     fullPath << mountPath << "/out/" << project << "/"
                              << workflow << "/" << version << "/" << constructedFilename;
@@ -1959,7 +1959,7 @@ std::string BasePlugin::parseOutputPath(const json& history, int frame)
                     if (_logger) _logger->info("Found output filename from history: {}", filename);
 
                     // Build full path matching Python pattern
-                    // Output: /Volumes/silo2/002_COMFYUI/out/<PROJECT>/<WORKFLOW>/<VERSION>/basename_layer_frame_version_.exr
+                    // Output: /Volumes/comfyui-share/out/<PROJECT>/<WORKFLOW>/<VERSION>/basename_layer_frame_version_.exr
                     std::ostringstream fullPath;
                     fullPath << mountPath << "/out/" << project << "/"
                              << workflow << "/" << version << "/" << filename;
@@ -2023,7 +2023,7 @@ std::string BasePlugin::convertPathForComfyUI(const std::string& localPath)
     // Rewrite a path from THIS machine's mount namespace into the ComfyUI
     // server's namespace. The ComfyUI box is the Windows storage server, so the
     // server mount is always the Windows view and the result uses backslashes.
-    // Example: /mnt/silo2/002_COMFYUI/in/x  ->  \\192.168.1.110\silo2\002_COMFYUI\in\x
+    // Example: /mnt/comfyui-share/in/x  ->  \\HOSTNAME\share\in\x
 
     if (_logger) _logger->info("Converting path for ComfyUI: {}", localPath);
 
@@ -2078,7 +2078,7 @@ std::string BasePlugin::constructExpectedOutputPath(int frame)
     // NOTE: SaveEXR version is set to -1 (no version suffix) because the directory
     // already contains the version number (e.g., v001, v002).
     //
-    // Example: /Volumes/silo2/002_COMFYUI/out/TEST_SAM/segmentation/v001/shot01.0056.exr
+    // Example: /Volumes/comfyui-share/out/TEST_SAM/segmentation/v001/shot01.0056.exr
 
     std::string mountPath, project, workflow, version;
     mountPath = getLocalMountPath();
@@ -2106,8 +2106,8 @@ std::string BasePlugin::constructInputPath(int frame, const std::string& suffix)
     // Construct the input file path that was written by writeInputImage()
     // Pattern: {mountPath}/in/projects/{project}/{workflow}/{version}/{basename}[_suffix].{frame:04d}.exr
     //
-    // Example: /Volumes/silo2/002_COMFYUI/in/projects/TEST_SAM/segmentation/v001/shot01.0056.exr
-    // With suffix: /Volumes/silo2/002_COMFYUI/in/projects/TEST_SAM/segmentation/v001/shot01_B.0056.exr
+    // Example: /Volumes/comfyui-share/in/projects/TEST_SAM/segmentation/v001/shot01.0056.exr
+    // With suffix: /Volumes/comfyui-share/in/projects/TEST_SAM/segmentation/v001/shot01_B.0056.exr
 
     std::string mountPath, project, workflow, version;
     mountPath = getLocalMountPath();
@@ -4373,15 +4373,15 @@ void BasePlugin::describeCommonParameters(OFX::ImageEffectDescriptor &desc,
     // linux}); we pick the entry for the platform this bundle was built for.
 #if defined(_WIN32)
     const char* kLocalOsKey = "windows";
-    std::string localMountDefault = "\\\\192.168.1.110\\silo2\\002_COMFYUI";
+    std::string localMountDefault = "\\\\HOSTNAME\\share";
 #elif defined(__APPLE__)
     const char* kLocalOsKey = "macos";
-    std::string localMountDefault = "/Volumes/silo2/002_COMFYUI";
+    std::string localMountDefault = "/Volumes/comfyui-share";
 #else
     const char* kLocalOsKey = "linux";
-    std::string localMountDefault = "/mnt/silo2/002_COMFYUI";
+    std::string localMountDefault = "/mnt/comfyui-share";
 #endif
-    std::string serverMountDefault = "\\\\192.168.1.110\\silo2\\002_COMFYUI";
+    std::string serverMountDefault = "\\\\HOSTNAME\\share";
     if (configDefaults && configDefaults->contains("storage")) {
         const json& storage = (*configDefaults)["storage"];
         if (storage.contains("localMountPath") && storage["localMountPath"].is_object() &&
@@ -4396,7 +4396,7 @@ void BasePlugin::describeCommonParameters(OFX::ImageEffectDescriptor &desc,
     OFX::StringParamDescriptor *localMount = desc.defineStringParam("localMountPath");
     localMount->setLabel("Local Storage Mount");
     localMount->setHint("The shared storage as mounted on THIS host — where the plugin reads and writes EXRs "
-                        "locally (e.g., /Volumes/silo2/002_COMFYUI on macOS, /mnt/silo2/002_COMFYUI on Linux, "
+                        "locally (e.g., /Volumes/comfyui-share on macOS, /mnt/comfyui-share on Linux, "
                         "\\\\server\\share on Windows). Leave blank if this host reaches the storage at the same "
                         "path as the ComfyUI server.");
     localMount->setStringType(OFX::eStringTypeDirectoryPath);

@@ -13,7 +13,7 @@ using namespace ComfyUI;
 using json = nlohmann::json;
 
 // Test configuration
-const std::string SERVER_ADDR = "192.168.1.211:8188";
+const std::string SERVER_ADDR = "127.0.0.1:8188";
 const std::string TEST_DIR = "/tmp/comfyui_sam_test";
 
 // Helper to create test image with clear object
