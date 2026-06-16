@@ -10,8 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.8] - 2026-06-16
 
 A crash fix for DaVinci Resolve on Linux, surfaced by a real Resolve Studio job
-at "Collect Process". Linux binaries only — macOS/Windows are unchanged from
-0.1.7.
+at "Collect Process". Ships Linux and Windows binaries; the runtime fix is
+Linux-only, so the Windows build (rebuilt from the 0.1.8 source) is unchanged in
+behaviour from 0.1.7. macOS is unchanged from 0.1.7.
 
 ### Fixed
 
