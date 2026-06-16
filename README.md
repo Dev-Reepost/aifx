@@ -76,6 +76,10 @@ the build needs):
 conan profile detect            # or: ./tools/setup-env.sh
 ```
 
+On Linux the build also needs the static C++ runtime (`libstdc++.a`):
+`build-essential` on Debian/Ubuntu, or `libstdc++-static` (CRB repo) on
+Rocky/RHEL. `./tools/setup-env.sh` checks for it and offers to install it.
+
 Then build and install a plugin, passing the plugin directory and its CMake
 target name:
 
