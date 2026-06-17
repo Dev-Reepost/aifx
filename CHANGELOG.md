@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.12] - 2026-06-17
+
+A load-time regression from the 0.1.8 static-runtime fix: the plugins stopped
+being detected by Flame on Linux, failing with
+``lib64/libc.so.6: version `GLIBC_2.35' not found``. Linux binaries only.
+
+### Fixed
+
+- **Plugins load again on glibc 2.34 hosts (Rocky/RHEL 9).** The 0.1.8 Resolve
+  crash fix linked *both* libstdc++ and libgcc statically
+  (`-static-libstdc++ -static-libgcc`). The libstdc++ half is what actually fixes
+  Resolve (it stops the host's re-exported `std::filesystem::path::_M_split_cmpts`
+  from interposing ours). The libgcc half, built on a modern toolchain, baked the
+  unwinder's fast EH-frame lookup `_dl_find_object@GLIBC_2.35` into the `.ofx` as a
+  **GLOBAL undefined reference**. Rocky Linux 9 ships glibc 2.34, which has no
+  `GLIBC_2.35` version node, so the dynamic loader rejected the plugin and Flame
+  never registered it. We now drop `-static-libgcc` and keep `-static-libstdc++`:
+  libgcc is linked dynamically so the unwinder comes from the host's
+  `libgcc_s.so.1` (ABI-stable, interposition-safe), the glibc floor drops back to
+  2.34, and the Resolve fix is unchanged (`_M_split_cmpts` is still a LOCAL,
+  non-preemptible symbol). Verified: the `.ofx` no longer references any
+  `GLIBC_2.35` symbol.
+
 ## [0.1.11] - 2026-06-16
 
 A "File exists already" failure surfaced by a real SeedVR2 upscale on DaVinci

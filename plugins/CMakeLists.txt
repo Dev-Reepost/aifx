@@ -110,24 +110,31 @@ target_include_directories(ComfyUICommon PUBLIC
 # fault_addr=0x2b, Resolve/Linux only). -Bsymbolic can't help: with libstdc++
 # dynamic there is no local definition to bind to.
 #
-# Fix: link the C++ runtime statically (-static-libstdc++ -static-libgcc). The
-# plugin then carries its OWN std::filesystem implementation; the version script
-# turns those symbols local (local symbols are never preemptible) and -Bsymbolic
-# binds our calls to them. The C++ runtime is fully self-contained and immune to
-# whatever libstdc++ the host dragged into the global scope. As a bonus this also
-# protects against a host whose bundled libstdc++ is OLDER than the GLIBCXX
-# version our code needs.
+# Fix: link libstdc++ statically (-static-libstdc++). The plugin then carries its
+# OWN std::filesystem implementation; the version script turns those symbols local
+# (local symbols are never preemptible) and -Bsymbolic binds our calls to them.
+# The C++ runtime is self-contained and immune to whatever libstdc++ the host
+# dragged into the global scope. As a bonus this also protects against a host
+# whose bundled libstdc++ is OLDER than the GLIBCXX version our code needs.
 #
-# This needs the static C++ archives at link time. The native Linux release
-# build (tools/release-linux.sh, run on Rocky) preflight-checks for them and
-# tells you to `dnf install libstdc++-static` (CRB repo) if missing.
+# We deliberately do NOT add -static-libgcc. libgcc is left dynamic so the plugin
+# binds the unwinder from the host's libgcc_s.so.1 at runtime. Static libgcc on a
+# modern build toolchain bakes in _dl_find_object@GLIBC_2.35 (the unwinder's fast
+# EH-frame lookup path), a GLOBAL undefined reference that a host with glibc < 2.35
+# cannot satisfy — Rocky Linux 9 ships glibc 2.34, so the plugin failed to load in
+# Flame with "libc.so.6: version `GLIBC_2.35' not found" and was never registered.
+# libgcc_s's own symbols are GCC_3.0/4.x-versioned and ABI-stable, so interposition
+# is not a problem the way it is for libstdc++ — dynamic libgcc is safe here.
+#
+# This needs the static libstdc++ archive at link time. The native Linux release
+# build (tools/release-linux.sh, run on Rocky) preflight-checks for it and tells
+# you to `dnf install libstdc++-static` (CRB repo) if missing.
 function(aifx_harden_ofx_exports _tgt)
     if(UNIX AND NOT APPLE)
         target_link_options(${_tgt} PRIVATE
             "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/ofx_exports.version"
             "-Wl,-Bsymbolic"
-            "-static-libstdc++"
-            "-static-libgcc")
+            "-static-libstdc++")
         # Relink when the export list changes.
         set_property(TARGET ${_tgt} APPEND PROPERTY
             LINK_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/ofx_exports.version")
