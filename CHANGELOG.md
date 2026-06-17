@@ -11,7 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 A load-time regression from the 0.1.8 static-runtime fix: the plugins stopped
 being detected by Flame on Linux, failing with
-``lib64/libc.so.6: version `GLIBC_2.35' not found``. Linux binaries only.
+``lib64/libc.so.6: version `GLIBC_2.35' not found``. Ships Linux and Windows
+binaries; this is a Linux-only build fix, so the Windows build (rebuilt from the
+0.1.12 source) is unchanged in behaviour from 0.1.11. macOS is unchanged from
+0.1.11.
 
 ### Fixed
 
