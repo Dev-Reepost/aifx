@@ -34,7 +34,7 @@ organized per operating system.
 | Platform | Asset | Built? |
 |---|---|---|
 | **macOS (universal: arm64 + x86_64)** | `aifx-<version>-macos-installer.dmg` (wizard, recommended) **or** `aifx-<version>-macos-universal.tar.gz` (manual) | ✅ Available from v0.1.0 |
-| **Windows (x86_64)** | `aifx-<version>-windows-x86_64.zip` | ✅ Available from v0.1.0 |
+| **Windows (x86_64)** | `aifx-<version>-windows-setup.exe` (wizard, recommended) **or** `aifx-<version>-windows-x86_64.zip` (manual) | ✅ Installer from v0.1.12; zip from v0.1.0 |
 | **Linux (x86_64)** | `aifx-<version>-linux-x86_64.tar.gz` | ✅ Available from v0.1.0 (glibc 2.34+) |
 
 ### macOS (recommended: the installer)
@@ -74,7 +74,37 @@ quarantine bit with `xattr -dr com.apple.quarantine
 bundled `defaults.json` per the [Configuration & defaults](configuration.md)
 guide.
 
-### Windows
+### Windows (recommended: the installer)
+
+1. Download `aifx-<version>-windows-setup.exe` from the latest release and
+   run it.
+2. The wizard walks you through:
+   - Install location: per-user `%LOCALAPPDATA%\OFX\Plugins\` (default — no
+     admin) or, if you choose "install for all users", system-wide
+     `%COMMONPROGRAMFILES%\OFX\Plugins\`.
+   - **Site configuration**: ComfyUI server address + port, this PC's view of
+     the shared folder (**Local Storage Mount** — leave blank to reuse the
+     server view), and the **ComfyUI server's view** of the same shared folder
+     (typically a UNC path like `\\<server-host>\<share>\<root>`), plus the job
+     timeout and an "enable processing by default" toggle. These values are
+     baked into each plugin's `defaults.json` before the bundles are copied
+     into your OFX directory.
+   - **Optional skip**: tick "keep each plugin's bundled defaults" if you'd
+     rather configure everything in your host UI on first use.
+3. Click Install. The wizard copies the seven bundles and writes the site
+   config into each.
+4. Ensure the **Microsoft Visual C++ Redistributable (x64)** is installed on
+   the machine — the plugins link against the standard MSVC runtime. Most
+   systems already have it; otherwise install it from Microsoft.
+5. Restart your OFX host. The plugins appear under the **AIFX** category.
+
+The installer is unsigned in v0.1.x. On first run Windows SmartScreen may warn —
+click **More info → Run anyway**. A signed installer is planned for a follow-up
+patch release. You can remove the plugins later from **Settings → Apps** (it
+only deletes the seven AIFX bundles, leaving any other OFX plugins in the
+directory untouched).
+
+### Windows (manual: the zip)
 
 1. Download `aifx-<version>-windows-x86_64.zip` from the latest release and
    extract it. You will get a directory containing seven `.ofx.bundle`

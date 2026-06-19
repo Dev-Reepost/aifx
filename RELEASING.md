@@ -25,6 +25,7 @@ extra), built by an automated script and named by convention:
 | macOS universal (arm64 + x86_64) | `tools/release-macos.sh <version>` | `dist/aifx-<version>-macos-universal.tar.gz` |
 | macOS installer (optional) | `tools/release-macos-installer.sh <version>` | `dist/aifx-<version>-macos-installer.dmg` |
 | Windows x86_64 | `tools\release-windows.ps1 -Version <version>` | `dist\aifx-<version>-windows-x86_64.zip` |
+| Windows installer (optional) | `tools\release-windows-installer.ps1 -Version <version>` | `dist\aifx-<version>-windows-setup.exe` |
 
 Every script builds all seven plugins (the set comes from
 `plugins/manifest.txt`, the single source of truth), stages the
@@ -57,7 +58,10 @@ Platform-specific:
   compiles each plugin for arm64 and x86_64 and `lipo`s them together.
 - **Windows** — Visual Studio 2022 with the C++ workload. The plugins link the
   standard MSVC runtime, so target machines need the **Microsoft Visual C++
-  Redistributable (x64)**.
+  Redistributable (x64)**. The optional `.exe` installer additionally needs
+  **Inno Setup 6** (`ISCC.exe`) on the build machine —
+  `winget install JRSoftware.InnoSetup` or
+  [jrsoftware.org/isdl.php](https://jrsoftware.org/isdl.php).
 
 ## Build the artifacts
 
@@ -74,7 +78,12 @@ tools/release-macos-installer.sh 0.1.8     # optional .dmg wizard
 
 # Windows  (in PowerShell)
 tools\release-windows.ps1 -Version 0.1.8
+tools\release-windows-installer.ps1 -Version 0.1.8   # optional .exe wizard
 ```
+
+The Windows installer script reuses `dist\aifx-<version>-windows-x86_64.zip`
+when present (run `release-windows.ps1` first for a reproducible build),
+otherwise it stages from `build\windows\*.ofx.bundle`.
 
 Each prints the artifact path and its SHA-256 — keep those for the release notes.
 

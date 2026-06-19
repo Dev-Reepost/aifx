@@ -15,6 +15,23 @@ being detected by Flame on Linux, failing with
 macOS binaries; this is a Linux-only build fix, so the Windows and macOS builds
 (rebuilt from the 0.1.12 source) are unchanged in behaviour from 0.1.11.
 
+### Added
+
+- **Windows installer (`aifx-0.1.12-windows-setup.exe`).** A native Inno Setup
+  wizard, the counterpart of the macOS `.dmg` installer, shipped alongside the
+  existing `aifx-0.1.12-windows-x86_64.zip` (same plugin binaries — the
+  installer is a packaging + configuration convenience). It lets the user pick a
+  per-user (`%LOCALAPPDATA%\OFX\Plugins`) or all-users
+  (`%COMMONPROGRAMFILES%\OFX\Plugins`) location, collects site configuration on
+  a custom page (ComfyUI server address/port, this PC's and the server's view of
+  the shared folder, job timeout, and an "enable processing by default" toggle),
+  copies the seven `.ofx.bundle` payloads into place, and rewrites each bundle's
+  `Contents\Resources\config\defaults.json` with those values before finishing.
+  A "keep bundled defaults" checkbox skips the rewrite for operators who prefer
+  to configure everything in the host UI. Built with
+  `tools/release-windows-installer.ps1` (requires Inno Setup 6 / `ISCC.exe`); the
+  JSON rewrite is performed by `installer/windows/patch-defaults.ps1`.
+
 ### Fixed
 
 - **Plugins load again on glibc 2.34 hosts (Rocky/RHEL 9).** The 0.1.8 Resolve

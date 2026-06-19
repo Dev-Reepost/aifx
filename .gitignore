@@ -24,6 +24,12 @@ installer/macos/.build/
 installer/macos/build/
 installer/macos/Resources/Bundles/
 
+# Windows installer staged payloads + ISCC output ----------------------------
+# (installer/windows/Bundles/ is repopulated from
+#  dist/aifx-<ver>-windows-x86_64.zip by tools/release-windows-installer.ps1)
+installer/windows/Bundles/
+installer/windows/Output/
+
 # Jekyll / GitHub Pages build artifacts --------------------------------------
 _site/
 .jekyll-cache/
