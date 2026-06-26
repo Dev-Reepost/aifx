@@ -18,7 +18,7 @@ are unchanged from 0.1.12; this release is about the install experience.
 ### Added
 
 - **Landing-page installer chooser.** The hero now leads with a single
-  **Download for your OS** button that detects the visitor's platform and
+  **Download Installer** button that detects the visitor's platform and
   links straight to the matching installer (macOS `.dmg`, Windows `.exe`, Linux
   `.tar.gz`), with an explicit **macOS · Windows · Linux** row underneath for
   manual choice and a link to all releases. Falls back to the releases page when
