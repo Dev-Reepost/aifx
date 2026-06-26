@@ -238,7 +238,7 @@ get_plugin_paths() {
             DEV_PLUGIN_DIR="$HOME/OFX/Plugins"
             ;;
         linux)
-            USER_PLUGIN_DIR="$HOME/.OFX/Plugins"
+            USER_PLUGIN_DIR="$HOME/OFX/Plugins"
             DEV_PLUGIN_DIR="$HOME/OFX/Plugins"
             ;;
         windows)

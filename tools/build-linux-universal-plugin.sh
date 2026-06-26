@@ -313,8 +313,8 @@ print_summary() {
     echo "Linux x86_64 binary: $X86_64_BINARY"
     echo ""
     echo "To deploy on Linux:"
-    echo "  - ARM64 systems: Copy from $OUTPUT_DIR/arm64/ to /usr/OFX/Plugins or ~/.OFX/Plugins"
-    echo "  - x86_64 systems: Copy from $OUTPUT_DIR/x86_64/ to /usr/OFX/Plugins or ~/.OFX/Plugins"
+    echo "  - ARM64 systems: Copy from $OUTPUT_DIR/arm64/ to /usr/OFX/Plugins or ~/OFX/Plugins"
+    echo "  - x86_64 systems: Copy from $OUTPUT_DIR/x86_64/ to /usr/OFX/Plugins or ~/OFX/Plugins"
 }
 
 # ============================================================================

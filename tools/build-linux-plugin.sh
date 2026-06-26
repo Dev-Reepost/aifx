@@ -186,4 +186,4 @@ fi
 log_success "Build complete!"
 echo ""
 echo "Linux plugin binary: $PLUGIN_BINARY"
-echo "To test on Linux: Copy to /usr/OFX/Plugins or ~/.OFX/Plugins"
+echo "To test on Linux: Copy to /usr/OFX/Plugins or ~/OFX/Plugins"
