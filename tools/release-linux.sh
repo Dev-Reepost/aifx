@@ -152,19 +152,36 @@ for target in "${TARGETS[@]}"; do
     cp -R "$BUILD_DIR/${target}.ofx.bundle" "$STAGE/"
 done
 
+# Ship the installer script alongside the bundles. Run from the extracted
+# archive, it installs the sibling *.ofx.bundle dirs and bakes site config into
+# each plugin's defaults.json -- the terminal counterpart to the macOS wizard.
+cp "$REPO_ROOT/tools/install-linux.sh" "$STAGE/install-linux.sh"
+chmod +x "$STAGE/install-linux.sh"
+
 cat > "$STAGE/README.txt" <<EOF
 AIFX ${VERSION} -- Linux ${ARCH}
 ====================================================
 
 This archive contains seven OpenFX plugin bundles built for Linux ${ARCH}.
 
-To install:
+Recommended -- run the installer:
+
+  ./install-linux.sh
+
+  It walks you through the install location and your ComfyUI site config
+  (server URL, mount paths), writes that config into each plugin, and copies
+  the bundles into place. For unattended rollout use the flags it prints with
+  --help (e.g. ./install-linux.sh --yes --server <host> --local-mount <path>).
+
+Manual install (if you'd rather wire it by hand):
 
   1. Copy every *.ofx.bundle directory in this archive into the standard
      OFX plugin directory for Linux:
 
        /usr/OFX/Plugins/             (all users on this machine)
-       \$HOME/.OFX/Plugins/           (this user only)
+       \$HOME/OFX/Plugins/            (this user only)
+
+     ...then configure each plugin (server URL, mount paths) in your host UI.
 
   2. Restart your OFX host (Nuke, Fusion, Flame, Resolve, ...).
      Plugins appear under the AIFX category in the effect/filter browser.

@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Linux installer script** (`install-linux.sh`, shipped inside the Linux
+  release tarball). The terminal counterpart to the macOS wizard: it prompts for
+  the install location (per-user `~/OFX/Plugins` or system-wide `/usr/OFX/Plugins`)
+  and the ComfyUI site config (server URL, the two mount-path views, timeout),
+  writes that config into each plugin's `defaults.json`, and copies the bundles
+  into place. Supports fully non-interactive use (`--yes` plus `--server`,
+  `--local-mount`, `--server-mount`, …) for headless / multi-workstation rollout,
+  and `--keep-defaults` to copy without touching config. A script rather than a
+  GUI because Linux has no portable native toolkit and the script doubles as the
+  automation path a GUI can't provide.
+
+### Fixed
+
+- **macOS installer now writes the mount paths the plugin actually reads.** The
+  0.1.7 mount-schema migration (`macMountPath`/`winMountPath`/`linuxMountPath` →
+  `storage.localMountPath.{os}` / `storage.serverMountPath`) was not carried into
+  the macOS installer wizard, so its **Local Storage Mount** and **ComfyUI Server
+  Mount** fields were written to dead `server.macMountPath`/`server.winMountPath`
+  keys and silently ignored by the plugin — operators had to re-enter both paths
+  in the host UI. The wizard now writes `storage.localMountPath.macos` and
+  `storage.serverMountPath` (server address, port, timeout, and enable were
+  always correct).
+
 ## [0.1.12] - 2026-06-17
 
 A load-time regression from the 0.1.8 static-runtime fix: the plugins stopped

@@ -34,14 +34,13 @@ struct SiteConfig {
 
     /// The shared-folder path **as this operator's Mac sees it** —
     /// typically `/Volumes/<share>/<project-root>`. Written into
-    /// defaults.json under `server.macMountPath`.
+    /// defaults.json under `storage.localMountPath.macos` — the key the
+    /// plugin actually reads at runtime (comfyui_base_plugin.cpp).
     var clientMountPath: String = "/Volumes/silo/AIFX"
 
     /// The shared-folder path **as the ComfyUI server's filesystem sees it**.
     /// In our setup the server is a Windows box and this is a UNC path like
-    /// `\\\\server-host\\share\\AIFX`. Written under `server.winMountPath`
-    /// (the schema still uses that key for v0.1.x — see RELEASE_SPEC notes
-    /// on the planned schema rename to `serverMountPath` in v0.2).
+    /// `\\\\server-host\\share\\AIFX`. Written under `storage.serverMountPath`.
     var serverMountPath: String = #"\\COMFYUI-HOST\silo\AIFX"#
 
     /// ComfyUI per-job timeout in seconds. 600 matches the studio default;
@@ -150,23 +149,28 @@ final class InstallerEngine: ObservableObject {
                           userInfo: [NSLocalizedDescriptionKey: "Malformed defaults.json at \(url.path)"])
         }
 
-        var server  = root["server"]   as? [String: Any] ?? [:]
+        var server   = root["server"]   as? [String: Any] ?? [:]
+        var storage  = root["storage"]  as? [String: Any] ?? [:]
         var controls = root["controls"] as? [String: Any] ?? [:]
 
         server["serverAddress"] = config.serverAddress
         server["serverPort"]    = config.serverPort
-        server["macMountPath"]  = config.clientMountPath
-        // Keep the v0.1.x JSON key name (winMountPath) — semantically it's the
-        // ComfyUI server's view of the shared folder. The rename to
-        // serverMountPath is planned for v0.2 with a one-time migration.
-        server["winMountPath"]  = config.serverMountPath
-        // linuxMountPath: leave whatever was bundled. Not relevant on macOS
-        // operator machines and the plugin doesn't fetch it at runtime today.
+
+        // Mount paths live under "storage" — these are the keys the plugin
+        // reads at runtime (comfyui_base_plugin.cpp reads
+        // storage.localMountPath.<os> and storage.serverMountPath). An earlier
+        // build of this installer wrote server.macMountPath / server.winMountPath,
+        // which the plugin ignores; do not resurrect those keys.
+        var localMountPath = storage["localMountPath"] as? [String: Any] ?? [:]
+        localMountPath["macos"] = config.clientMountPath   // this Mac's view
+        storage["localMountPath"]  = localMountPath
+        storage["serverMountPath"] = config.serverMountPath // ComfyUI server's view
 
         controls["timeout"]          = config.timeoutSeconds
         controls["enableProcessing"] = config.enableProcessingByDefault
 
         root["server"]   = server
+        root["storage"]  = storage
         root["controls"] = controls
 
         let out = try JSONSerialization.data(withJSONObject: root,
