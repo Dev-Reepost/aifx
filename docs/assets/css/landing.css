@@ -171,6 +171,55 @@ code {
   margin: 0 auto 2.25rem;
   line-height: 1.55;
 }
+/* Installer chooser: a prominent OS-detecting download button with a manual
+   per-OS row beneath it. Sits just above the secondary CTA row. */
+.hero-download {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.85rem;
+  margin-bottom: 1.25rem;
+}
+.btn-download {
+  font-size: 1.05rem;
+  padding: 0.85rem 1.9rem;
+}
+.hero-download-os {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+}
+.hero-download-os-label {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.55);
+  letter-spacing: 0.02em;
+}
+.os-pill {
+  display: inline-block;
+  padding: 0.3rem 0.85rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  transition: all 0.15s ease;
+}
+.os-pill:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.4);
+  text-decoration: none;
+}
+/* The OS the visitor is on — outlined to mark it as the recommended pick. */
+.os-pill--current {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.65);
+}
+
 .hero-ctas {
   display: flex;
   gap: 0.75rem;

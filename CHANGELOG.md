@@ -7,8 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-06-26
+
+Native installers now cover all three platforms — macOS `.dmg` wizard, Windows
+`.exe` wizard (shipped in 0.1.12), and a Linux `install-linux.sh` — and the
+landing page presents them with an OS-detecting download button plus manual
+per-OS choice. The macOS wizard's mount-path bug is fixed. The plugin binaries
+are unchanged from 0.1.12; this release is about the install experience.
+
 ### Added
 
+- **Landing-page installer chooser.** The hero now leads with a single
+  **Download for your OS** button that detects the visitor's platform and
+  links straight to the matching installer (macOS `.dmg`, Windows `.exe`, Linux
+  `.tar.gz`), with an explicit **macOS · Windows · Linux** row underneath for
+  manual choice and a link to all releases. Falls back to the releases page when
+  the OS can't be determined.
 - **Linux installer script** (`install-linux.sh`, shipped inside the Linux
   release tarball). The terminal counterpart to the macOS wizard: it prompts for
   the install location (per-user `~/OFX/Plugins` or system-wide `/usr/OFX/Plugins`)

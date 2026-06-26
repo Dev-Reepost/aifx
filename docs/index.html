@@ -58,8 +58,32 @@ nav_order: 1
       </a>
     </div>
 
+    <!-- Installer chooser: a single OS-detecting button (filled in by the
+         script at the foot of the page) plus an explicit per-OS row for manual
+         choice. The direct asset links resolve once the v0.2.0 GitHub release
+         is published; until then they 404, so the "all releases" link is the
+         always-valid fallback. -->
+    <div class="hero-download">
+      <a class="btn btn-primary btn-download"
+         id="aifx-smart-download"
+         href="https://github.com/Dev-Reepost/aifx/releases/latest"
+         data-version="0.2.0"
+         target="_blank" rel="noopener external">
+        Download <span data-os-label>for your OS</span>
+      </a>
+      <div class="hero-download-os" role="group" aria-label="Choose your platform">
+        <span class="hero-download-os-label">or choose:</span>
+        <a class="os-pill" data-os="macos"
+           href="https://github.com/Dev-Reepost/aifx/releases/download/v0.2.0/aifx-0.2.0-macos-installer.dmg">macOS</a>
+        <a class="os-pill" data-os="windows"
+           href="https://github.com/Dev-Reepost/aifx/releases/download/v0.2.0/aifx-0.2.0-windows-setup.exe">Windows</a>
+        <a class="os-pill" data-os="linux"
+           href="https://github.com/Dev-Reepost/aifx/releases/download/v0.2.0/aifx-0.2.0-linux-x86_64.tar.gz">Linux</a>
+      </div>
+    </div>
+
     <div class="hero-ctas">
-      <a class="btn btn-primary" href="https://github.com/Dev-Reepost/aifx/releases" target="_blank" rel="noopener external">Download v0.1.12</a>
+      <a class="btn btn-secondary" href="https://github.com/Dev-Reepost/aifx/releases" target="_blank" rel="noopener external">Download v0.2.0</a>
       <a class="btn btn-secondary" href="#quickstart">Get started</a>
       <a class="btn btn-secondary" href="https://github.com/Dev-Reepost/aifx" target="_blank" rel="noopener external">View on GitHub</a>
     </div>
@@ -467,6 +491,44 @@ nav_order: 1
     </p>
   </div>
 </footer>
+
+<script>
+  // Point the hero "Download" button at the installer for the visitor's OS and
+  // highlight the matching manual pill. Progressive enhancement: with no JS the
+  // button keeps its default href (the latest GitHub release) and the per-OS
+  // row still works. Asset names follow tools/RELEASING.md convention.
+  (function () {
+    var smart = document.getElementById("aifx-smart-download");
+    if (!smart) return;
+    var version = smart.getAttribute("data-version");
+    var base = "https://github.com/Dev-Reepost/aifx/releases/download/v" + version + "/";
+    var installers = {
+      macos:   { label: "for macOS",   file: "aifx-" + version + "-macos-installer.dmg" },
+      windows: { label: "for Windows", file: "aifx-" + version + "-windows-setup.exe" },
+      linux:   { label: "for Linux",   file: "aifx-" + version + "-linux-x86_64.tar.gz" }
+    };
+
+    function detectOS() {
+      var hint = (navigator.userAgentData && navigator.userAgentData.platform) || "";
+      var s = (hint + " " + (navigator.platform || "") + " " + (navigator.userAgent || "")).toLowerCase();
+      if (/android/.test(s)) return null;                  // no Android build
+      if (/mac|iphone|ipad|ipod/.test(s)) return "macos";  // Apple Silicon reports "MacIntel" too
+      if (/win/.test(s)) return "windows";
+      if (/linux|x11|cros/.test(s)) return "linux";
+      return null;
+    }
+
+    var os = detectOS();
+    if (os && installers[os]) {
+      smart.href = base + installers[os].file;
+      smart.setAttribute("data-os", os);
+      var label = smart.querySelector("[data-os-label]");
+      if (label) label.textContent = installers[os].label;
+      var pill = document.querySelector('.os-pill[data-os="' + os + '"]');
+      if (pill) pill.classList.add("os-pill--current");
+    }
+  })();
+</script>
 
 </body>
 </html>

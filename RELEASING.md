@@ -10,9 +10,11 @@ you only run the scripts for the platforms whose binaries changed (see
 
 ## Versioning
 
-[Semantic versioning](https://semver.org). The version appears in three places
+[Semantic versioning](https://semver.org). The version appears in four places
 that must agree: the git tag (`vMAJOR.MINOR.PATCH`), the top `CHANGELOG.md`
-entry, and the **Download vX.Y.Z** link in `docs/index.html`.
+entry, the **Download vX.Y.Z** link in `docs/index.html`, and the
+`data-version` attribute on the `#aifx-smart-download` button in the same file
+(the OS-detecting hero button builds its installer URLs from it).
 
 ## Artifacts
 
