@@ -42,18 +42,58 @@ require non-commercial use.
 - **GPU VRAM:** ~24 GB consumer GPU (RTX 3090/4090) recommended at default
   1024 px. Lower `max_resolution` reduces VRAM roughly linearly.
 - **ComfyUI custom node:** [okdalto/ComfyUI-VideoMaMa](https://github.com/okdalto/ComfyUI-VideoMaMa) (depends on a SAM3 node for the seed mask path).
-- **Model weights:**
-  - [SammyLim/VideoMaMa](https://huggingface.co/SammyLim/VideoMaMa) (fine-tuned UNet + DINO projection).
-  - SVD-XT base: [stabilityai/stable-video-diffusion-img2vid-xt](https://huggingface.co/stabilityai/stable-video-diffusion-img2vid-xt) — ~9.5 GB.
+- **Model weights:** this plugin needs two model sources:
+  - **SAM3 checkpoint** (for the seed-mask / tracking path) — **gated** on Hugging
+    Face. Run `hf auth login` and accept the model terms, then place the checkpoint
+    (e.g. `sam3.1_multiplex_fp16.safetensors`) manually in
+    `ComfyUI/models/checkpoints/`. SAM3 is a shared dependency — see the
+    [SAM3 plugin page](segmentation_sam3.md) and the
+    [ComfyUI server setup](../comfyui-server-setup.md) for the full gating steps.
+  - **MaMa pipeline weights** loaded by `VideoMaMaPipelineLoader` — both the SVD
+    base model and the VideoMaMa UNet checkpoint:
+    - [SammyLim/VideoMaMa](https://huggingface.co/SammyLim/VideoMaMa) (fine-tuned UNet + DINO projection).
+    - SVD-XT base: [stabilityai/stable-video-diffusion-img2vid-xt](https://huggingface.co/stabilityai/stable-video-diffusion-img2vid-xt) — ~9.5 GB.
 
 ## Parameters
 
+### SAM3 Segmentation
+
 | Parameter | Meaning |
 |---|---|
-| **Max Resolution** | Longest-axis processing resolution (256–2048, default 1024). Aspect ratio preserved, snapped to multiples of 8. |
-| **Image Load Cap** | Frames per VideoMaMa pass. SVD backbone processes ~14–25 frames per window. |
-| **Noise Augmentation Strength** | Increase for unusual cinematic looks if results don't match the seed. |
-| **SAM3 sub-parameters** | Text Prompt, Score Threshold, Direction, etc. — see the [SAM3 plugin page](segmentation_sam3.md) for meanings. |
+| **Prompt** | Text description of the subject to segment and matte (e.g. `person`, `hair`, `girl`). |
+| **Object Indices** | Comma-separated SAM3 object indices to keep in the matte. |
+| **Reference Frame** | Reference frame used for the initial SAM3 detection. |
+| **Detect Threshold** | SAM3 detection confidence threshold on the reference frame (0–1). |
+| **Track Threshold** | Per-frame detection threshold while tracking through the sequence. |
+| **Max Objects** | Maximum number of objects to track (0 = unlimited). |
+| **Detect Interval** | Re-run detection every N frames. |
+| **Refine Iterations** | Number of detection refinement iterations on the reference frame. |
+| **Individual Masks** | Emit individual per-object masks. |
+
+### VideoMaMa Sampler
+
+| Parameter | Meaning |
+|---|---|
+| **Max Resolution** | Maximum resolution of the longer side; frames are resized to fit. |
+| **FPS** | Frames-per-second hint passed to the VideoMaMa sampler. |
+| **Motion Bucket ID** | Amount of motion expected (higher = more motion). Inherited from SVD; 127 is the standard default. |
+| **Noise Aug Strength** | Noise augmentation strength for the conditioning frame; 0 = none (recommended for clean mattes). |
+| **Frame Limit** | Maximum number of frames to load per sequence pass (0 = no limit). |
+| **Seed** | Random seed for reproducibility; 0 = a new random seed each run. |
+
+### VideoMaMa Model
+
+| Parameter | Meaning |
+|---|---|
+| **Base Model** | Path to the SVD base model, relative to the ComfyUI models dir. |
+| **VideoMaMa UNet** | Path to the VideoMaMa UNet checkpoint, relative to the ComfyUI models dir. |
+| **SAM3 Checkpoint** | SAM3 checkpoint filename in `ComfyUI/models/checkpoints`. |
+| **Precision** | Model computation precision: BF16 (Ampere+ GPUs, recommended), FP16 (half), FP32 (full). |
+| **Attention** | Attention implementation: Auto (best available), SDPA (PyTorch 2.0+), xFormers (memory-efficient). |
+| **CPU Offload** | Offload model weights to CPU to reduce VRAM usage. |
+| **VAE Chunk Size** | Frames encoded per VAE pass; lower = less VRAM. |
+| **VAE Tiling** | Enable VAE tiling for very high resolution inputs. |
+| **VAE Slicing** | Enable VAE slicing to reduce VRAM when encoding many frames. |
 
 Plus the standard ComfyUI base parameters.
 

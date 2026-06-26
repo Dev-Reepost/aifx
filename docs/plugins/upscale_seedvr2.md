@@ -50,7 +50,12 @@ redistributions. Cite the ICLR 2026 paper.
   VAE adds ~2–4 GB on top.
 
 - **ComfyUI custom node:** [numz/ComfyUI-SeedVR2_VideoUpscaler](https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler) (NumZ + AInVFX/Adrien Toupet).
-- **Model weights:**
+- **Model weights:** the embedded workflow selects a DiT checkpoint via the
+  `SeedVR2LoadDiTModel` node (the **DiT Model** parameter) and a VAE checkpoint
+  via `SeedVR2LoadVAEModel` (the **VAE Model** parameter). The numz node
+  downloads the selected DiT and VAE files on first use into ComfyUI's SeedVR2
+  models directory — no manual download is required, though you can pre-stage
+  them. Available checkpoints:
   - [ByteDance-Seed/SeedVR2-3B](https://huggingface.co/ByteDance-Seed/SeedVR2-3B) (~6 GB FP16).
   - [ByteDance-Seed/SeedVR2-7B](https://huggingface.co/ByteDance-Seed/SeedVR2-7B) (~14 GB FP16).
   - ComfyUI-packaged variants: [numz/SeedVR2_comfyUI](https://huggingface.co/numz/SeedVR2_comfyUI), [AInVFX/SeedVR2_comfyUI](https://huggingface.co/AInVFX/SeedVR2_comfyUI).
@@ -59,15 +64,54 @@ redistributions. Cite the ICLR 2026 paper.
 
 ## Parameters
 
+### Upscaling
+
 | Parameter | Meaning |
 |---|---|
-| **Model Variant** | 3B / 7B, FP16 / FP8 / GGUF — pick to match your VRAM. |
-| **Target Shortest-Edge Resolution** | The output resolution. The model handles arbitrary upscale ratios via adaptive window attention. |
-| **Image Load Cap** | Frame batch size. **Must follow the 4n+1 rule** (1, 5, 9, 13, 17, 21, 25, …). Minimum 5 for temporal consistency. |
-| **Temporal Tile Overlap** | When tiling long clips, the overlap between consecutive batches (0–16 frames). |
-| **VAE Tiling** | Enable above ~1080p output to keep VAE within VRAM. |
-| **BlockSwap** | Off-loads layers to CPU/RAM to fit smaller GPUs (no effect on macOS/MPS). |
-| **torch.compile** | Significant speedup; longer first-run compile time. |
+| **Seed** | Random seed for the diffusion process. Set to -1 for a fresh random seed each render. |
+| **Resolution** | Target output resolution for the shorter side (e.g. 1080 upscales to 1080p), preserving aspect ratio. |
+| **Max Resolution** | Maximum output resolution cap. 0 disables the cap. |
+| **Batch Size** | Frames per inference batch. Larger batches improve temporal consistency but use more VRAM. **Must be odd** (e.g. 33). Reduce on OOM errors. |
+| **Temporal Overlap** | Frames overlapped between consecutive batches for smoother transitions. |
+| **Color Correction** | Method used to match output colour to the input. Options: `none`, `lab` (CIELab, recommended), `hm` (histogram matching). |
+| **Frame Limit** | Maximum number of frames to load from the input sequence. 0 means no limit. |
+
+### Advanced
+
+| Parameter | Meaning |
+|---|---|
+| **Uniform Batch Size** | Pad all batches to the same size for consistent VRAM usage. |
+| **Prepend Frames** | Number of black frames prepended to the sequence before processing. |
+| **Input Noise Scale** | Noise added to the input before upscaling. 0 = none. |
+| **Latent Noise Scale** | Noise added in latent space. 0 = none. |
+| **Enable Debug** | Enable tiling debug visualization and verbose ComfyUI output. |
+
+### VAE Model
+
+| Parameter | Meaning |
+|---|---|
+| **VAE Model** | Filename of the SeedVR2 VAE checkpoint in the ComfyUI models directory (default `ema_vae_fp16.safetensors`). |
+| **VAE Device** | Compute device for the VAE (e.g. `cuda:0`). |
+| **Offload Device** | Device the VAE is offloaded to when idle (e.g. `cpu`). |
+| **Encode Tiled** | Tile the VAE encoding pass to reduce VRAM usage. |
+| **Encode Tile Size** | Pixel size of each tile during VAE encoding. |
+| **Encode Tile Overlap** | Overlap between encoding tiles to reduce seam artifacts. |
+| **Decode Tiled** | Tile the VAE decoding pass to reduce VRAM usage. |
+| **Decode Tile Size** | Pixel size of each tile during VAE decoding. |
+| **Decode Tile Overlap** | Overlap between decoding tiles to reduce seam artifacts. |
+| **Cache Model** | Keep the VAE model loaded in VRAM between jobs. |
+
+### DiT Model
+
+| Parameter | Meaning |
+|---|---|
+| **DiT Model** | Filename of the SeedVR2 DiT checkpoint in the ComfyUI models directory (default `seedvr2_ema_7b_fp8_e4m3fn_mixed_block35_fp16.safetensors`). |
+| **DiT Device** | Compute device for the DiT model (e.g. `cuda:0`). |
+| **Offload Device** | Device the DiT model is offloaded to when idle (e.g. `cpu`). |
+| **Blocks To Swap** | Number of DiT transformer blocks swapped to the offload device during inference. Higher values reduce VRAM at the cost of speed. |
+| **Swap IO Components** | Also swap the DiT input/output projection layers to the offload device. |
+| **Attention Mode** | Attention implementation. Options: `sdpa` (PyTorch SDPA, default, works everywhere), `flash_attn`, `xformers` (need extra packages), `math`. |
+| **Cache Model** | Keep the DiT model loaded in VRAM between jobs. |
 
 Plus the standard ComfyUI base parameters.
 

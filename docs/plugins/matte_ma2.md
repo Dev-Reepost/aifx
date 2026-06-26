@@ -41,17 +41,56 @@ agreement with NTUitive / SenseTime.
 - **GPU VRAM:** Substantially lower than diffusion-based matting. Expected to
   fit on 8–12 GB GPUs at 1080p (upstream does not publish a hard minimum).
 - **ComfyUI custom node:** [spiritform/comfy-matanyone2](https://github.com/spiritform/comfy-matanyone2) (alternative: [FuouM/ComfyUI-MatAnyone](https://github.com/FuouM/ComfyUI-MatAnyone)).
-- **Model weights:**
-  [`matanyone2.pth`](https://github.com/pq-yang/MatAnyone2/releases/download/v1.0.0/matanyone2.pth) (~400 MB).
-  Also mirrored on Hugging Face at [`PeiqingYang/MatAnyone2`](https://huggingface.co/PeiqingYang/MatAnyone2).
+- **Model weights:** this plugin needs **two** sets of weights:
+  - **SAM3 checkpoint** — placed **manually** in `ComfyUI/models/checkpoints/`
+    (default `sam3.1_multiplex_fp16.safetensors`). SAM3 is **gated** on Hugging
+    Face: run `hf auth login` and accept the model terms before downloading.
+    SAM3 is a **shared dependency** also used by the
+    [`segmentation_sam3`](segmentation_sam3.md) plugin — see that page and the
+    [ComfyUI server setup](../comfyui-server-setup.md) for the one-time download
+    and placement steps.
+  - **MatAnyone2 weights** —
+    [`matanyone2.pth`](https://github.com/pq-yang/MatAnyone2/releases/download/v1.0.0/matanyone2.pth)
+    (~400 MB), pulled automatically by the comfy-matanyone2 custom node. Also
+    mirrored on Hugging Face at
+    [`PeiqingYang/MatAnyone2`](https://huggingface.co/PeiqingYang/MatAnyone2).
 
 ## Parameters
 
+This plugin runs SAM3 segmentation and MatAnyone2 matting in a single workflow,
+so it exposes both sets of controls.
+
+**SAM3 Segmentation**
+
 | Parameter | Meaning |
 |---|---|
-| **Image Load Cap** | Maximum frames per pass. Recurrent design supports arbitrarily long clips, but memory state can drift over very long shots — re-seed per shot. |
-| **Max Size** | Optional resolution cap; downsample if minimum dimension exceeds the threshold. |
-| **SAM3 sub-parameters** | Text Prompt, Score Threshold, Direction, etc. — see the [SAM3 plugin page](segmentation_sam3.md). |
+| **Prompt** | Text description of the subject to segment (e.g. `person`, `hair`, `girl`). |
+| **Object Indices** | Comma-separated indices of the detected objects to keep. |
+| **Reference Frame** | Integer index of the frame fed to SAM3 detection. |
+| **Detection Threshold** | SAM3 detection confidence threshold (used by both detect and video-track stages). |
+| **Max Objects** | Cap on the number of tracked objects (`0` = no cap). |
+| **Detect Interval** | How often (in frames) detection is re-run during tracking. |
+| **Refine Iterations** | Number of mask-refinement passes on the reference frame. |
+| **Individual Masks** | Emit a separate mask per detected object instead of one combined mask. |
+
+**MatAnyone2**
+
+| Parameter | Meaning |
+|---|---|
+| **Frame Limit** | Maximum frames loaded for MatAnyone2 (`0` = no limit). |
+| **Mask Frame** | Index of the frame whose SAM3 mask seeds MatAnyone2's propagation. |
+| **Warmup Frames** | Warmup frames processed before the main sequence to initialise the memory network for smoother mattes. |
+| **Erode Radius** | Morphological erosion radius applied to the input mask; shrinks the boundary (`0` = none). |
+| **Dilate Radius** | Morphological dilation radius applied to the input mask; expands the boundary (`0` = none). |
+| **Max Internal Size** | Maximum resolution for internal processing (`-1` = use input resolution). |
+| **Memory Frames** | Frames kept in the short-term memory buffer; more = better temporal consistency, more VRAM. |
+| **Long-Term Memory** | Enable long-term memory for better consistency over longer sequences. |
+
+**Model**
+
+| Parameter | Meaning |
+|---|---|
+| **SAM3 Checkpoint** | Checkpoint filename in `ComfyUI/models/checkpoints` (e.g. `sam3.1_multiplex_fp16.safetensors`). |
 
 Plus the standard ComfyUI base parameters.
 

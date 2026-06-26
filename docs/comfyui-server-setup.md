@@ -33,6 +33,13 @@ You need three things:
 
 Follow the [official ComfyUI installation guide](https://github.com/comfyanonymous/ComfyUI#installing).
 
+If you want the fastest path on Windows — Python, PyTorch, ComfyUI, and
+[ComfyUI Manager](https://github.com/ltdrdata/ComfyUI-Manager) in one shot —
+[**ComfyUI-Easy-Install**](https://github.com/Tavris1/ComfyUI-Easy-Install)
+is a one-click installer that sets the whole stack up in a self-contained
+folder. It's a convenient starting point; the custom nodes and model weights
+in the next sections still need to be added on top.
+
 ### GPU recommendations by plugin
 
 The dominant resource is GPU VRAM. Approximate ranges (lower numbers achievable
@@ -72,9 +79,35 @@ appears in the ComfyUI workflow editor before continuing.
 
 ## 3. Download model weights
 
-Each plugin's documentation page lists the weights it needs and where to get
-them. The plugins themselves do not download anything — weights are pulled by
-ComfyUI on first use, or you can pre-download them to avoid surprises.
+Each plugin ships a fixed ComfyUI workflow whose **model-loader node** decides
+where the weights come from. There are two patterns, and the difference matters
+for setup:
+
+- **Auto-download** — the loader node fetches the selected checkpoint to a
+  `ComfyUI/models/` subfolder on first use. Nothing to do up front; just expect
+  a slow first render while it downloads.
+- **Manual** — the loader (`CheckpointLoaderSimple`) reads a file you must place
+  in `ComfyUI/models/checkpoints/` yourself. The render fails immediately if the
+  file is missing.
+
+| Plugin | Loader node (in the workflow) | How weights arrive | Where |
+|---|---|---|---|
+| `depth_da3` | `DownloadAndLoadDepthAnythingV3Model` | Auto-download | `models/depthanything3/` |
+| `depth_crafter` | `DownloadAndLoadDepthCrafterModel` | Auto-download | `models/` (DepthCrafter + SVD base) |
+| `normal_crafter` | *(none — wrapper-internal)* | Auto-download | wrapper-managed (SVD base) |
+| `segmentation_sam3` | `CheckpointLoaderSimple` | **Manual + gated** | `models/checkpoints/` |
+| `matte_mama` | `CheckpointLoaderSimple` + `VideoMaMaPipelineLoader` | **Manual (SAM3, gated)** + auto (MaMa) | `models/checkpoints/` + pipeline dirs |
+| `matte_ma2` | `CheckpointLoaderSimple` | **Manual + gated** (SAM3) + node-managed (MatAnyone2) | `models/checkpoints/` |
+| `upscale_seedvr2` | `SeedVR2LoadDiTModel` + `SeedVR2LoadVAEModel` | Auto-download | `models/SEEDVR2/` |
+
+> **SAM3 is gated.** SAM3 (`facebook/sam3`) backs `segmentation_sam3` **and** is
+> a shared dependency of both matte plugins (`matte_mama`, `matte_ma2`). It is a
+> gated Hugging Face model: run `hf auth login` and accept the terms on the
+> [model page](https://huggingface.co/facebook/sam3), then place the checkpoint
+> in `ComfyUI/models/checkpoints/`. It will **not** auto-download.
+
+Each plugin's documentation page lists the exact weights, sizes, and Hugging
+Face sources. Pre-downloading avoids a multi-minute stall on the first render.
 
 > **License notice.** Model weights are governed by their upstream licenses.
 > Several models in this suite are restricted to non-commercial use. See each
@@ -162,7 +195,16 @@ python main.py --listen 0.0.0.0 --port 8188
 ```
 
 `--listen 0.0.0.0` lets remote hosts connect. Restrict via firewall to your
-trusted network.
+trusted network. Match the `--port` to the port in your **ComfyUI Server URL**
+(step 6); `8188` is the ComfyUI default.
+
+> **You do not need `--input-directory` / `--output-directory`.** Those flags
+> only relocate ComfyUI's *default* in/out folders. AIFX never uses the
+> defaults: it writes **absolute paths** (built from the **Server Mount Path**)
+> straight into the workflow's `LoadEXR` / `SaveEXR` nodes, and `SaveEXR`
+> creates its output folder if missing. So the shared-folder wiring is governed
+> entirely by the mount paths in step 4 / step 6 — not by ComfyUI's launch
+> flags. Setting those flags has no effect on where AIFX reads and writes.
 
 ## 6. Configure the plugin
 

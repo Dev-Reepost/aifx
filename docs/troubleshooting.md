@@ -118,16 +118,17 @@ at the bottom of this page.
 
 ## Host quirks
 
-The plugin targets the OFX 1.4 standard. In practice, hosts have small
-deviations. Hosts the maintainers have tested with, and known caveats:
+The plugins target the OFX 1.4 standard, so any conforming host should load
+them. In practice hosts have small deviations. The one caveat worth calling out:
 
-| Host | Notes |
-|---|---|
-| _(populated as testing progresses)_ | _(populated as testing progresses)_ |
+- **DaVinci Resolve / Fusion (Linux):** use the official Linux builds, which
+  link the C++ runtime statically. A dynamically-linked plugin binds to
+  Resolve's own `libstdc++` and crashes on `std::filesystem` calls — this is
+  exactly why the release binaries are built static (see the 0.1.8 changelog).
 
-Hosts not in this table are still expected to work — the OFX standard is the
-contract — but have not been verified by the maintainers. Bug reports for new
-hosts are welcome.
+No other host-specific quirks have been catalogued yet. If you hit one, please
+[report it](#reporting-bugs--getting-help) with the host name and version so we
+can add it here.
 
 ## Reporting bugs / getting help
 

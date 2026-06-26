@@ -42,7 +42,9 @@ Stability AI for commercial agreements.
 - **GPU VRAM:** ~26 GB at 1024×576, ~9 GB at 512×256. The ComfyUI port supports
   CPU offload down to an 8 GB minimum at low resolution.
 - **ComfyUI custom node:** [akatz-ai/ComfyUI-DepthCrafter-Nodes](https://github.com/akatz-ai/ComfyUI-DepthCrafter-Nodes).
-- **Model weights:**
+- **Model weights:** the embedded workflow's `DownloadAndLoadDepthCrafterModel` node
+  auto-downloads the weights on first use into the appropriate `ComfyUI/models/`
+  subfolder — no manual placement required.
   - [tencent/DepthCrafter](https://huggingface.co/tencent/DepthCrafter) — ~3.05 GB.
   - SVD-XT base: [stabilityai/stable-video-diffusion-img2vid-xt](https://huggingface.co/stabilityai/stable-video-diffusion-img2vid-xt) — ~9 GB.
 - **Resolution:** dimensions must be multiples of 64.
@@ -51,11 +53,14 @@ Stability AI for commercial agreements.
 
 | Parameter | Meaning |
 |---|---|
-| **Image Load Cap** | Number of frames in one ComfyUI job. Default and recommended: 75–110. The model runs all loaded frames jointly. |
-| **Window Overlap** | Frames shared between consecutive sliding windows on long clips. Default: 25. |
-| **Diffusion Steps** | Number of denoising steps. Higher = smoother output, longer render time. Typical: 5–25. |
-| **Resolution** | Internal processing resolution. Multiples of 64 only. |
-| **CPU Offload** | Enable to fit on smaller GPUs at the cost of speed. |
+| **Force Size** | When enabled, the DepthCrafter node uses its internal fixed resolution; resize source footage upstream to the desired resolution before processing. Default: on. |
+| **Inference Steps** | Number of diffusion denoising steps. More steps = higher quality but slower. 10 is a good balance; 5 for quick previews. Default: 10. |
+| **Guidance Scale** | Classifier-free guidance scale. Higher values follow the depth prior more strongly. Default: 1.2. |
+| **Window Size** | Number of frames processed per temporal window. Must not exceed the total frame count; larger windows improve temporal consistency but need more VRAM. Default: 25. |
+| **Window Overlap** | Number of overlapping frames between consecutive temporal windows. Higher overlap improves temporal consistency on longer sequences. Default: 25. |
+| **Frame Limit** | Maximum number of frames to load from the sequence (the model runs all loaded frames jointly). Set to 0 for no limit; keep ≤ Window Size for best results. Default: 25. |
+| **CPU Offload** | Offload model weights to CPU between inference passes to reduce VRAM. Recommended for GPUs with < 16 GB VRAM. Default: on. |
+| **Sequential CPU Offload** | More aggressive layer-by-layer CPU offloading; minimises VRAM at the cost of speed. Only enable if CPU Offload alone is insufficient. Default: off. |
 
 Plus the standard ComfyUI base parameters.
 

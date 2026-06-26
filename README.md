@@ -30,9 +30,13 @@ See [the plugin index](docs/plugins/) for what each one needs and how to use it.
 
 ## Quick start
 
-1. **Install the plugins** — see [docs/installation.md](docs/installation.md).
-   The `.ofx.bundle` files go into the standard OFX plugin directory for your
-   OS; any OFX-compatible host will pick them up.
+1. **Install the plugins** — grab the latest
+   [release](https://github.com/Dev-Reepost/aifx/releases). The easiest path is
+   a native installer that also bakes in your server/share config: a macOS
+   `.dmg` wizard, a Windows `.exe` wizard, or a Linux `install-linux.sh` script.
+   Prefer to wire it by hand? The per-OS `.tar.gz` / `.zip` archives drop the
+   seven `.ofx.bundle` directories into the standard OFX plugin directory for
+   your OS. Full steps in [docs/installation.md](docs/installation.md).
 2. **Set up a ComfyUI server** — see
    [docs/comfyui-server-setup.md](docs/comfyui-server-setup.md). Install
    ComfyUI, install the custom nodes for the plugins you want, download the

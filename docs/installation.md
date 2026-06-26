@@ -116,8 +116,8 @@ directory untouched).
    the machine — the plugins link against the standard MSVC runtime. Most
    systems already have it; otherwise install it from Microsoft.
 4. Restart your OFX host. The plugins appear under the **AIFX** category.
-5. **Configure for your network** — see step 6 under macOS above and
-   [Configuration & defaults](configuration.md).
+5. **Configure for your network** — point each plugin at your ComfyUI server
+   and shared folders per [Configuration & defaults](configuration.md).
 
 ### Linux
 
@@ -131,8 +131,8 @@ directory untouched).
    RHEL/Rocky 9+). On older hosts (Ubuntu 20.04, RHEL/Rocky 8, CentOS 7) they
    will not load — [build from source](#building-from-source) instead.
 4. Restart your OFX host. The plugins appear under the **AIFX** category.
-5. **Configure for your network** — see step 6 under macOS above and
-   [Configuration & defaults](configuration.md).
+5. **Configure for your network** — point each plugin at your ComfyUI server
+   and shared folders per [Configuration & defaults](configuration.md).
 
 ## Building from source
 

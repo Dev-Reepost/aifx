@@ -42,17 +42,25 @@ production** without engaging Stability AI for a commercial license.
 
 - **GPU VRAM:** ~20 GB at 1024×576, ~6 GB at 512×256.
 - **ComfyUI custom node:** [AIWarper/ComfyUI-NormalCrafterWrapper](https://github.com/AIWarper/ComfyUI-NormalCrafterWrapper).
-- **Model weights:**
-  - [Yanrui95/NormalCrafter](https://huggingface.co/Yanrui95/NormalCrafter)
-  - SVD-XT base: [stabilityai/stable-video-diffusion-img2vid-xt](https://huggingface.co/stabilityai/stable-video-diffusion-img2vid-xt) (~9 GB, pulled on first run).
+- **Model weights:** the shipped workflow has **no separate model-loader node** — the
+  `NormalCrafterNode` custom node resolves and downloads its (SVD-based) weights
+  internally on first use, including the Stable Video Diffusion base it builds on.
+  Upstream source: [Yanrui95/NormalCrafter](https://huggingface.co/Yanrui95/NormalCrafter)
+  (SVD-XT base: [stabilityai/stable-video-diffusion-img2vid-xt](https://huggingface.co/stabilityai/stable-video-diffusion-img2vid-xt), ~9 GB, pulled on first run).
 - **Resolution constraint:** dimensions are typically rounded to multiples of 64 (SVD constraint).
 
 ## Parameters
 
 | Parameter | Meaning |
 |---|---|
-| **Image Load Cap** | Number of frames loaded into ComfyUI per sequence job. Sets the upstream sliding-window context. Larger window = better temporal consistency, more VRAM. |
-| **Process Resolution** | Internal processing resolution (`max_res_dimension`). Higher = more detail and more VRAM. |
+| **Seed** | Random seed for diffusion sampling. Change to vary the result; keep the same value for reproducible runs. |
+| **Max Res Dimension** | Maximum resolution along the longest image side (`max_res_dimension`). Larger values give finer detail but require more VRAM; 1024 is the recommended default. |
+| **Window Size** | Number of frames processed per temporal window. Must not exceed the total frame count (clamped down to **Frame Limit** automatically). Larger windows improve temporal consistency but require more VRAM. |
+| **Time Step Size** | Diffusion time-step size. Higher values are faster but lower quality. |
+| **Decode Chunk Size** | Number of frames the VAE decodes at once. Lower values use less VRAM at the cost of speed. |
+| **Frame Limit** | Maximum number of frames loaded from the sequence (`image_load_cap`). Set to 0 for no limit. Keep ≤ **Window Size** for best results. |
+| **Offload Pipe On Finish** | Move the NormalCrafter pipeline to CPU once inference completes, freeing VRAM for downstream nodes. |
+| **Use xFormers** | Memory-efficient attention via xFormers. Choices: **Auto** (use it if available), **Enable** (force on), **Disable** (force off). |
 | _Wrapper-disabled knobs_ | `fps_for_time_ids`, `motion_bucket_id`, `noise_aug_strength` were observed by the wrapper author to have minimal effect and are hardcoded — not exposed as parameters. |
 
 Plus the standard ComfyUI base parameters (server URL, mount paths, project

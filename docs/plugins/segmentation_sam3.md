@@ -43,19 +43,22 @@ attached. Acknowledgement is required in any publication using SAM materials.
   for HD work; 24 GB+ for 4K end-to-end. Multi-object real-time video targets
   H100/H200-class GPUs.
 - **ComfyUI custom node:** [PozzettiAndrea/ComfyUI-SAM3](https://github.com/PozzettiAndrea/ComfyUI-SAM3) (alternative: [yolain/ComfyUI-Easy-Sam3](https://github.com/yolain/ComfyUI-Easy-Sam3)).
-- **Model weights:** [facebook/sam3](https://huggingface.co/facebook/sam3) — single ~3.4 GB checkpoint. **Gated** — run `hf auth login` and accept terms before downloading.
+- **Model weights:** [facebook/sam3](https://huggingface.co/facebook/sam3) — single ~3.4 GB checkpoint. **Gated** on Hugging Face: run `hf auth login` and accept the model terms before downloading. The workflow loads it with `CheckpointLoaderSimple`, which does **not** auto-download — place the checkpoint **manually** in `ComfyUI/models/checkpoints/` (the `Checkpoint` parameter names the file, default `sam3.1_multiplex_fp16.safetensors`).
 
 ## Parameters
 
 | Parameter | Meaning |
 |---|---|
-| **Text Prompt** | Open-vocabulary noun phrase that selects the subject. More specific = better. |
-| **Frame Index** | 0-based index within the loaded sequence (not the timeline frame). The frame on which the prompt is evaluated. |
-| **Score Threshold** | Confidence threshold for accepting detections. Lower (e.g. 0.2) finds more; higher (e.g. 0.5) restricts to high-confidence matches. |
-| **Direction** | `forward`, `backward`, or `both`. Use `both` if the subject enters or exits the frame mid-clip. |
-| **Object ID** | Which detected instance to extract when multiple are returned. |
-| **Plot All Masks** | Show all detected instances vs. just the chosen object. |
-| **Image Load Cap** | Maximum frames in one ComfyUI propagation pass. |
+| **Prompt** | Open-vocabulary text description of what to segment (e.g. `person`, `car`, `girl`). Default `foreground`. More specific = better. |
+| **Threshold** | Detection confidence threshold (0.0–1.0). Higher = stricter detection; lower finds more. Default `0.3`. |
+| **Reference Frame** | 0-based index of the frame in the loaded EXR batch to use as the reference for the initial SAM3 detection (not the timeline frame). Default `0`. |
+| **Object Indices** | Comma-separated list of detected object indices to keep in the mask (e.g. `0` or `0,2,5`). Default `0`. |
+| **Max Objects** | Maximum number of detected objects to track. `0` = unlimited (default). |
+| **Detect Interval** | Run SAM3 detection every N frames; intermediate frames are tracked. Default `1` (detect every frame). |
+| **Refine Iterations** | Number of mask refinement iterations on the reference frame. Default `2`. |
+| **Individual Masks** | Generate separate masks per detected object instead of a single combined mask. Default off. |
+| **Frame Limit** | Maximum number of frames to load from the input sequence in one ComfyUI propagation pass. `0` = no limit. Default `50`. |
+| **Checkpoint** | SAM3 checkpoint filename, relative to ComfyUI's `models/checkpoints/` directory. Default `sam3.1_multiplex_fp16.safetensors`. |
 
 Plus the standard ComfyUI base parameters.
 

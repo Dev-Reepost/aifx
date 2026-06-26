@@ -45,8 +45,9 @@ For paid production work, use one of the Apache-licensed variants.
   - LARGE: ~6 GB
   - GIANT: ~12 GB+
 - **ComfyUI custom node:** [PozzettiAndrea/ComfyUI-DepthAnythingV3](https://github.com/PozzettiAndrea/ComfyUI-DepthAnythingV3) (MIT)
-- **Model weights:** auto-downloaded by the custom node to
-  `ComfyUI/models/depthanything3/`. Hugging Face source:
+- **Model weights:** the embedded workflow's `DownloadAndLoadDepthAnythingV3Model`
+  node auto-downloads the selected model variant to
+  `ComfyUI/models/depthanything3/` on first use. Hugging Face source:
   [`depth-anything/DA3-*`](https://huggingface.co/depth-anything).
 
 ## Parameters
@@ -56,9 +57,13 @@ paths, project name, workflow path) plus:
 
 | Parameter | Meaning |
 |---|---|
-| **Model Variant** | Which DA3 checkpoint to load: SMALL, BASE, LARGE, GIANT, METRIC-LARGE, MONO-LARGE. |
-| **Process Resolution** | Internal processing resolution. Higher = more detail, more VRAM. |
-| **Output Mode** | Relative depth (default) or metric depth (METRIC-LARGE only). |
+| **Normalization** | How depth is normalized. *V2-Style* (default) gives normalized 0–1 depth with sky-mask support, recommended for ControlNet; *Raw* gives unnormalized metric depth for 3D reconstruction. |
+| **Resize Method** | How the input is fitted to the model's resolution: *Resize* (scale to fit, default), *Pad* (preserve aspect ratio), or *Crop* (center-crop). |
+| **Invert Depth** | Swap near and far, so near becomes far and far becomes near. Off by default. |
+| **Keep Model Size** | Output depth at the model's internal resolution instead of upscaling back to the input resolution. Off by default. |
+| **Model Variant** | Which DA3 checkpoint to load. Options: DA3-Small (80M, fast), DA3-Base (220M, balanced), DA3-Large (350M, high quality — default), DA3-Giant (1.15B, best quality), DA3-Mono-Large and DA3-Metric-Large (350M, sky-mask support), DA3-Nested-Giant-Large (1.4B, combined model with metric scaling). |
+| **Precision** | Computation precision: *Auto* (default, picks the best for your GPU), *FP16* (faster, less VRAM), *FP32* (slower, more accurate), or *BF16* (Ampere+ GPUs). |
+| **Attention** | Attention implementation: *Flash Attention* (fastest, default; needs the flash-attn library), *xFormers* (fast alternative), or *Math* (standard PyTorch, always available). |
 
 ## Demos & comparisons
 

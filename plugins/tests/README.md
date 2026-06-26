@@ -68,7 +68,7 @@ cmake --build build/Release --target test_comfyui_client
 
 ### Without ComfyUI Server (Offline Tests Only)
 ```bash
-cd build/Release/contrib/plugins/ComfyUI/tests
+cd build/Release/plugins/tests
 ./test_comfyui_client
 ```
 
@@ -84,7 +84,7 @@ cd /path/to/ComfyUI
 python main.py
 
 # Terminal 2: Run tests
-cd /path/to/openfx/build/Release/contrib/plugins/ComfyUI/tests
+cd build/Release/plugins/tests
 ./test_comfyui_client
 ```
 
@@ -186,7 +186,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install conan
-          conan install -s build_type=Release -o '&:build_comfyui_plugins=True' -pr:b=default --build=missing .
+          conan install -s build_type=Release -pr:b=default --build=missing .
 
       - name: Build tests
         run: |
@@ -195,7 +195,7 @@ jobs:
 
       - name: Run offline tests
         run: |
-          cd build/Release/contrib/plugins/ComfyUI/tests
+          cd build/Release/plugins/tests
           ./test_comfyui_client
 ```
 
@@ -207,7 +207,7 @@ jobs:
 cmake --build build/Release --target test_comfyui_client
 
 # Check if executable exists
-ls build/Release/contrib/plugins/ComfyUI/tests/test_comfyui_client
+ls build/Release/plugins/tests/test_comfyui_client
 ```
 
 ### Linker Warnings (OpenSSL)
@@ -222,11 +222,11 @@ ld: warning: ignoring file libcrypto.a: found architecture 'arm64', required arc
 ### All Tests Failing
 ```bash
 # Check if libraries are linked correctly
-otool -L build/Release/contrib/plugins/ComfyUI/tests/test_comfyui_client
+otool -L build/Release/plugins/tests/test_comfyui_client
 
 # Rebuild from scratch
 rm -rf build/
-conan install -s build_type=Release -o '&:build_comfyui_plugins=True' -pr:b=default --build=missing .
+conan install -s build_type=Release -pr:b=default --build=missing .
 cmake --preset conan-release -DBUILD_COMFYUI_PLUGINS=ON
 cmake --build build/Release --target test_comfyui_client
 ```
@@ -279,12 +279,11 @@ int main() {
 
 ## Related Documentation
 
-- [../README.md](../README.md) - Plugin overview
-- [../../docs/comfyui-build-guide.md](../../docs/comfyui-build-guide.md) - Build instructions
-- [../../docs/PROGRESS_LOG.md](../../docs/PROGRESS_LOG.md) - Implementation progress
+- [../../docs/installation.md](../../docs/installation.md) - Build instructions (build-from-source)
+- [../../docs/architecture.md](../../docs/architecture.md) - Shared infrastructure (`ComfyUICommon`)
+- [../../CLAUDE.md](../../CLAUDE.md) - Project overview and conventions
 
 ---
 
-**Last Updated:** 2025-10-08
 **Test Status:** ✅ All offline tests passing
 **Server Tests:** ⏳ Require ComfyUI server
