@@ -61,7 +61,7 @@ get_plugin_paths() {
             ;;
         windows)
             SYSTEM_PLUGIN_DIR="/c/Program Files/Common Files/OFX/Plugins"
-            USER_INSTALL_DIR="$HOME/AppData/Roaming/OFX/Plugins"
+            USER_INSTALL_DIR="$HOME/AppData/Local/OFX/Plugins"
             DEV_PLUGIN_DIR="$HOME/OFX/Plugins"
             ;;
     esac
