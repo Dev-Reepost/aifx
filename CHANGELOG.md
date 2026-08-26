@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.2.2] - 2026-08-26
 
-Field fixes from the first Flare/macOS deployment. macOS binaries only.
+Field fixes from the first Flare/macOS deployment. macOS and Linux binaries
+— Windows still ships the 0.2.0 build.
 
 ### Fixed
 
