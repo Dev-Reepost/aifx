@@ -29,7 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2.1] - 2026-08-26
 
 A POSIX ComfyUI server is now supported, plus build hardening and artifact
-identity. macOS binaries only — Windows and Linux still ship the 0.2.0 builds.
+identity. macOS and Linux binaries — Windows still ships the 0.2.0 build.
 
 ### Fixed
 
