@@ -10,11 +10,21 @@
 # tools/build-linux-plugin.sh.)
 #
 # Usage: tools/release-linux.sh [VERSION]
-#   VERSION defaults to "dev" if not supplied.
+#   VERSION defaults to the repo-root VERSION file.
 
 set -euo pipefail
 
-VERSION="${1:-dev}"
+# Version comes from the repo-root VERSION file, the same source CMake stamps
+# into every bundle. Passing an explicit VERSION is still allowed but it must
+# agree -- otherwise the tarball name and the version baked into the binaries
+# disagree, and the artifact becomes unidentifiable once it leaves this machine.
+REPO_VERSION="$(tr -d '[:space:]' < "$(dirname "${BASH_SOURCE[0]}")/../VERSION")"
+VERSION="${1:-$REPO_VERSION}"
+if [[ "$VERSION" != "$REPO_VERSION" ]]; then
+    echo "[ERROR] Requested version '$VERSION' does not match VERSION file '$REPO_VERSION'." >&2
+    echo "        Update the repo-root VERSION file first (see RELEASING.md)." >&2
+    exit 1
+fi
 ARCH="x86_64"
 # OFX bundle spec arch directory (Contents/Linux-x86-64) -- note the hyphen,
 # distinct from the underscore used in archive names (aifx-...-x86_64.tar.gz).
@@ -139,6 +149,14 @@ for target in "${TARGETS[@]}"; do
     fi
     echo "    [OK] $target"
 done
+
+# Identity + ABI gate. Every bundle must carry a build stamp matching this
+# source tree before it is allowed into a tarball: an unidentifiable bundle on a
+# workstation is what turned a fixed crash into a month-long field bug.
+echo ""
+echo "==> Verifying build identity + OFX ABI..."
+./tools/verify-ofx-abi.sh --expect-version "$VERSION" \
+    $(printf "$BUILD_DIR/%s.ofx.bundle " "${TARGETS[@]}")
 
 # --- Package -----------------------------------------------------------------
 echo ""

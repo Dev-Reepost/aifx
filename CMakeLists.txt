@@ -2,7 +2,25 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 cmake_minimum_required(VERSION 3.28)
-project(AIFX VERSION 1.0.0 LANGUAGES CXX)
+
+# ----------------------------------------------------------------------------
+# Version — single source of truth.
+#
+# The repo-root VERSION file is the ONLY place the release version is written.
+# CMake stamps it into every plugin's Info.plist (CFBundleVersion) and into the
+# .ofx binary itself (see AIFX_BUILD_MARKER), and tools/release-*.sh read the
+# same file, so a shipped bundle can always be identified after the fact.
+# Before this existed every bundle claimed "1.0.0" and an installed plugin was
+# indistinguishable from any other build -- which is exactly how a pre-0.1.5
+# bundle survived on a Flare/macOS workstation and kept segfaulting.
+# ----------------------------------------------------------------------------
+file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/VERSION" AIFX_VERSION LIMIT_COUNT 1)
+string(STRIP "${AIFX_VERSION}" AIFX_VERSION)
+if(NOT AIFX_VERSION MATCHES "^[0-9]+\\.[0-9]+\\.[0-9]+$")
+    message(FATAL_ERROR "VERSION file must contain a semver string, got: '${AIFX_VERSION}'")
+endif()
+
+project(AIFX VERSION ${AIFX_VERSION} LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -51,12 +69,16 @@ set(BUILD_EXAMPLE_PLUGINS OFF CACHE BOOL "" FORCE)
 set(OFX_SUPPORTS_OPENCLRENDER OFF CACHE BOOL "" FORCE)
 set(OFX_SUPPORTS_CUDARENDER   OFF CACHE BOOL "" FORCE)
 
+# Pinned to upstream main (2025-08-21). Bump to a tagged release as soon as
+# OpenFX cuts one that includes the modern Examples layout and Info.plist.in.
+# Held in a variable so the exact commit is stamped into the generated
+# aifx_abi.h and, from there, into every shipped .ofx binary.
+set(AIFX_OPENFX_TAG "96ccd1aab317971da43c70c92b187295d478db0c")
+
 FetchContent_Declare(
     openfx
     GIT_REPOSITORY https://github.com/AcademySoftwareFoundation/openfx.git
-    # Pinned to upstream main (2025-08-21). Bump to a tagged release as soon as
-    # OpenFX cuts one that includes the modern Examples layout and Info.plist.in.
-    GIT_TAG        96ccd1aab317971da43c70c92b187295d478db0c
+    GIT_TAG        ${AIFX_OPENFX_TAG}
 )
 FetchContent_MakeAvailable(openfx)
 
@@ -93,6 +115,27 @@ if(OFX_SUPPORTS_CUDARENDER)
     add_compile_definitions(OFX_SUPPORTS_CUDARENDER)
 endif()
 
+# Mirroring the definitions is necessary but not sufficient: nothing yet FAILS
+# when a target slips out of scope again. Record the flags OfxSupport was built
+# with in a generated header, which plugins/common/aifx_abi_check.h turns into a
+# static_assert against what each translation unit actually sees. A future
+# refactor that loses the definitions breaks the build instead of shipping a
+# bundle that segfaults on instancing.
+foreach(_flag OPENGLRENDER OPENCLRENDER CUDARENDER)
+    if(OFX_SUPPORTS_${_flag})
+        set(AIFX_OFX_EXPECT_${_flag} 1)
+    else()
+        set(AIFX_OFX_EXPECT_${_flag} 0)
+    endif()
+endforeach()
+
+set(AIFX_GENERATED_INCLUDE_DIR "${CMAKE_BINARY_DIR}/generated")
+configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/plugins/common/aifx_abi.h.in"
+    "${AIFX_GENERATED_INCLUDE_DIR}/aifx_abi.h"
+    @ONLY
+)
+
 # ----------------------------------------------------------------------------
 # ComfyUI plugin third-party dependencies (Conan-provided, CONFIG-only).
 #
@@ -123,3 +166,5 @@ add_subdirectory(plugins)
 message(STATUS "AIFX configured.")
 message(STATUS "  OpenFX source : ${OPENFX_SOURCE_DIR}")
 message(STATUS "  Install dir   : ${PLUGIN_INSTALLDIR}")
+message(STATUS "  Version       : ${AIFX_VERSION}")
+message(STATUS "  OFX ABI       : v1-gl${AIFX_OFX_EXPECT_OPENGLRENDER}-cl${AIFX_OFX_EXPECT_OPENCLRENDER}-cu${AIFX_OFX_EXPECT_CUDARENDER}")

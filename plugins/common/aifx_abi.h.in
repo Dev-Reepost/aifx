@@ -1,0 +1,40 @@
+// AIFX — generated build/ABI descriptor. DO NOT EDIT.
+// SPDX-License-Identifier: BSD-3-Clause
+//
+// Produced by configure_file() from plugins/common/aifx_abi.h.in at CMake
+// configure time. It records TWO things that a plugin translation unit cannot
+// otherwise know:
+//
+//   1. The release version, so the built .ofx can identify itself (see
+//      AIFX_BUILD_MARKER in comfyui_base_plugin.cpp).
+//   2. The OpenFX Support-library feature flags the OfxSupport *archive* was
+//      compiled with. Those flags change the layout of OFX::ImageEffect's
+//      vtable and of the render-argument POD structs, so every AIFX
+//      translation unit must agree with them. aifx_abi_check.h turns that
+//      agreement into a static_assert.
+//
+// Regenerate by re-running CMake; never hand-edit the copy in the build tree.
+
+#ifndef AIFX_ABI_H
+#define AIFX_ABI_H
+
+#define AIFX_VERSION            "@AIFX_VERSION@"
+#define AIFX_VERSION_MAJOR      @PROJECT_VERSION_MAJOR@
+#define AIFX_VERSION_MINOR      @PROJECT_VERSION_MINOR@
+#define AIFX_VERSION_PATCH      @PROJECT_VERSION_PATCH@
+
+// How OfxSupport was built (1 = the macro was defined for the archive).
+#define AIFX_OFX_EXPECT_OPENGLRENDER @AIFX_OFX_EXPECT_OPENGLRENDER@
+#define AIFX_OFX_EXPECT_OPENCLRENDER @AIFX_OFX_EXPECT_OPENCLRENDER@
+#define AIFX_OFX_EXPECT_CUDARENDER   @AIFX_OFX_EXPECT_CUDARENDER@
+
+// Compact, greppable ABI fingerprint. Bump the leading "v<n>" whenever the set
+// of flags tracked here changes, so an old marker can never be mistaken for a
+// new one by tools/verify-ofx-abi.sh.
+#define AIFX_OFX_ABI_TAG \
+    "v1-gl@AIFX_OFX_EXPECT_OPENGLRENDER@-cl@AIFX_OFX_EXPECT_OPENCLRENDER@-cu@AIFX_OFX_EXPECT_CUDARENDER@"
+
+// The OpenFX commit AIFX was built against (FetchContent GIT_TAG).
+#define AIFX_OPENFX_TAG "@AIFX_OPENFX_TAG@"
+
+#endif // AIFX_ABI_H

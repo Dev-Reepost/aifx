@@ -42,6 +42,31 @@ function(aifx_merge_defaults TARGET BUNDLE_RESOURCES_DIR)
     )
 endfunction()
 
+# --- Build stamp -----------------------------------------------------------
+#
+# Writes Contents/Resources/aifx-build.txt into the bundle: the same identity
+# string that is compiled into the .ofx binary (kAifxBuildMarker), plus the
+# plugin name. The binary marker is authoritative -- this file is the
+# human-readable copy, so a Flame/Flare TD can answer "which build is installed
+# on this workstation?" with `cat`, without nm/strings or a build tree.
+#
+# tools/verify-ofx-abi.sh cross-checks the two: a Resources stamp that disagrees
+# with the binary means the bundle was assembled from mixed build outputs.
+function(aifx_stamp_build_info TARGET BUNDLE_RESOURCES_DIR)
+    # Written at configure time (add_custom_command has no shell, so no
+    # redirection), then copied into the bundle as a POST_BUILD step.
+    set(_stamp "${CMAKE_BINARY_DIR}/generated/aifx-build-${TARGET}.txt")
+    file(WRITE "${_stamp}"
+        "AIFX-BUILD|version=${AIFX_VERSION}|ofxabi=v1-gl${AIFX_OFX_EXPECT_OPENGLRENDER}-cl${AIFX_OFX_EXPECT_OPENCLRENDER}-cu${AIFX_OFX_EXPECT_CUDARENDER}|openfx=${AIFX_OPENFX_TAG}|plugin=${TARGET}\n")
+    add_custom_command(TARGET ${TARGET} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${BUNDLE_RESOURCES_DIR}"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${_stamp}" "${BUNDLE_RESOURCES_DIR}/aifx-build.txt"
+        COMMENT "Stamping build info into ${TARGET} bundle"
+        VERBATIM
+    )
+endfunction()
+
 # --- Shared infrastructure -------------------------------------------------
 
 add_library(ComfyUICommon STATIC
@@ -74,6 +99,10 @@ endif()
 target_include_directories(ComfyUICommon PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/common
     ${OPENFX_SOURCE_DIR}/Support/include
+    # Generated aifx_abi.h (version + the OFX feature flags OfxSupport was
+    # built with). PUBLIC so every plugin target inherits it and the
+    # static_asserts in aifx_abi_check.h fire in each of their TUs too.
+    ${AIFX_GENERATED_INCLUDE_DIR}
 )
 
 # --- Linker hardening: export only the OFX entry points --------------------

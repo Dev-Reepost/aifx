@@ -5,6 +5,11 @@
 #define COMFYUI_BASE_PLUGIN_H
 
 #include "ofxsImageEffect.h"
+// Compile-time guard that this translation unit's view of the OpenFX Support
+// ABI matches the OfxSupport archive it will be linked against. Included here
+// (rather than per-plugin) so no plugin can opt out by accident -- every plugin
+// header pulls in comfyui_base_plugin.h.
+#include "aifx_abi_check.h"
 #include "comfyui_client.h"
 #include "comfyui_image_io.h"
 #include "async_job_manager.h"
@@ -25,6 +30,26 @@
 using json = nlohmann::json;
 
 namespace ComfyUI {
+
+/**
+ * @brief Build identity stamped into every .ofx binary.
+ *
+ * A plain string constant holding the AIFX version, the OpenFX ABI tag, and the
+ * pinned OpenFX commit, e.g.
+ *
+ *     AIFX-BUILD|version=0.2.0|ofxabi=v1-gl1-cl0-cu0|openfx=96ccd1a...
+ *
+ * It exists so a bundle found on a workstation can be identified without the
+ * build tree: `strings <plugin>.ofx | grep AIFX-BUILD` works on an installed
+ * plugin, and tools/verify-ofx-abi.sh reads it to reject a bundle whose ABI
+ * does not match the running source tree. `initializeLogger()` also writes it
+ * as the first line of every log session, so support logs carry the exact build.
+ *
+ * Deliberately referenced from live code rather than marked
+ * __attribute__((used)): a real reference keeps it in every toolchain's output
+ * (including MSVC) without compiler-specific pragmas.
+ */
+extern const char* const kAifxBuildMarker;
 
 /**
  * @brief Resolve the user's home directory in a cross-platform way.

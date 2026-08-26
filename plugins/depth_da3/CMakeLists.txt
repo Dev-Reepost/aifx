@@ -50,7 +50,10 @@ if(APPLE)
     set(PLUGIN_EXE "DepthAnything3.ofx")
     set(BUNDLE_IDENTIFIER "com.comfyui.DepthAnything3")
     set(BUNDLE_SIGNATURE "????")
-    set(PLUGIN_VERSION "1.0.0")
+    # Real release version, from the repo-root VERSION file via project(). Every
+    # bundle used to claim "1.0.0", which made an installed plugin impossible to
+    # date -- see the Versioning section in RELEASING.md.
+    set(PLUGIN_VERSION "${PROJECT_VERSION}")
 
     configure_file(${OPENFX_SOURCE_DIR}/Examples/Info.plist.in
                    "${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/DepthAnything3.ofx.bundle/Contents/Info.plist")
@@ -69,6 +72,9 @@ if(APPLE)
 
 
 aifx_merge_defaults(DepthAnything3 "${RESOURCES_DIR}")
+
+
+aifx_stamp_build_info(DepthAnything3 "${RESOURCES_DIR}")
 endif()
 
 # Linux: create .ofx.bundle structure at build time
@@ -89,6 +95,8 @@ if(UNIX AND NOT APPLE)
     )
 
 aifx_merge_defaults(DepthAnything3 "${RESOURCES_DIR}")
+
+aifx_stamp_build_info(DepthAnything3 "${RESOURCES_DIR}")
 endif()
 
 # Windows: create .ofx.bundle structure at build time. Mirrors the Linux
@@ -113,6 +121,8 @@ if(WIN32)
     )
 
     aifx_merge_defaults(DepthAnything3 "${RESOURCES_DIR}")
+
+    aifx_stamp_build_info(DepthAnything3 "${RESOURCES_DIR}")
 endif()
 
 message(STATUS "ComfyUI Depth Anything V3 plugin configured with bundled resources")

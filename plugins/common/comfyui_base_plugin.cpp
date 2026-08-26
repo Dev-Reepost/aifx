@@ -48,6 +48,16 @@ static const char _dladdr_anchor = 0;
 
 namespace ComfyUI {
 
+// Build identity, stamped into the binary's read-only data. See the doc comment
+// on kAifxBuildMarker in comfyui_base_plugin.h for why this exists and how it is
+// consumed (strings(1), tools/verify-ofx-abi.sh, and the plugin log header).
+static const char kAifxBuildMarkerStorage[] =
+    "AIFX-BUILD|version=" AIFX_VERSION
+    "|ofxabi=" AIFX_OFX_ABI_TAG
+    "|openfx=" AIFX_OPENFX_TAG;
+
+const char* const kAifxBuildMarker = kAifxBuildMarkerStorage;
+
 #if !defined(_WIN32)
 // ---------------------------------------------------------------------------
 // Crash backtrace handler (diagnostic).
@@ -189,6 +199,10 @@ void BasePlugin::initializeLogger()
             char timeStamp[32];
             std::strftime(timeStamp, sizeof(timeStamp), "%H:%M:%S", now_tm);
             _logger->info("=== ComfyUI Plugin Session Started at {} ===", timeStamp);
+            // Emit the build identity before anything else: a support log with
+            // no build stamp cannot distinguish a current bundle from a stale
+            // one left behind by an older installer.
+            _logger->info("{}", kAifxBuildMarker);
             _logger->info("Log file: {}", logPath);
         }
     } catch (const spdlog::spdlog_ex& ex) {

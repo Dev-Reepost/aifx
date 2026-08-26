@@ -6,11 +6,22 @@
 # package them into a release tarball.
 #
 # Usage: tools/release-macos.sh [VERSION]
-#   VERSION defaults to "dev" if not supplied.
+#   VERSION defaults to the repo-root VERSION file.
 
 set -e
 
-VERSION="${1:-dev}"
+# Version comes from the repo-root VERSION file, the same source CMake stamps
+# into every bundle. Passing an explicit VERSION is still allowed (for a dry run
+# or a re-tag) but it must agree -- otherwise the tarball name and the version
+# baked into the binaries would disagree, and the artifact becomes unidentifiable
+# the moment it leaves this machine.
+REPO_VERSION="$(tr -d '[:space:]' < "$(dirname "${BASH_SOURCE[0]}")/../VERSION")"
+VERSION="${1:-$REPO_VERSION}"
+if [[ "$VERSION" != "$REPO_VERSION" ]]; then
+    echo "[ERROR] Requested version '$VERSION' does not match VERSION file '$REPO_VERSION'." >&2
+    echo "        Update the repo-root VERSION file first (see RELEASING.md)." >&2
+    exit 1
+fi
 
 # Plugin set comes from plugins/manifest.txt (single source of truth).
 source "$(dirname "${BASH_SOURCE[0]}")/plugin-manifest.sh"
@@ -60,11 +71,24 @@ for target in "${TARGETS[@]}"; do
     echo "    [OK] $target ($archs)"
 done
 
+# Identity + ABI gate. Every bundle must carry a build stamp matching this
+# source tree before it is allowed into a tarball: an unidentifiable bundle on a
+# workstation is what turned a fixed crash into a month-long field bug.
+echo ""
+echo "==> Verifying build identity + OFX ABI..."
+./tools/verify-ofx-abi.sh --expect-version "$VERSION" \
+    $(printf 'build/Release/%s.ofx.bundle ' "${TARGETS[@]}")
+
 echo ""
 echo "==> Packaging..."
 TOP="AIFX-${VERSION}-macos-universal"
 STAGE="dist/staging/${TOP}"
-rm -rf dist
+# Only clear THIS script's staging area. `rm -rf dist` (what this used to do)
+# also deleted the Linux and Windows artifacts sitting alongside -- building the
+# macOS release destroyed the other platforms' output, which is never what the
+# per-platform release flow in RELEASING.md intends. release-linux.sh and
+# release-windows.ps1 already scope their cleanup this way.
+rm -rf dist/staging
 mkdir -p "$STAGE"
 
 # Drop any legacy top-level <bundle>/Resources/ directory. Resources live under

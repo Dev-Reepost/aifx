@@ -27,14 +27,18 @@
 
 set -euo pipefail
 
-if [[ $# -lt 1 ]]; then
-    echo "Usage: tools/release-macos-installer.sh <VERSION>" >&2
-    exit 1
-fi
-VERSION="$1"
-
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
+
+# Version comes from the repo-root VERSION file, the same source CMake stamps
+# into every bundle. An explicit argument is still allowed but must agree.
+REPO_VERSION="$(tr -d '[:space:]' < "$REPO_ROOT/VERSION")"
+VERSION="${1:-$REPO_VERSION}"
+if [[ "$VERSION" != "$REPO_VERSION" ]]; then
+    echo "[ERROR] Requested version '$VERSION' does not match VERSION file '$REPO_VERSION'." >&2
+    echo "        Update the repo-root VERSION file first (see RELEASING.md)." >&2
+    exit 1
+fi
 
 INSTALLER_DIR="installer/macos"
 STAGE_BUNDLES_DIR="$INSTALLER_DIR/Resources/Bundles"
@@ -181,16 +185,48 @@ if [[ -n "$SIGN_IDENTITY" ]]; then
         rm -f "$ZIPPED"
         echo "    [OK] notarised + stapled"
     else
-        echo "    AIFX_NOTARY_PROFILE not set — skipping notarisation."
-        echo "    Set it once with:"
+        echo "    [WARNING] AIFX_NOTARY_PROFILE not set — NOT notarised."
+        echo "    A Developer ID signature alone is not enough: macOS still blocks the app"
+        echo "    with \"Apple could not verify ... is free of malware\" until the build has"
+        echo "    been notarised and stapled. Set the profile up once with:"
         echo "      xcrun notarytool store-credentials AIFX-NOTARY \\"
         echo "        --apple-id <apple-id> --team-id <team-id> --password <app-specific-pw>"
         echo "    then re-run with: AIFX_NOTARY_PROFILE=AIFX-NOTARY $0 $VERSION"
+        echo ""
+        if [[ "${AIFX_ALLOW_UNSIGNED:-0}" != "1" ]]; then
+            echo "[ERROR] Refusing to build a non-notarised installer for release." >&2
+            echo "        Re-run with AIFX_ALLOW_UNSIGNED=1 for a local test build." >&2
+            exit 1
+        fi
+        echo "    AIFX_ALLOW_UNSIGNED=1 set — continuing without notarisation."
     fi
 else
-    echo "    No Developer ID Application identity found in keychain — building UNSIGNED."
-    echo "    Users will need to right-click → Open the first time, or run:"
-    echo "      xattr -dr com.apple.quarantine '<path to>/AIFX Installer.app'"
+    echo "    [WARNING] No Developer ID Application identity found in keychain."
+    echo "    Building UNSIGNED — this DMG will be BLOCKED on end-user machines."
+    echo ""
+    echo "    On macOS 15 (Sequoia) and later, Gatekeeper refuses an unnotarised app with"
+    echo "      \"Apple could not verify ... is free of malware\""
+    echo "    and the old right-click → Open bypass NO LONGER WORKS. Nor does the"
+    echo "    'Open Anyway' button: it is a transient row that only appears for about an"
+    echo "    hour after a blocked launch, and on Sequoia it is not offered at all for an"
+    echo "    app with no bundle signature (which is what this build is:"
+    echo "    'spctl -a' reports 'no usable signature')."
+    echo ""
+    echo "    The only reliable route left is the terminal, on every workstation:"
+    echo "      cp -R '/Volumes/AIFX <version>/AIFX Installer.app' /Applications/"
+    echo "      xattr -dr com.apple.quarantine '/Applications/AIFX Installer.app'"
+    echo "    (the copy is required -- the DMG volume is read-only, so xattr fails there)"
+    echo ""
+    echo "    Ship a signed + notarised DMG instead: set AIFX_SIGN_IDENTITY (or install a"
+    echo "    Developer ID Application certificate) and AIFX_NOTARY_PROFILE. See"
+    echo "    RELEASING.md > 'Signing the macOS installer'."
+    echo ""
+    if [[ "${AIFX_ALLOW_UNSIGNED:-0}" != "1" ]]; then
+        echo "[ERROR] Refusing to build an unsigned installer for release." >&2
+        echo "        Re-run with AIFX_ALLOW_UNSIGNED=1 for a local test build." >&2
+        exit 1
+    fi
+    echo "    AIFX_ALLOW_UNSIGNED=1 set — continuing with an unsigned build."
 fi
 
 # --- 5. Package as DMG --------------------------------------------------------

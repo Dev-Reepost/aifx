@@ -5,11 +5,11 @@
 # zip archive. Patterned on tools/release-macos.sh.
 #
 # Usage: tools\release-windows.ps1 [-Version <version>]
-#   Version defaults to "dev" if not supplied.
+#   Version defaults to the repo-root VERSION file.
 
 [CmdletBinding()]
 param(
-    [string]$Version = "dev"
+    [string]$Version = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -18,6 +18,18 @@ $Arch = "x86_64"
 $ScriptDir = Split-Path -Parent $PSCommandPath
 $RepoRoot  = Resolve-Path (Join-Path $ScriptDir "..")
 Set-Location $RepoRoot
+
+# Version comes from the repo-root VERSION file, the same source CMake stamps
+# into every bundle. An explicit -Version is still allowed but must agree --
+# otherwise the zip name and the version baked into the binaries disagree, and
+# the artifact becomes unidentifiable once it leaves this machine.
+$RepoVersion = (Get-Content (Join-Path $RepoRoot "VERSION") -First 1).Trim()
+if ($Version -eq "") { $Version = $RepoVersion }
+if ($Version -ne $RepoVersion) {
+    Write-Host "[ERROR] Requested version '$Version' does not match VERSION file '$RepoVersion'." -ForegroundColor Red
+    Write-Host "        Update the repo-root VERSION file first (see RELEASING.md)." -ForegroundColor Red
+    exit 1
+}
 
 # Plugin set comes from plugins/manifest.txt (single source of truth).
 # Each entry is a (plugin-dir, target) pair; downstream code uses $entry[0]/$entry[1].
@@ -62,7 +74,41 @@ foreach ($entry in $Targets) {
         Write-Err "Missing bundle binary: $bin"
         exit 1
     }
-    Write-Ok $target
+
+    # Identity gate: the .ofx must carry the AIFX-BUILD marker compiled in from
+    # the generated aifx_abi.h, and it must name this version. A bundle with no
+    # identity cannot be told apart from a stale install on a workstation later
+    # -- which is what turned an already-fixed crash into a month-long field bug.
+    # (tools/verify-ofx-abi.sh does the same job on macOS/Linux; this is the
+    # PowerShell-native equivalent so Windows releases are gated too.)
+    # Read the binary as raw bytes and reinterpret as ASCII: Select-String's
+    # -Encoding Byte exists in Windows PowerShell 5.1 but was removed in
+    # PowerShell 6+, and this works identically on both.
+    $binText = [System.Text.Encoding]::ASCII.GetString(
+        [System.IO.File]::ReadAllBytes((Resolve-Path $bin)))
+    if ($binText -notmatch "AIFX-BUILD\|version=([^|]+)\|ofxabi=([^|]+)\|") {
+        Write-Err "$target carries no AIFX-BUILD marker. Rebuild against the current source tree."
+        exit 1
+    }
+    $binVersion = $Matches[1]
+    $binAbi     = $Matches[2]
+    if ($binVersion -ne $Version) {
+        Write-Err "$target binary reports version '$binVersion' but the release is '$Version'."
+        Write-Err "        The build tree is stale -- rebuild after updating VERSION."
+        exit 1
+    }
+
+    # Cross-check the human-readable copy the bundle ships.
+    $stamp = "${bundle}\Contents\Resources\aifx-build.txt"
+    if (Test-Path $stamp) {
+        $stampText = (Get-Content $stamp -First 1)
+        if ($stampText -notmatch "version=$([regex]::Escape($Version))\|") {
+            Write-Err "$target Resources stamp disagrees with the binary: $stampText"
+            exit 1
+        }
+    }
+
+    Write-Ok "$target ($binVersion, $binAbi)"
 }
 
 Write-Step "Packaging..."

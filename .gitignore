@@ -50,3 +50,4 @@ Thumbs.db
 
 # IDE state — intentionally not ignored at repo level; let contributors
 # manage their own .vscode/.idea via global gitignore.
+.gstack/
