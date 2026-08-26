@@ -80,6 +80,23 @@ Alternatively, double-click the app, dismiss the warning, then approve it under
 
 Signed and notarised releases do not need any of this.
 
+## The plugins installed fine but Flame / Flare does not list them
+{: #flame-cannot-see-plugins }
+
+Autodesk Flame and Flare only scan the **system-wide** OFX directory,
+`/Library/OFX/Plugins` on macOS and `/usr/OFX/Plugins` on Linux. They ignore the
+per-user locations that Nuke, Resolve and Fusion read. If you installed
+per-user, move the bundles:
+
+```bash
+sudo mkdir -p /Library/OFX/Plugins
+sudo mv ~/Library/OFX/Plugins/*.ofx.bundle /Library/OFX/Plugins/
+sudo chmod -R go+rX /Library/OFX/Plugins
+```
+
+Then restart the host. The macOS installer defaults to system-wide from v0.2.2;
+earlier versions defaulted to per-user.
+
 ## "Connection refused" or "Cannot reach ComfyUI server"
 
 - Confirm ComfyUI is actually running: open `http://<server-ip>:8188/` in a

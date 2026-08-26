@@ -70,7 +70,20 @@ enum InstallScope: String, CaseIterable, Identifiable {
     var displayName: String {
         switch self {
         case .perUser:    return "Per-user (~/Library/OFX/Plugins/)"
-        case .systemWide: return "System-wide (/Library/OFX/Plugins/)"
+        case .systemWide: return "System-wide (/Library/OFX/Plugins/) — required for Flame / Flare"
+        }
+    }
+
+    /// One-line explanation shown under the picker.
+    var rationale: String {
+        switch self {
+        case .perUser:
+            return "No admin password needed. Works with Nuke, Resolve, Fusion — but "
+                 + "Autodesk Flame and Flare do NOT scan this directory and will not "
+                 + "see the plugins."
+        case .systemWide:
+            return "Every OFX host scans this directory, including Flame and Flare. "
+                 + "macOS will ask for an administrator password once."
         }
     }
 
@@ -84,8 +97,9 @@ enum InstallScope: String, CaseIterable, Identifiable {
         }
     }
 
-    /// True iff installing here requires admin (which we explicitly do NOT
-    /// support in v0.1.x — installer hard-fails with a clear message).
+    /// True iff writing here needs elevated privileges. The installer now
+    /// handles this itself (one authorisation prompt, see installPrivileged),
+    /// rather than refusing and telling the operator to run mkdir by hand.
     var requiresAdmin: Bool { self == .systemWide }
 }
 
@@ -142,7 +156,8 @@ final class InstallerEngine: ObservableObject {
     /// Rewrite the given defaults.json on disk with the user's site config.
     /// Conservative: read → patch the known keys → write back, preserving any
     /// keys we don't touch (notably the per-plugin `project` block).
-    private func patchDefaults(at url: URL, with config: SiteConfig) throws {
+    /// `nonisolated static` so stageOne() can call it off the main actor.
+    nonisolated static func patchDefaultsFile(at url: URL, with config: SiteConfig) throws {
         let data = try Data(contentsOf: url)
         guard var root = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             throw NSError(domain: "AIFXInstaller", code: 1,
@@ -178,33 +193,20 @@ final class InstallerEngine: ObservableObject {
         try out.write(to: url, options: .atomic)
     }
 
-    /// Copy `src` → `dst`, replacing any existing item at `dst`.
-    private func replace(_ src: URL, with dst: URL) throws {
-        let fm = FileManager.default
-        if fm.fileExists(atPath: dst.path) {
-            try fm.removeItem(at: dst)
-        }
-        try fm.copyItem(at: src, to: dst)
-    }
-
-    /// Strip the com.apple.quarantine xattr from `url` recursively. Best-effort;
-    /// failure is logged but does not abort the install.
-    private func clearQuarantine(at url: URL) {
-        let task = Process()
-        task.launchPath = "/usr/bin/xattr"
-        task.arguments = ["-dr", "com.apple.quarantine", url.path]
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError  = pipe
-        do {
-            try task.run()
-            task.waitUntilExit()
-        } catch {
-            append("    (could not clear quarantine on \(url.lastPathComponent): \(error.localizedDescription))")
-        }
-    }
-
     /// Run the full install. Updates `progress` and `log` as it goes.
+    ///
+    /// Two-phase by design:
+    ///
+    ///   1. **Stage** every bundle into a temp directory — copy, rewrite
+    ///      defaults.json, strip quarantine. All unprivileged, all off the main
+    ///      actor.
+    ///   2. **Install** the staged set into the target in one move. Per-user is
+    ///      a plain copy; system-wide goes through a single authorisation
+    ///      prompt (see installPrivileged).
+    ///
+    /// Staging first means a failure part-way through patching cannot leave a
+    /// half-updated plugin directory behind, and it reduces the privileged step
+    /// to one auditable command instead of one prompt per bundle.
     func install(scope: InstallScope, config: SiteConfig) async {
         progress = 0
         log = []
@@ -239,72 +241,204 @@ final class InstallerEngine: ObservableObject {
             }
         }
 
-        // 3. Ensure the destination directory exists. For the per-user case
-        //    we can create it ourselves; for system-wide we can't (no admin
-        //    privilege in this process) — abort with a clean message.
-        if !fm.fileExists(atPath: target.path) {
-            if scope.requiresAdmin {
-                append("✗ \(target.path) does not exist.")
-                append("  System-wide install in v0.1.x requires the directory to already exist.")
-                append("  Run: sudo mkdir -p \(target.path) && sudo chmod 755 \(target.path)")
-                append("  Or re-run the installer and pick the per-user option.")
-                failed = true
-                return
-            }
+        // 3. Stage into a temp directory.
+        let staging: URL
+        do {
+            staging = try fm.url(for: .itemReplacementDirectory,
+                                 in: .userDomainMask,
+                                 appropriateFor: target.deletingLastPathComponent(),
+                                 create: true)
+                .appendingPathComponent("AIFX-staging", isDirectory: true)
+            try fm.createDirectory(at: staging, withIntermediateDirectories: true)
+        } catch {
+            append("✗ Could not create a staging directory: \(error.localizedDescription)")
+            failed = true
+            return
+        }
+        defer { try? FileManager.default.removeItem(at: staging) }
+
+        let bundles = Self.expectedBundles
+        let total = Double(bundles.count)
+
+        for (i, name) in bundles.enumerated() {
+            append("[\(i+1)/\(bundles.count)] \(name)")
+
+            // Off the main actor: awaiting a detached task suspends this one, so
+            // SwiftUI gets to redraw between bundles. Doing the file work inline
+            // on @MainActor blocked every UI update until the whole install
+            // finished, which is why the progress bar sat at 0% throughout.
+            let lines: [String]
             do {
-                try fm.createDirectory(at: target, withIntermediateDirectories: true)
-                append("  Created destination directory.")
+                let s = src.appendingPathComponent(name)
+                let d = staging.appendingPathComponent(name)
+                lines = try await Task.detached(priority: .userInitiated) {
+                    try Self.stageOne(from: s, to: d, config: config)
+                }.value
             } catch {
-                append("✗ Could not create \(target.path): \(error.localizedDescription)")
+                append("    ✗ \(error.localizedDescription)")
                 failed = true
                 return
             }
+            lines.forEach(append)
+
+            // Staging is 80% of the visible work; the copy into place is the rest.
+            progress = 0.8 * Double(i + 1) / total
         }
 
-        // 4. For each bundle: copy → patch defaults.json → clear quarantine.
-        let total = Double(Self.expectedBundles.count)
-        for (i, name) in Self.expectedBundles.enumerated() {
-            let srcBundle = src.appendingPathComponent(name)
-            let dstBundle = target.appendingPathComponent(name)
-            append("[\(i+1)/\(Self.expectedBundles.count)] \(name)")
-
-            do {
-                try replace(srcBundle, with: dstBundle)
-            } catch {
-                append("    ✗ copy failed: \(error.localizedDescription)")
-                if (error as NSError).code == NSFileWriteNoPermissionError && scope.requiresAdmin {
-                    append("      System-wide install needs admin rights; this version of the installer")
-                    append("      does not elevate. Re-run with the per-user option.")
-                }
-                failed = true
-                return
-            }
-
-            if !config.keepBundledDefaults {
-                let defaults = dstBundle
-                    .appendingPathComponent("Contents/Resources/config/defaults.json")
-                if fm.fileExists(atPath: defaults.path) {
-                    do {
-                        try patchDefaults(at: defaults, with: config)
-                        append("    site config written")
-                    } catch {
-                        append("    ✗ could not patch defaults.json: \(error.localizedDescription)")
-                        failed = true
-                        return
-                    }
-                } else {
-                    append("    (no defaults.json in this bundle — skipping site override)")
-                }
-            }
-
-            clearQuarantine(at: dstBundle)
-            progress = Double(i + 1) / total
-        }
-
+        // 4. Move the staged set into the target.
         append("")
-        append("✓ Done. All 7 plugins installed at \(target.path).")
+        append("Installing into \(target.path)…")
+        if scope.requiresAdmin {
+            append("  macOS will ask for an administrator password.")
+        }
+
+        do {
+            let staged = staging
+            let dest = target
+            let elevate = scope.requiresAdmin
+            let names = bundles
+            try await Task.detached(priority: .userInitiated) {
+                try Self.installStaged(from: staged, to: dest, names: names, elevated: elevate)
+            }.value
+        } catch {
+            append("✗ Install failed: \(error.localizedDescription)")
+            if scope.requiresAdmin {
+                append("  If you cancelled the password prompt, re-run the installer.")
+                append("  Otherwise install per-user and move the bundles yourself:")
+                append("    sudo mv ~/Library/OFX/Plugins/*.ofx.bundle \(target.path)/")
+            }
+            failed = true
+            return
+        }
+
+        progress = 1
+        append("")
+        append("✓ Done. All \(bundles.count) plugins installed at \(target.path).")
         append("  Restart your OFX host. Plugins appear under the AIFX category.")
         finished = true
+    }
+
+    // -------------------------------------------------------------------------
+    // MARK: Off-main-actor workers
+    //
+    // `nonisolated static` so they can run inside Task.detached without touching
+    // any @Published state. They return their log lines instead of appending, so
+    // the caller can hop back to the main actor to publish them.
+    // -------------------------------------------------------------------------
+
+    /// Copy one bundle into the staging dir, rewrite its defaults.json, and
+    /// strip quarantine. Throws on anything that would produce a broken plugin.
+    nonisolated static func stageOne(from src: URL, to dst: URL, config: SiteConfig) throws -> [String] {
+        var lines: [String] = []
+        let fm = FileManager.default
+
+        if fm.fileExists(atPath: dst.path) { try fm.removeItem(at: dst) }
+        try fm.copyItem(at: src, to: dst)
+
+        if !config.keepBundledDefaults {
+            let defaults = dst.appendingPathComponent("Contents/Resources/config/defaults.json")
+            if fm.fileExists(atPath: defaults.path) {
+                try patchDefaultsFile(at: defaults, with: config)
+                lines.append("    site config written")
+            } else {
+                lines.append("    (no defaults.json in this bundle — skipping site override)")
+            }
+        }
+
+        // Best-effort: a bundle that keeps the quarantine flag still loads in
+        // every OFX host we target, so this must not abort the install.
+        _ = try? run("/usr/bin/xattr", ["-dr", "com.apple.quarantine", dst.path])
+        return lines
+    }
+
+    /// Put the staged bundles into their final home, replacing any earlier
+    /// install of the same plugin.
+    ///
+    /// Elevated installs go through one `osascript` invocation: AppleScript's
+    /// `with administrator privileges` is the supported way for an unsigned,
+    /// non-sandboxed app to obtain the standard macOS authorisation dialog
+    /// without shipping a privileged helper tool. The command is built from a
+    /// fixed template with only the paths interpolated, and every path is
+    /// single-quoted, so a space or an apostrophe in a path cannot break out.
+    nonisolated static func installStaged(from staging: URL, to target: URL,
+                                          names: [String], elevated: Bool) throws {
+        let fm = FileManager.default
+
+        if !elevated {
+            if !fm.fileExists(atPath: target.path) {
+                try fm.createDirectory(at: target, withIntermediateDirectories: true)
+            }
+            for name in names {
+                let dst = target.appendingPathComponent(name)
+                if fm.fileExists(atPath: dst.path) { try fm.removeItem(at: dst) }
+                try fm.copyItem(at: staging.appendingPathComponent(name), to: dst)
+            }
+            return
+        }
+
+        var cmd = "/bin/mkdir -p \(shellQuote(target.path)) && /bin/chmod 755 \(shellQuote(target.path))"
+        for name in names {
+            let dst = target.appendingPathComponent(name).path
+            let stg = staging.appendingPathComponent(name).path
+            cmd += " && /bin/rm -rf \(shellQuote(dst))"
+            cmd += " && /usr/bin/ditto \(shellQuote(stg)) \(shellQuote(dst))"
+        }
+        // Leave the bundles readable by everyone; the host runs as the operator,
+        // not as root.
+        cmd += " && /bin/chmod -R go+rX \(shellQuote(target.path))"
+
+        try runPrivileged(cmd)
+    }
+
+    /// POSIX single-quote escaping: wrap in single quotes and replace any
+    /// embedded quote with the '\'' idiom.
+    nonisolated static func shellQuote(_ s: String) -> String {
+        "'" + s.replacingOccurrences(of: "'", with: "'\\''") + "'"
+    }
+
+    /// Run a shell command as root via the standard macOS authorisation dialog.
+    nonisolated static func runPrivileged(_ command: String) throws {
+        // AppleScript string literal: backslashes and double quotes must be escaped.
+        let escaped = command
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+        let script = "do shell script \"\(escaped)\" with administrator privileges"
+
+        var error: NSDictionary?
+        guard let appleScript = NSAppleScript(source: script) else {
+            throw InstallError.message("Could not build the authorisation script.")
+        }
+        appleScript.executeAndReturnError(&error)
+        if let error {
+            // -128 is userCancelledErr: the operator dismissed the password dialog.
+            let code = (error[NSAppleScript.errorNumber] as? Int) ?? 0
+            if code == -128 {
+                throw InstallError.message("Authorisation cancelled.")
+            }
+            let msg = (error[NSAppleScript.errorMessage] as? String) ?? "unknown error"
+            throw InstallError.message("Privileged install failed: \(msg)")
+        }
+    }
+
+    /// Minimal process runner for the staging phase.
+    @discardableResult
+    nonisolated static func run(_ launchPath: String, _ arguments: [String]) throws -> Int32 {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: launchPath)
+        task.arguments = arguments
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError  = pipe
+        try task.run()
+        task.waitUntilExit()
+        return task.terminationStatus
+    }
+}
+
+enum InstallError: LocalizedError {
+    case message(String)
+    var errorDescription: String? {
+        switch self { case .message(let m): return m }
     }
 }
 
@@ -318,7 +452,12 @@ enum WizardStep: Int, CaseIterable {
 @MainActor
 final class WizardState: ObservableObject {
     @Published var step: WizardStep = .welcome
-    @Published var scope: InstallScope = .perUser
+    // System-wide by default: Autodesk Flame and Flare only scan
+    // /Library/OFX/Plugins, so a per-user install leaves them invisible -- an
+    // operator following the defaults got a "successful" install and no plugins
+    // in the host. Per-user remains available for hosts that read it and for
+    // machines where the operator has no admin rights.
+    @Published var scope: InstallScope = .systemWide
     @Published var config: SiteConfig = .init()
     @Published var engine = InstallerEngine()
 
@@ -392,15 +531,11 @@ struct LocationView: View {
                     Text(state.scope.targetURL.path)
                         .font(.system(.body, design: .monospaced))
                         .textSelection(.enabled)
-                    if state.scope.requiresAdmin {
-                        Text("System-wide installs require the destination directory to already exist and be writable. Create it first with:")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .padding(.top, 6)
-                        Text("sudo mkdir -p \(state.scope.targetURL.path) && sudo chmod 755 \(state.scope.targetURL.path)")
-                            .font(.system(.caption, design: .monospaced))
-                            .textSelection(.enabled)
-                    }
+                    Text(state.scope.rationale)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, 6)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(6)

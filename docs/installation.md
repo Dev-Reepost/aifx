@@ -58,8 +58,11 @@ organized per operating system.
    first is required because the mounted volume is read-only. See
    [Troubleshooting](troubleshooting.md#macos-installer-blocked).
 3. The wizard walks you through:
-   - Install location: per-user `~/Library/OFX/Plugins/` (default — no
-     password) or system-wide `/Library/OFX/Plugins/`.
+   - **Install location**: system-wide `/Library/OFX/Plugins/` (default) or
+     per-user `~/Library/OFX/Plugins/`. **Autodesk Flame and Flare only scan
+     the system-wide directory** — a per-user install leaves the plugins
+     invisible to them. System-wide asks for an administrator password once;
+     per-user needs none and works with Nuke, Resolve and Fusion.
    - **Site configuration**: ComfyUI server URL + port, this Mac's view of
      the shared folder (typically `/Volumes/<share>/<root>`), and the
      **ComfyUI server's view** of the same shared folder (typically a

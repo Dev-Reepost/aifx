@@ -7,10 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-08-26
+
+Field fixes from the first Flare/macOS deployment. macOS binaries only.
+
 ### Fixed
 
-- **The macOS installer DMG is now HFS+, not APFS.** `hdiutil create` defaults to
-  APFS on a modern build host, and an APFS disk image will not mount on macOS
+- **Renders failed on current `SaveEXR` builds.** All seven workflows sent
+  `create_path_if_missing: true` to the `SaveEXR` node, which the current
+  ComfyUI custom node rejects — the job never produced output. The flag is now
+  `false` everywhere, in both the bundled workflow templates and the hardcoded
+  fallback workflows. Nothing is lost: the plugin already creates the full
+  `out/<project>/<workflow>/<version>` tree itself before submitting, and fails
+  loudly if it cannot, so `SaveEXR` never needed to create anything.
+- **The installer put plugins where Flame and Flare cannot see them.** It
+  defaulted to `~/Library/OFX/Plugins`, which Autodesk's hosts do not scan —
+  the install reported success and the plugins never appeared. System-wide
+  install now actually works: the installer stages the patched bundles in a
+  temp directory, then copies them into `/Library/OFX/Plugins` through a single
+  macOS authorisation prompt. System-wide is the new default, and the location
+  picker states which hosts read each directory.
+- **The installer's progress bar sat at 0% for the whole install.**
+  `InstallerEngine` is `@MainActor` and did all its file work inline, so SwiftUI
+  never got a chance to redraw until the run finished. Per-bundle work now runs
+  in a detached task the main actor awaits, so the bar advances as it goes.
+- **The macOS installer DMG is now HFS+, not APFS.** `hdiutil create` defaults
+  to APFS on a modern build host, and an APFS disk image will not mount on macOS
   10.12 or earlier — with no error dialog, the Finder simply does nothing when
   you double-click it. A read-only installer image gains nothing from APFS.
 
@@ -25,6 +47,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   assessment the user's Mac will run and fails the build if it is rejected.
   RELEASING.md documents the full certificate + notarytool setup.
 
+### Documentation
+
+- `CLAUDE.md` claimed NormalCrafter was a per-frame plugin; it has been a
+  sequence plugin for some time. **Depth Anything V3 is the only per-frame
+  plugin**, which is why its panel shows an *Enable Processing* toggle and no
+  *Collect & Process* button — by design, not a missing control.
 
 ## [0.2.1] - 2026-08-26
 

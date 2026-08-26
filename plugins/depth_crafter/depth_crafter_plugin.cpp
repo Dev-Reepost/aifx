@@ -179,7 +179,12 @@ json DepthCrafterPlugin::buildHardcodedWorkflow(int frame, const std::string& in
                 {"start_frame", frame},
                 {"frame_pad", 4},
                 {"save_workflow", "none"},
-                {"create_path_if_missing", true},
+                // Left false deliberately: the plugin creates the full output
+                // directory itself before submitting (see createOutputDirectory
+                // in ComfyUIBasePlugin), so SaveEXR never needs to. Asking the
+                // node to create it as well made every render fail on current
+                // SaveEXR builds.
+                {"create_path_if_missing", false},
                 {"images", json::array({"24", 0})}
             }},
             {"class_type", "SaveEXR"},

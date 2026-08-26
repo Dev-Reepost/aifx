@@ -142,11 +142,16 @@ Each `plugins/<name>/` directory contains:
 
 The choice is explicit at compile time via `isSequencePlugin()`:
 
-- `return false` (default) — each requested frame is a separate ComfyUI job
-  (Depth Anything V3, NormalCrafter).
+- `return false` (default) — each requested frame is a separate ComfyUI job.
+  **Depth Anything V3 is the only plugin in this group**: DA3 is a per-frame
+  monocular model, so there is nothing to gain from batching. Its panel
+  therefore shows an **Enable Processing** toggle and no **Collect & Process**
+  button — that is by design, not a missing control.
 - `return true` — one job per contiguous block of frames, for temporal
   consistency; block size governed by `getImageLoadCap()` →
-  `LoadEXR.image_load_cap` (DepthCrafter, MaMa, MatAnyone2, SAM3, SeedVR2).
+  `LoadEXR.image_load_cap`. This is every other plugin: NormalCrafter,
+  DepthCrafter, SAM3, MaMa, MatAnyone2, SeedVR2. Their panels show a
+  **Collect & Process** button instead of the toggle.
 
 ### Caching
 
