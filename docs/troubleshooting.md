@@ -23,6 +23,63 @@ at the bottom of this page.
   quarantine bit.
 - Check the host's plugin loading log if it has one (most hosts do).
 
+## The host crashes the moment I select or add the plugin
+{: #host-crashes-on-select }
+
+Almost always a **stale bundle** left behind by an earlier install, not a bug in
+the version you just installed. Bundles built before 0.1.5 were compiled without
+`OFX_SUPPORTS_OPENGLRENDER`, which leaves their vtable two slots shorter than
+the OpenFX Support library they are linked against: the host dispatches an
+action into the wrong virtual and segfaults immediately after the plugin's
+constructor. In the plugin log the tell is a workflow being built when no render
+started, with an absurd frame number:
+
+```text
+[info] BasePlugin constructor completed successfully
+[info] Building Depth Anything V3 workflow for frame 1241540245
+```
+
+Run the bundled checker — it needs no build tree, so it works on the
+workstation:
+
+```bash
+tools/verify-ofx-abi.sh          # scans this OS's OFX plugin directories
+```
+
+Any bundle it reports as `FAIL … SHORT vtable` must be deleted and reinstalled.
+Note that installers do not remove bundles from a *different* install location:
+check both the per-user and system-wide
+[OFX plugin directories](installation.md#standard-openfx-plugin-directories).
+
+To identify what is installed without the checker:
+
+```bash
+cat "<bundle>.ofx.bundle/Contents/Resources/aifx-build.txt"
+```
+
+Bundles from 0.2.1 onward carry that file plus a matching `AIFX-BUILD` stamp in
+the binary. **If the file is absent, the bundle predates 0.2.1** and should be
+replaced regardless.
+
+## macOS blocks the installer: "Apple could not verify … is free of malware"
+{: #macos-installer-blocked }
+
+Gatekeeper on macOS 15 (Sequoia) and later refuses apps that are not notarised,
+and the old right-click → **Open** bypass no longer works. If you have an
+unsigned build of the installer, copy it out of the read-only disk image first,
+then clear the quarantine flag:
+
+```bash
+cp -R "/Volumes/AIFX <version>/AIFX Installer.app" /Applications/
+xattr -dr com.apple.quarantine "/Applications/AIFX Installer.app"
+open "/Applications/AIFX Installer.app"
+```
+
+Alternatively, double-click the app, dismiss the warning, then approve it under
+**System Settings → Privacy & Security → Open Anyway**.
+
+Signed and notarised releases do not need any of this.
+
 ## "Connection refused" or "Cannot reach ComfyUI server"
 
 - Confirm ComfyUI is actually running: open `http://<server-ip>:8188/` in a
@@ -44,9 +101,16 @@ at the bottom of this page.
   seen from the ComfyUI server. Both sides must be able to read and write the
   same files.
 - Verify both sides have permission to create subdirectories under the mount.
-- On Windows ComfyUI servers, Server Mount Path must use UNC format
-  (`\\HOST\share`). The plugin handles JSON escaping; you do **not** need to
-  double-escape backslashes yourself.
+- **Write Server Mount Path in the ComfyUI server's own convention.** The
+  plugin picks the separator style from that value: a UNC path
+  (`\\HOST\share`) or drive letter (`Z:\share`) means a Windows server and
+  the submitted paths use backslashes; anything else (`/mnt/share`) means a
+  Linux/macOS server and they use forward slashes. A Linux ComfyUI treats `\`
+  as an ordinary filename character, so a UNC-style value against a Linux
+  server produces `Path not found: \mnt\share\in\…` for every frame. The
+  plugin handles JSON escaping; you do **not** need to double-escape
+  backslashes yourself.
+- Don't leave a trailing `/` or `\` on either mount path.
 
 ## The render hangs forever
 

@@ -41,8 +41,22 @@ organized per operating system.
 
 1. Download `aifx-<version>-macos-installer.dmg` from the latest release and
    double-click it.
-2. Drag **AIFX Installer.app** to wherever you like (or run it directly from
-   the mounted DMG) and launch it.
+2. Copy **AIFX Installer.app** out of the mounted DMG (e.g. to
+   `/Applications`), then clear the download quarantine flag and launch it:
+
+   ```bash
+   cp -R "/Volumes/AIFX <version>/AIFX Installer.app" /Applications/
+   xattr -dr com.apple.quarantine "/Applications/AIFX Installer.app"
+   open "/Applications/AIFX Installer.app"
+   ```
+
+   The installer is not yet signed with an Apple Developer ID, so macOS 15
+   (Sequoia) refuses to launch it directly — *"Apple could not verify 'AIFX
+   Installer.app' is free of malware"*. Neither right-click → **Open** nor the
+   **Open Anyway** button in System Settings is offered for an app with no
+   signature; the command above is the way through. Copying out of the DMG
+   first is required because the mounted volume is read-only. See
+   [Troubleshooting](troubleshooting.md#macos-installer-blocked).
 3. The wizard walks you through:
    - Install location: per-user `~/Library/OFX/Plugins/` (default — no
      password) or system-wide `/Library/OFX/Plugins/`.

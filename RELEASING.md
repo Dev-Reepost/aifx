@@ -10,11 +10,88 @@ you only run the scripts for the platforms whose binaries changed (see
 
 ## Versioning
 
-[Semantic versioning](https://semver.org). The version appears in four places
-that must agree: the git tag (`vMAJOR.MINOR.PATCH`), the top `CHANGELOG.md`
-entry, the **Download vX.Y.Z** link in `docs/index.html`, and the
-`data-version` attribute on the `#aifx-smart-download` button in the same file
-(the OS-detecting hero button builds its installer URLs from it).
+[Semantic versioning](https://semver.org). The version lives in the repo-root
+[`VERSION`](VERSION) file — **that is the single source of truth**, and the
+first step of any release is to edit it.
+
+From there CMake stamps it into every artifact automatically:
+
+- the `.ofx` binary itself (`AIFX-BUILD|version=…`, see `kAifxBuildMarker`)
+- `Contents/Resources/aifx-build.txt` in each bundle
+- `Contents/Info.plist` (`CFBundleVersion`) on macOS
+
+and every `tools/release-*` script reads the same file, refusing to run if an
+explicit version argument disagrees with it.
+
+Four things still have to be updated by hand and must agree with `VERSION`: the
+git tag (`vMAJOR.MINOR.PATCH`), the top `CHANGELOG.md` entry, the
+**Download vX.Y.Z** link in `docs/index.html`, and the `data-version` attribute
+on the `#aifx-smart-download` button in the same file (the OS-detecting hero
+button builds its installer URLs from it).
+
+### Why the artifacts carry their version
+
+Before 0.2.1 every bundle claimed `1.0.0` and the binary carried no stamp, so a
+plugin installed on a workstation was indistinguishable from any other build.
+A pre-0.1.5 macOS bundle — compiled without `OFX_SUPPORTS_OPENGLRENDER`, two
+vtable slots short of the `OfxSupport` archive it was linked against — therefore
+survived unnoticed in `/Library/OFX/Plugins` and kept segfaulting Flare on
+instancing long after the fix had shipped. Identify a bundle in the field with:
+
+```bash
+cat "<bundle>.ofx.bundle/Contents/Resources/aifx-build.txt"
+# or, authoritatively, from the binary:
+strings "<bundle>.ofx.bundle/Contents/MacOS/<name>.ofx" | grep AIFX-BUILD
+```
+
+## Build-time and artifact-time guards
+
+Three layers, each catching what the previous one cannot:
+
+| Layer | Where | Catches |
+|-------|-------|---------|
+| `static_assert` | [`plugins/common/aifx_abi_check.h`](plugins/common/aifx_abi_check.h) | A translation unit whose view of the OpenFX Support ABI (vtable length, render-argument layout) disagrees with the `OfxSupport` archive. **Fails the compile.** |
+| Portability + identity check | `verify_binary_portability()` in [`tools/build-plugin.sh`](tools/build-plugin.sh) | Non-portable load paths/RPATHs, and a bundle whose build stamp is missing or inconsistent. **Fails the build.** |
+| Release gate | `tools/verify-ofx-abi.sh`, called by every `release-*` script | A staged bundle whose stamped version doesn't match the release. **Blocks packaging.** |
+
+`tools/verify-ofx-abi.sh` also runs standalone on a workstation with no build
+tree — it is the tool to reach for when a host crashes on a plugin:
+
+```bash
+tools/verify-ofx-abi.sh                      # scan this OS's OFX plugin dirs
+tools/verify-ofx-abi.sh /Library/OFX/Plugins # or a specific location
+```
+
+For bundles predating the stamp it falls back to measuring the emitted
+`ComfyUI::BasePlugin` vtable, so the known-bad pre-0.1.5 builds are still
+identified.
+
+## Signing the macOS installer
+
+`tools/release-macos-installer.sh` refuses to produce an unsigned or
+non-notarised `.dmg`. On macOS 15 (Sequoia) and later, Gatekeeper blocks such an
+app with *"Apple could not verify 'AIFX Installer.app' is free of malware"* and
+the old right-click → **Open** bypass no longer works, so an unsigned DMG is not
+a shippable artifact.
+
+Set up once:
+
+```bash
+# 1. Install a "Developer ID Application" certificate in the login keychain
+#    (Apple Developer Program membership required), then:
+xcrun notarytool store-credentials AIFX-NOTARY \
+  --apple-id <apple-id> --team-id <team-id> --password <app-specific-password>
+```
+
+Then release with:
+
+```bash
+AIFX_NOTARY_PROFILE=AIFX-NOTARY tools/release-macos-installer.sh
+```
+
+`AIFX_SIGN_IDENTITY` overrides certificate auto-detection. For a local test
+build only, `AIFX_ALLOW_UNSIGNED=1` bypasses both gates — never for a public
+release.
 
 ## Artifacts
 

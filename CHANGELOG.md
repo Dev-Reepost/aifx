@@ -7,6 +7,82 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-08-26
+
+A POSIX ComfyUI server is now supported, plus build hardening and artifact
+identity. macOS binaries only — Windows and Linux still ship the 0.2.0 builds.
+
+### Fixed
+
+- **Paths sent to a Linux/macOS ComfyUI server were unusable.**
+  `convertPathForComfyUI()` rewrote every submitted path to backslashes on the
+  assumption that the ComfyUI box is always a Windows storage server. On a POSIX
+  server a backslash is an ordinary filename character, so every `LoadEXR` /
+  `SaveEXR` node failed with `Path not found:
+  \Volumes\silo2\002_COMFYUI\in\…`. The separator style is now taken from
+  the configured **ComfyUI Server Mount** string itself — UNC (`\\host\share`)
+  or drive letter (`Z:\share`) yields backslashes, anything else yields forward
+  slashes — so the OFX host and ComfyUI can be the same Linux machine, or reach
+  each other across any OS pairing. Trailing separators on either mount are also
+  stripped before splicing, which previously produced a doubled separator
+  mid-path and corrupted UNC prefixes.
+
+### Added
+
+- **Every artifact now identifies itself.** The repo-root `VERSION` file is the
+  single source of truth; CMake stamps it into the `.ofx` binary
+  (`AIFX-BUILD|version=…|ofxabi=…|openfx=…`, greppable with `strings`), into
+  `Contents/Resources/aifx-build.txt`, and into `CFBundleVersion` on macOS.
+  Bundles previously all claimed `1.0.0`, which made a plugin found on a
+  workstation impossible to date — see the Fixed note below.
+- **`tools/verify-ofx-abi.sh`** — validates built or installed bundles: build
+  stamp present, version/ABI tag as expected, and the binary, Resources stamp
+  and `Info.plist` agreeing with each other. Runs with no build tree, so it
+  works on a Flame/Flare workstation; with no arguments it scans that OS's OFX
+  plugin directories. For pre-0.2.1 bundles it falls back to measuring the
+  emitted `ComfyUI::BasePlugin` vtable and flags the known-bad builds.
+- **Compile-time OpenFX ABI guard** (`plugins/common/aifx_abi_check.h`). Every
+  plugin translation unit now static_asserts that its view of the OpenFX Support
+  ABI matches the `OfxSupport` archive it links against — probing the two things
+  `OFX_SUPPORTS_OPENGLRENDER` actually changes (the presence of
+  `ImageEffect::contextAttached`, i.e. vtable length, and the
+  `openGLEnabled` member of the render-argument structs) rather than re-testing
+  the macro name. A regression that drops the definition now fails the compile
+  instead of shipping a bundle that segfaults the host on instancing.
+- Release scripts gate on identity: `release-{macos,linux}.sh` run
+  `verify-ofx-abi.sh` over the staged bundles, `release-windows.ps1` performs
+  the equivalent check natively, and all of them refuse a version argument that
+  disagrees with the `VERSION` file.
+
+### Fixed (build & release tooling)
+
+- **`build-plugin.sh` could package a months-old bundle.** The CMake bundle
+  lookup used `find … | head -1`, and both `build/<type>/<name>.ofx.bundle`
+  (universal-build staging) and `build/<type>/<type>/<name>.ofx.bundle` (plain
+  build) can match. Whichever the filesystem returned first won, so stale output
+  from an earlier universal build could be verified, installed and shipped in
+  place of what was just compiled. The newest candidate no older than the
+  freshly built binary is now selected, and an all-stale set is reported.
+- **`release-macos-installer.sh` no longer produces an unshippable DMG.**
+  Signing and notarisation were optional and silently skipped, and the printed
+  workaround ("right-click → Open") stopped working on macOS 15 (Sequoia), where
+  Gatekeeper blocks the app with *"Apple could not verify … is free of
+  malware"*. The script now fails unless the build is signed **and** notarised;
+  `AIFX_ALLOW_UNSIGNED=1` is available for local test builds only.
+- **The 0.2.0 macOS tarball was a mislabelled copy of 0.1.12.**
+  `aifx-0.2.0-macos-universal.tar.gz` was byte-identical to
+  `aifx-0.1.12-macos-universal.tar.gz` (SHA-256 `eb848850…`) and unpacked into a
+  `AIFX-0.1.12-macos-universal/` directory — the macOS archive was never re-cut
+  for that release. The binaries inside were sound, but the artifact could not
+  be trusted to be what its name claimed. The `VERSION` gate added above makes
+  this specific mismatch impossible: every release script now refuses a version
+  that disagrees with the `VERSION` file, and the packaged bundles are checked
+  to carry a matching stamp before the archive is produced.
+- **`release-macos.sh` deleted the other platforms' artifacts.** It began with
+  `rm -rf dist`, so cutting a macOS release destroyed the Linux and Windows
+  archives sitting alongside it. It now clears only `dist/staging`, matching
+  what `release-linux.sh` and `release-windows.ps1` already did.
+
 ## [0.2.0] - 2026-06-26
 
 Native installers now cover all three platforms — macOS `.dmg` wizard, Windows

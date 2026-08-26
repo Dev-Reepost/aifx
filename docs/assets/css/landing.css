@@ -197,7 +197,9 @@ code {
   letter-spacing: 0.02em;
 }
 .os-pill {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
   padding: 0.3rem 0.85rem;
   font-size: 0.85rem;
   font-weight: 500;
@@ -213,11 +215,44 @@ code {
   border-color: rgba(255, 255, 255, 0.4);
   text-decoration: none;
 }
+/* Per-platform version badge. Releases are cut per platform, so the pills can
+   legitimately show different versions; showing each one avoids implying that
+   every OS is on the newest build. Tabular figures keep the pills from jittering
+   in width as version numbers change. */
+.os-pill-version {
+  font-size: 0.72rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.12);
+}
+.os-pill:hover .os-pill-version,
+.os-pill--current .os-pill-version {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.22);
+}
+
 /* The OS the visitor is on — outlined to mark it as the recommended pick. */
 .os-pill--current {
   color: #ffffff;
   background: rgba(255, 255, 255, 0.18);
   border-color: rgba(255, 255, 255, 0.65);
+}
+
+.hero-download-note {
+  margin: 0.75rem 0 0;
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.55);
+}
+.hero-download-note a {
+  color: rgba(255, 255, 255, 0.85);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.hero-download-note a:hover {
+  color: #ffffff;
 }
 
 .hero-ctas {
