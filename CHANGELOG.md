@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.2.2] - 2026-08-26
 
-Field fixes from the first Flare/macOS deployment. macOS and Linux binaries
-— Windows still ships the 0.2.0 build.
+Field fixes from the first Flare/macOS deployment. All three platforms ship this
+release — the `SaveEXR` fix was never platform-specific.
 
 ### Fixed
 
@@ -58,7 +58,9 @@ Field fixes from the first Flare/macOS deployment. macOS and Linux binaries
 ## [0.2.1] - 2026-08-26
 
 A POSIX ComfyUI server is now supported, plus build hardening and artifact
-identity. macOS and Linux binaries — Windows still ships the 0.2.0 build.
+identity. All three platforms are attached to this release (the Windows
+artifacts were cut last), but take 0.2.2 instead — every 0.2.1 build hits the
+`SaveEXR` bug above and produces no output.
 
 ### Fixed
 
