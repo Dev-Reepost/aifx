@@ -240,12 +240,47 @@ cp -R "$APP_DIR" "$DMG_STAGE/"
 # and exits). Suggesting a drag-to-Applications install would mislead users
 # into thinking the app is meant to live there. Right action is just
 # double-click from the mounted DMG.
+# -fs HFS+ : hdiutil defaults to APFS on a modern build host, and an APFS disk
+# image will not mount on macOS 10.12 or earlier -- with no error dialog, the
+# Finder simply does nothing when you double-click it. HFS+ mounts on every
+# macOS that can run an OFX host, and a read-only installer image gains nothing
+# from APFS. UDZO (zlib) is the standard read-only compressed format.
 hdiutil create -volname "AIFX ${VERSION}" \
-    -srcfolder "$DMG_STAGE" -ov -format UDZO "$DMG_PATH" >/dev/null
+    -srcfolder "$DMG_STAGE" -ov -fs HFS+ -format UDZO "$DMG_PATH" >/dev/null
 rm -rf "$DMG_STAGE"
 
+# Sign, then notarise, the disk image ITSELF.
+#
+# The .app inside was already notarised and stapled above, which is what lets it
+# launch. But the image is a separate code object: Gatekeeper assesses it when
+# the user opens it, and a signed-but-not-notarised image still trips an
+# assessment prompt. Notarising and stapling the DMG means the ticket travels
+# with the file, so the whole chain -- image, then app -- passes offline, on a
+# machine that has never seen it before.
+#
+# Failures here are fatal rather than swallowed: shipping a half-signed image is
+# how an unshippable artifact reached users in the first place.
 if [[ -n "$SIGN_IDENTITY" ]]; then
-    codesign --sign "$SIGN_IDENTITY" "$DMG_PATH" >/dev/null 2>&1 || true
+    echo "    signing disk image…"
+    codesign --force --timestamp --sign "$SIGN_IDENTITY" "$DMG_PATH"
+
+    if [[ -n "${AIFX_NOTARY_PROFILE:-}" ]]; then
+        echo "    submitting disk image for notarisation…"
+        xcrun notarytool submit "$DMG_PATH" \
+            --keychain-profile "$AIFX_NOTARY_PROFILE" --wait
+        xcrun stapler staple "$DMG_PATH"
+        echo "    [OK] disk image notarised + stapled"
+
+        # Prove it end to end: this is the exact assessment the user's Mac runs
+        # when they double-click the image.
+        if spctl -a -vv -t open --context context:primary-signature "$DMG_PATH" 2>&1 | grep -q "accepted"; then
+            echo "    [OK] spctl accepts the disk image"
+        else
+            echo "[ERROR] spctl still rejects the disk image after notarisation:" >&2
+            spctl -a -vv -t open --context context:primary-signature "$DMG_PATH" >&2 2>&1 || true
+            exit 1
+        fi
+    fi
 fi
 
 echo ""

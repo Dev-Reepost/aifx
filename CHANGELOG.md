@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **The macOS installer DMG is now HFS+, not APFS.** `hdiutil create` defaults to
+  APFS on a modern build host, and an APFS disk image will not mount on macOS
+  10.12 or earlier — with no error dialog, the Finder simply does nothing when
+  you double-click it. A read-only installer image gains nothing from APFS.
+
+### Changed
+
+- **`release-macos-installer.sh` now notarises the disk image itself**, not just
+  the app inside it. The app was already notarised and stapled, which is what
+  lets it launch — but the image is a separate code object that Gatekeeper
+  assesses when the user opens it, so a signed-but-unnotarised image still
+  tripped a prompt. Both are now stapled, so the whole chain passes offline on a
+  machine that has never seen the file. The script then runs the same `spctl`
+  assessment the user's Mac will run and fails the build if it is rejected.
+  RELEASING.md documents the full certificate + notarytool setup.
+
+
 ## [0.2.1] - 2026-08-26
 
 A POSIX ComfyUI server is now supported, plus build hardening and artifact

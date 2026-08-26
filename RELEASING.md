@@ -74,24 +74,77 @@ app with *"Apple could not verify 'AIFX Installer.app' is free of malware"* and
 the old right-click → **Open** bypass no longer works, so an unsigned DMG is not
 a shippable artifact.
 
-Set up once:
+### One-time setup
+
+**1. Create a Developer ID Application certificate.** Requires a *paid* Apple
+Developer Program membership and the Account Holder or Admin role — a free Apple
+ID cannot issue one. With Xcode installed, the short path is:
+
+> Xcode → Settings (⌘,) → **Accounts** → sign in → select the team →
+> **Manage Certificates…** → **+** → **Developer ID Application**
+
+If that entry is greyed out or missing, the membership is not active yet
+(enrolment can take a day or two) or the role is insufficient.
+
+Without Xcode, generate a CSR in **Keychain Access → Certificate Assistant →
+Request a Certificate From a Certificate Authority** (save to disk), upload it at
+[developer.apple.com → Certificates, IDs & Profiles → Certificates → **+** →
+Developer ID Application](https://developer.apple.com/account/resources/certificates/list),
+then double-click the downloaded `.cer` to install it.
+
+Verify:
 
 ```bash
-# 1. Install a "Developer ID Application" certificate in the login keychain
-#    (Apple Developer Program membership required), then:
-xcrun notarytool store-credentials AIFX-NOTARY \
-  --apple-id <apple-id> --team-id <team-id> --password <app-specific-password>
+security find-identity -p codesigning -v | grep "Developer ID Application"
+# 1) ABC123… "Developer ID Application: Your Name (TEAMID1234)"
 ```
 
-Then release with:
+**2. Store notarisation credentials.** You need the 10-character Team ID (the
+parenthesised part of the identity above, or Membership details in the portal)
+and an **app-specific password** — generate one at
+[account.apple.com → Sign-In and Security → App-Specific Passwords](https://account.apple.com/account/manage).
+Your normal Apple ID password will not work.
+
+```bash
+xcrun notarytool store-credentials AIFX-NOTARY \
+  --apple-id <your-apple-id-email> \
+  --team-id <TEAMID1234> \
+  --password <xxxx-xxxx-xxxx-xxxx>
+```
+
+This writes the credentials into the login keychain once; nothing else needs the
+password again.
+
+### Cutting a signed release
 
 ```bash
 AIFX_NOTARY_PROFILE=AIFX-NOTARY tools/release-macos-installer.sh
 ```
 
+The script signs the seven embedded `.ofx` binaries, then the installer
+executable, then the `.app` (hardened runtime + timestamp), notarises and staples
+the app, builds the DMG, then signs, notarises and staples the **image itself**.
+Both are needed: the stapled app is what launches, the stapled image is what the
+Finder assesses when the user double-clicks. The final step runs the same
+`spctl` assessment the user's Mac will run and fails the build if it is rejected.
+
+Notarisation takes a few minutes; `--wait` blocks until Apple answers.
+
 `AIFX_SIGN_IDENTITY` overrides certificate auto-detection. For a local test
 build only, `AIFX_ALLOW_UNSIGNED=1` bypasses both gates — never for a public
 release.
+
+### After a signed release supersedes an unsigned one
+
+Replace the published asset and drop the workaround from the docs:
+
+```bash
+gh release upload v<version> dist/aifx-<version>-macos-installer.dmg --clobber
+```
+
+Then remove the "Known issue — macOS blocks the installer" section from the
+release notes, the `#aifx-macos-note` block in `docs/index.html`, and the
+quarantine step in `docs/installation.md`.
 
 ## Artifacts
 
