@@ -101,6 +101,13 @@ done
 
 cp -R build/Release/*.ofx.bundle "$STAGE/"
 
+# Ship the terminal installer alongside the bundles. It is the way in for anyone
+# who cannot run the .app: the installer is not signed with an Apple Developer
+# ID, so macOS 15+ refuses to launch it outright, while a script invoked from a
+# terminal is never gatekeeper-assessed. Same prompts, same defaults.json keys.
+cp "$REPO_ROOT/tools/install-posix.sh" "$STAGE/install.sh"
+chmod +x "$STAGE/install.sh"
+
 cat > "$STAGE/README.txt" <<EOF
 AIFX ${VERSION} -- macOS Universal (arm64 + x86_64)
 ====================================================
@@ -108,17 +115,34 @@ AIFX ${VERSION} -- macOS Universal (arm64 + x86_64)
 This archive contains seven OpenFX plugin bundles built for macOS as
 universal binaries (Apple Silicon + Intel).
 
-To install:
+Recommended -- run the installer script:
+
+  ./install.sh              (per-user)
+  ./install.sh --system     (all users -- required for Flame and Flare)
+
+  It asks for your ComfyUI site config (server URL, mount paths), writes it
+  into each plugin, copies the bundles into place and clears the macOS
+  quarantine flag. For unattended rollout see ./install.sh --help.
+
+  This script is also the way in if the .dmg wizard will not launch: that
+  app is not signed with an Apple Developer ID, so macOS 15 and later refuse
+  to open it. A script run from a terminal is never checked by Gatekeeper.
+
+Manual install (if you'd rather wire it by hand):
 
   1. Copy every *.ofx.bundle directory in this archive into the standard
      OFX plugin directory for macOS:
 
-       ~/Library/OFX/Plugins/        (this user only -- recommended)
-       /Library/OFX/Plugins/         (all users on this machine)
+       /Library/OFX/Plugins/         (all users -- REQUIRED for Flame/Flare,
+                                      which do not scan the per-user path)
+       ~/Library/OFX/Plugins/        (this user only -- Nuke, Resolve, Fusion)
 
-  2. If macOS quarantines a bundle (downloaded-from-internet warning):
+  2. Clear the downloaded-from-internet quarantine flag:
 
-       xattr -dr com.apple.quarantine '<path>/<Plugin>.ofx.bundle'
+       find '<path>/<Plugin>.ofx.bundle' -exec xattr -d com.apple.quarantine {} \\; 2>/dev/null
+
+     (Do not use "xattr -dr": macOS 26 removed the -r flag, and the command
+     fails without clearing anything.)
 
   3. Restart your OFX host (Flame, Nuke, Resolve, Fusion, ...).
      Plugins appear under the AIFX category in the effect/filter browser.

@@ -2,30 +2,39 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright AIFX contributors.
 #
-# AIFX Linux installer. The terminal counterpart to the macOS SwiftUI wizard
-# (installer/macos): it walks the operator through the same choices —
+# AIFX terminal installer for Linux and macOS. It walks the operator through the
+# same choices as the macOS SwiftUI wizard (installer/macos) —
 #   1. install location (per-user vs system-wide)
 #   2. site configuration (ComfyUI server URL + the two mount-path views)
 #   3. install (rewrite each bundle's defaults.json, copy into place)
 # — but as a script, so it also drops cleanly into headless / multi-workstation
 # rollout (Ansible, SSH, render-farm provisioning) via its --non-interactive
-# flags. Linux has no portable native GUI toolkit and our audience already
-# lives in a terminal, so a robust script beats a GUI here.
+# flags. Linux has no portable native GUI toolkit and our audience already lives
+# in a terminal, so a robust script beats a GUI there.
+#
+# On macOS it is also the way around Gatekeeper. The installer .app is not
+# signed with an Apple Developer ID, so macOS 15+ refuses to launch it at all
+# ("Apple could not verify ... is free of malware") and offers no bypass. A
+# script run from a terminal is never gatekeeper-assessed, so this path works
+# with no certificate and no per-machine xattr dance.
+#
+# Targets bash 3.2 — macOS still ships that at /bin/bash. No mapfile, no
+# associative arrays, no ${var,,}.
 #
 # Ship this file *inside* the release tarball, alongside the seven
 # *.ofx.bundle directories: run it from the extracted archive with no path
 # arguments and it installs the sibling bundles.
 #
 # Usage:
-#   ./install-linux.sh                       # interactive, per-user install
-#   ./install-linux.sh --system              # interactive, system-wide (sudo)
-#   ./install-linux.sh --yes \                # fully non-interactive
+#   ./install.sh                       # interactive, per-user install
+#   ./install.sh --system              # interactive, system-wide (sudo)
+#   ./install.sh --yes \                # fully non-interactive
 #       --server comfyui.example.local --port 8188 \
 #       --local-mount /mnt/silo/AIFX \
 #       --server-mount '\\COMFYUI-HOST\silo\AIFX' \
 #       --timeout 600
-#   ./install-linux.sh --keep-defaults --yes # copy only, leave bundled config
-#   ./install-linux.sh --prefix /opt/OFX/Plugins   # explicit target dir
+#   ./install.sh --keep-defaults --yes # copy only, leave bundled config
+#   ./install.sh --prefix /opt/OFX/Plugins   # explicit target dir
 #
 # The defaults.json keys written here mirror exactly what the current plugin
 # code reads (plugins/common/comfyui_base_plugin.cpp): server.serverAddress,
@@ -40,7 +49,7 @@ SCOPE="user"                 # user | system
 PREFIX=""                    # explicit override of the install dir
 SERVER_ADDRESS="127.0.0.1"
 SERVER_PORT=8188
-LOCAL_MOUNT="/mnt/comfyui-share"          # THIS Linux box's view of the share
+LOCAL_MOUNT=""                            # THIS box's view of the share (per-OS default below)
 SERVER_MOUNT='\\COMFYUI-HOST\share'       # the ComfyUI server's view (UNC)
 TIMEOUT=600
 ENABLE_PROCESSING=false
@@ -48,9 +57,39 @@ KEEP_DEFAULTS=false
 ASSUME_YES=false
 REQUIRED_GLIBC="2.34"
 
-# Standard OFX plugin directories on Linux (see docs/installation.md).
-SYSTEM_DIR="/usr/OFX/Plugins"
-USER_DIR="${HOME}/OFX/Plugins"
+# --- Platform ---------------------------------------------------------------
+#
+# One script for Linux and macOS. On macOS it also replaces the SwiftUI wizard
+# for anyone who cannot get past Gatekeeper: the installer .app is not signed
+# with an Apple Developer ID, so macOS refuses to launch it, whereas a script
+# invoked from a terminal is never gatekeeper-assessed. Same prompts, same
+# defaults.json keys, no code-signing required.
+case "$(uname -s)" in
+    Darwin)
+        AIFX_OS="macos"
+        OS_LABEL="macOS"
+        # Standard OFX plugin directories on macOS (see docs/installation.md).
+        # NOTE: Autodesk Flame and Flare only scan the system-wide directory.
+        SYSTEM_DIR="/Library/OFX/Plugins"
+        USER_DIR="${HOME}/Library/OFX/Plugins"
+        DEFAULT_LOCAL_MOUNT="/Volumes/comfyui-share"
+        ;;
+    Linux)
+        AIFX_OS="linux"
+        OS_LABEL="Linux"
+        # Standard OFX plugin directories on Linux (see docs/installation.md).
+        # NOTE: Flame scans /usr/OFX/Plugins only.
+        SYSTEM_DIR="/usr/OFX/Plugins"
+        USER_DIR="${HOME}/OFX/Plugins"
+        DEFAULT_LOCAL_MOUNT="/mnt/comfyui-share"
+        ;;
+    *)
+        echo "install-posix.sh supports Linux and macOS; this is $(uname -s)." >&2
+        echo "On Windows use tools/release-windows-installer.ps1's .exe wizard." >&2
+        exit 1
+        ;;
+esac
+: "${LOCAL_MOUNT:=$DEFAULT_LOCAL_MOUNT}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -87,13 +126,17 @@ done
 
 # --- Locate the bundles ------------------------------------------------------
 # Bundles sit next to this script when run from the extracted tarball.
-mapfile -t BUNDLES < <(find "$SCRIPT_DIR" -maxdepth 1 -type d -name '*.ofx.bundle' | sort)
+# NOT mapfile: that is a bash 4 builtin and macOS still ships bash 3.2 at
+# /bin/bash, where it silently does not exist. This loop is portable to both.
+BUNDLES=()
+while IFS= read -r _b; do BUNDLES+=("$_b"); done < <(
+    find "$SCRIPT_DIR" -maxdepth 1 -type d -name '*.ofx.bundle' | sort)
 [[ ${#BUNDLES[@]} -gt 0 ]] || die "No *.ofx.bundle directories found next to this script ($SCRIPT_DIR).
-        Run install-linux.sh from inside the extracted release archive."
+        Run install.sh from inside the extracted release archive."
 
-printf '%sAIFX Linux installer%s  —  %d plugin bundle(s) found\n' "$c_bold" "$c_off" "${#BUNDLES[@]}"
+printf '%sAIFX %s installer%s  —  %d plugin bundle(s) found\n' "$c_bold" "$OS_LABEL" "$c_off" "${#BUNDLES[@]}"
 
-# --- Preflight: glibc floor --------------------------------------------------
+# --- Preflight: glibc floor (Linux only) -------------------------------------
 # The prebuilt .ofx require glibc >= 2.34 (Ubuntu 22.04+, Debian 12+, RHEL 9+).
 # Warn rather than abort: the user may know better, and it's only the prebuilt
 # binaries that care — not the install mechanics.
@@ -107,8 +150,11 @@ detect_glibc() {
     fi
     printf '%s' "$v"
 }
-GLIBC_VERSION="$(detect_glibc)"
-if [[ -n "$GLIBC_VERSION" ]]; then
+GLIBC_VERSION=""
+[[ "$AIFX_OS" == "linux" ]] && GLIBC_VERSION="$(detect_glibc)"
+if [[ "$AIFX_OS" != "linux" ]]; then
+    :   # macOS: no glibc floor to check.
+elif [[ -n "$GLIBC_VERSION" ]]; then
     if [[ "$(printf '%s\n%s\n' "$REQUIRED_GLIBC" "$GLIBC_VERSION" | sort -V | head -1)" != "$REQUIRED_GLIBC" ]]; then
         warn "This host has glibc ${GLIBC_VERSION}; the prebuilt plugins need >= ${REQUIRED_GLIBC}."
         warn "They will fail to load. Build from source instead — see docs/installation.md."
@@ -160,7 +206,7 @@ if ! $ASSUME_YES; then
         step "Site configuration  ${c_dim}(written into each plugin's defaults.json)${c_off}"
         prompt SERVER_ADDRESS "ComfyUI server address (host or IP)" "$SERVER_ADDRESS"
         prompt SERVER_PORT    "ComfyUI server port"                 "$SERVER_PORT"
-        prompt LOCAL_MOUNT    "Shared folder as THIS Linux box sees it" "$LOCAL_MOUNT"
+        prompt LOCAL_MOUNT    "Shared folder as THIS $OS_LABEL machine sees it" "$LOCAL_MOUNT"
         prompt SERVER_MOUNT   "Shared folder as the ComfyUI SERVER sees it (UNC)" "$SERVER_MOUNT"
         prompt TIMEOUT        "Per-job timeout (seconds)"           "$TIMEOUT"
         read -rp "    Enable processing by default? [y/N] " e || true
@@ -206,6 +252,7 @@ patch_defaults() {
     AIFX_SERVER="$SERVER_ADDRESS" AIFX_PORT="$SERVER_PORT" \
     AIFX_LOCAL="$LOCAL_MOUNT" AIFX_SERVERMOUNT="$SERVER_MOUNT" \
     AIFX_TIMEOUT="$TIMEOUT" AIFX_ENABLE="$ENABLE_PROCESSING" \
+    AIFX_OS="$AIFX_OS" \
     python3 - "$file" <<'PY'
 import json, os, sys
 path = sys.argv[1]
@@ -217,7 +264,7 @@ storage = d.setdefault("storage", {})
 lmp = storage.setdefault("localMountPath", {})
 if not isinstance(lmp, dict):           # tolerate the legacy scalar form
     lmp = {}; storage["localMountPath"] = lmp
-lmp["linux"] = os.environ["AIFX_LOCAL"]
+lmp[os.environ["AIFX_OS"]] = os.environ["AIFX_LOCAL"]
 storage["serverMountPath"] = os.environ["AIFX_SERVERMOUNT"]
 controls = d.setdefault("controls", {})
 controls["timeout"] = int(os.environ["AIFX_TIMEOUT"])
@@ -254,6 +301,17 @@ for bundle in "${BUNDLES[@]}"; do
         $SUDO rm -rf "$target"
         $SUDO cp -R "$bundle" "$target"
     fi
+    # macOS tags anything that arrived via a browser with com.apple.quarantine,
+    # and the flag is inherited by every file extracted from the archive. An OFX
+    # host dlopen()ing a quarantined bundle can be refused, so strip it. No-op
+    # on Linux, where the attribute does not exist.
+    # NOT `xattr -dr`: macOS 26 dropped the -r flag, so that form exits 64 and
+    # silently clears nothing. find(1) does the recursion instead. The per-file
+    # "No such xattr" for unmarked files is expected, hence 2>/dev/null.
+    if [[ "$AIFX_OS" == "macos" ]]; then
+        $SUDO find "$target" -exec xattr -d com.apple.quarantine {} \; 2>/dev/null || true
+    fi
+
     ok "$name"
 done
 

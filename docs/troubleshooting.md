@@ -19,7 +19,8 @@ at the bottom of this page.
 - Check that the bundle's `Contents/<arch>/` directory contains a `.ofx`
   shared library and that the host's CPU architecture matches.
 - On macOS, if the bundle was downloaded from the internet, run
-  `xattr -dr com.apple.quarantine /path/to/Plugin.ofx.bundle` to clear the
+  `find /path/to/Plugin.ofx.bundle -exec xattr -d com.apple.quarantine {} \;`
+  to clear the
   quarantine bit.
 - Check the host's plugin loading log if it has one (most hosts do).
 
@@ -71,7 +72,7 @@ then clear the quarantine flag:
 
 ```bash
 cp -R "/Volumes/AIFX <version>/AIFX Installer.app" /Applications/
-xattr -dr com.apple.quarantine "/Applications/AIFX Installer.app"
+find "/Applications/AIFX Installer.app" -exec xattr -d com.apple.quarantine {} \; 2>/dev/null
 open "/Applications/AIFX Installer.app"
 ```
 

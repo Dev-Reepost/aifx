@@ -347,7 +347,12 @@ final class InstallerEngine: ObservableObject {
 
         // Best-effort: a bundle that keeps the quarantine flag still loads in
         // every OFX host we target, so this must not abort the install.
-        _ = try? run("/usr/bin/xattr", ["-dr", "com.apple.quarantine", dst.path])
+        //
+        // NOT `xattr -dr`: macOS 26 removed the -r flag, so that invocation
+        // exits 64 having cleared nothing — and because this call is
+        // best-effort, it failed silently. find(1) supplies the recursion.
+        _ = try? run("/usr/bin/find", [dst.path, "-exec", "/usr/bin/xattr",
+                                       "-d", "com.apple.quarantine", "{}", ";"])
         return lines
     }
 

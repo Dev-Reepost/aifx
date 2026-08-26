@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-08-26
+
+A terminal installer for macOS, so no Apple Developer ID is needed to deploy.
+
+### Added
+
+- **`install.sh` now ships in the macOS tarball too.** The Linux installer
+  script has been generalised to `tools/install-posix.sh` and covers both
+  systems: same prompts, same `defaults.json` keys, per-OS install directories
+  and mount-path defaults. On macOS it is the way around Gatekeeper — the `.app`
+  wizard is unsigned, so macOS 15+ refuses to launch it and offers no bypass,
+  whereas **a script invoked from a terminal is never gatekeeper-assessed**. No
+  certificate, no per-machine workaround.
+  `./install.sh --system` targets `/Library/OFX/Plugins`, the only location
+  Flame and Flare scan.
+
+### Fixed
+
+- **Quarantine was never actually cleared on macOS.** Every de-quarantine call —
+  in the SwiftUI installer, in the docs, in the release READMEs — used
+  `xattr -dr`. **macOS 26 removed the `-r` flag**, so the command exits 64
+  having cleared nothing; in the installer the call was best-effort, so it
+  failed silently. All call sites now use
+  `find <path> -exec xattr -d com.apple.quarantine {} \;`, which is verified to
+  clear the flag recursively.
+- The Linux installer script used `mapfile`, a bash 4 builtin. macOS still ships
+  bash 3.2 at `/bin/bash`, where it does not exist — the script would have died
+  on the first bundle lookup. Replaced with a portable read loop.
+
+
 ## [0.2.2] - 2026-08-26
 
 Field fixes from the first Flare/macOS deployment. All three platforms ship this

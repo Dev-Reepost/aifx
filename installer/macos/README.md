@@ -35,7 +35,7 @@ Optional signing + notarisation: set `AIFX_SIGN_IDENTITY` (a *Developer ID
 Application* identity) and/or `AIFX_NOTARY_PROFILE` (a stored
 `notarytool` credential). With neither set the script skips both cleanly and
 end users get a Gatekeeper warning on first launch (right-click → **Open**, or
-`xattr -dr com.apple.quarantine '/path/to/AIFX Installer.app'`).
+`find '/path/to/AIFX Installer.app' -exec xattr -d com.apple.quarantine {} \;`).
 
 ## The config schema
 

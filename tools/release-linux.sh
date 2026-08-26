@@ -174,8 +174,8 @@ done
 # Ship the installer script alongside the bundles. Run from the extracted
 # archive, it installs the sibling *.ofx.bundle dirs and bakes site config into
 # each plugin's defaults.json -- the terminal counterpart to the macOS wizard.
-cp "$REPO_ROOT/tools/install-linux.sh" "$STAGE/install-linux.sh"
-chmod +x "$STAGE/install-linux.sh"
+cp "$REPO_ROOT/tools/install-posix.sh" "$STAGE/install.sh"
+chmod +x "$STAGE/install.sh"
 
 cat > "$STAGE/README.txt" <<EOF
 AIFX ${VERSION} -- Linux ${ARCH}
@@ -185,12 +185,12 @@ This archive contains seven OpenFX plugin bundles built for Linux ${ARCH}.
 
 Recommended -- run the installer:
 
-  ./install-linux.sh
+  ./install.sh
 
   It walks you through the install location and your ComfyUI site config
   (server URL, mount paths), writes that config into each plugin, and copies
   the bundles into place. For unattended rollout use the flags it prints with
-  --help (e.g. ./install-linux.sh --yes --server <host> --local-mount <path>).
+  --help (e.g. ./install.sh --yes --server <host> --local-mount <path>).
 
 Manual install (if you'd rather wire it by hand):
 

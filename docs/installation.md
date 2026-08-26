@@ -46,7 +46,7 @@ organized per operating system.
 
    ```bash
    cp -R "/Volumes/AIFX <version>/AIFX Installer.app" /Applications/
-   xattr -dr com.apple.quarantine "/Applications/AIFX Installer.app"
+   find "/Applications/AIFX Installer.app" -exec xattr -d com.apple.quarantine {} \; 2>/dev/null
    open "/Applications/AIFX Installer.app"
    ```
 
@@ -77,19 +77,31 @@ organized per operating system.
 
 The installer is unsigned in v0.1.x. On first launch macOS will ask you to
 confirm — right-click → **Open**, or run
-`xattr -dr com.apple.quarantine '/path/to/AIFX Installer.app'`. A signed +
+`find '/path/to/AIFX Installer.app' -exec xattr -d com.apple.quarantine {} \;`. A signed +
 notarised installer is planned for a follow-up patch release.
 
 ### macOS (manual: the tarball)
 
 If you'd rather wire everything by hand (or you're scripting deployment),
-download `aifx-<version>-macos-universal.tar.gz` instead and follow the
-same steps as the Windows / Linux paths below: extract, move the seven
-`.ofx.bundle` directories into your OFX plugin directory, clear the
-quarantine bit with `xattr -dr com.apple.quarantine
-~/Library/OFX/Plugins/*.ofx.bundle`, restart your host, and override the
-bundled `defaults.json` per the [Configuration & defaults](configuration.md)
-guide.
+download `aifx-<version>-macos-universal.tar.gz` instead. From v0.2.3 it
+ships an `install.sh` that does the whole job — same prompts as the wizard,
+same `defaults.json` keys, and **never blocked by Gatekeeper**, because a
+script run from a terminal is not gatekeeper-assessed the way an app launch
+is:
+
+```bash
+tar xzf aifx-<version>-macos-universal.tar.gz
+cd AIFX-<version>-macos-universal
+./install.sh --system      # /Library/OFX/Plugins — required for Flame / Flare
+./install.sh               # ~/Library/OFX/Plugins — Nuke, Resolve, Fusion
+```
+
+Run `./install.sh --help` for the non-interactive flags used in fleet
+rollouts. To wire it by hand instead, extract, move the seven `.ofx.bundle`
+directories into your OFX plugin directory, clear the quarantine bit with
+`find ~/Library/OFX/Plugins -exec xattr -d com.apple.quarantine {} \;
+2>/dev/null`, restart your host, and override the bundled `defaults.json`
+per the [Configuration & defaults](configuration.md) guide.
 
 ### Windows (recommended: the installer)
 
