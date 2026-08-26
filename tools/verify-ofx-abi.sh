@@ -95,8 +95,23 @@ find_binary() {
 }
 
 # Read the AIFX-BUILD marker out of a binary. Empty if the build predates it.
+#
+# Two extraction paths because this script has to run on a Flame workstation as
+# well as a build host: `strings` is binutils on Linux and part of the Xcode
+# command-line tools on macOS, and neither is guaranteed present. `grep -a`
+# treats a binary as text and is in every base install, so it is the fallback.
+# (`strings -` means "scan the whole file" on both BSD and GNU strings; the
+# marker lives in read-only data, not a scanned-by-default section on every
+# platform.)
 read_marker() {
-    strings - "$1" 2>/dev/null | grep -m1 '^AIFX-BUILD|' || true
+    local out=""
+    if command -v strings >/dev/null 2>&1; then
+        out=$(strings - "$1" 2>/dev/null | grep -m1 '^AIFX-BUILD|' || true)
+    fi
+    if [[ -z "$out" ]]; then
+        out=$(LC_ALL=C grep -ao 'AIFX-BUILD|[!-~]*' "$1" 2>/dev/null | head -1 || true)
+    fi
+    printf '%s' "$out"
 }
 
 marker_field() { sed -n "s/.*|$2=\([^|]*\).*/\1/p" <<<"$1"; }

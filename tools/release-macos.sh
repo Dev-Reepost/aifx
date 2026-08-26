@@ -76,8 +76,9 @@ done
 # workstation is what turned a fixed crash into a month-long field bug.
 echo ""
 echo "==> Verifying build identity + OFX ABI..."
-./tools/verify-ofx-abi.sh --expect-version "$VERSION" \
-    $(printf 'build/Release/%s.ofx.bundle ' "${TARGETS[@]}")
+_bundles=()
+for target in "${TARGETS[@]}"; do _bundles+=("build/Release/${target}.ofx.bundle"); done
+./tools/verify-ofx-abi.sh --expect-version "$VERSION" "${_bundles[@]}"
 
 echo ""
 echo "==> Packaging..."
