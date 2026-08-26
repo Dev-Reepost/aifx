@@ -15,6 +15,7 @@
  * These tests validate the core logic independently.
  */
 
+#include "comfyui_base_plugin.h"
 #include "comfyui_image_io.h"
 #include <nlohmann/json.hpp>
 #include <iostream>
@@ -412,6 +413,62 @@ bool test_error_message_format() {
     }
 }
 
+bool test_server_path_conversion() {
+    std::cout << "\n[TEST] server_path_conversion" << std::endl;
+
+    // The ComfyUI server may run on Windows (UNC / drive letter) or on POSIX.
+    // A Linux ComfyUI treats '\' as an ordinary filename character, so the
+    // separator style must follow the configured server mount, not the OS this
+    // plugin was built for.
+    struct MountCase {
+        const char* mount;
+        bool windows;
+    };
+    const MountCase mountCases[] = {
+        {"\\\\192.168.1.110\\silo2\\002_COMFYUI", true},   // UNC share
+        {"Z:\\share", true},                               // drive letter, backslash
+        {"D:/share", true},                                // drive letter, forward slash
+        {"/Volumes/silo2/002_COMFYUI", false},             // macOS mount
+        {"/mnt/comfyui-share", false},                     // Linux mount
+        {"", false},                                       // unset
+    };
+    for (const auto& c : mountCases) {
+        if (isWindowsStylePath(c.mount) != c.windows) {
+            std::cerr << "  ✗ Wrong path style for mount '" << c.mount << "'" << std::endl;
+            return false;
+        }
+    }
+
+    // Trailing separators on a mount would splice into a doubled separator.
+    if (stripTrailingSeparators("/Volumes/silo2/") != "/Volumes/silo2" ||
+        stripTrailingSeparators("\\\\host\\share\\") != "\\\\host\\share" ||
+        stripTrailingSeparators("/mnt/share") != "/mnt/share") {
+        std::cerr << "  ✗ stripTrailingSeparators failed" << std::endl;
+        return false;
+    }
+
+    // A POSIX server must keep forward slashes; a Windows server gets backslashes.
+    const std::string posixPath = "/mnt/silo2/in/projects/006_OFX_TESTING/v001/shot01";
+    if (normalizeSeparators(posixPath, false) != posixPath) {
+        std::cerr << "  ✗ POSIX server path was rewritten: "
+                  << normalizeSeparators(posixPath, false) << std::endl;
+        return false;
+    }
+    if (normalizeSeparators("\\\\host\\share\\in/projects/shot01", false) !=
+        "//host/share/in/projects/shot01") {
+        std::cerr << "  ✗ Backslashes not converted for a POSIX server" << std::endl;
+        return false;
+    }
+    if (normalizeSeparators("\\\\host\\share/in/projects/shot01", true) !=
+        "\\\\host\\share\\in\\projects\\shot01") {
+        std::cerr << "  ✗ Forward slashes not converted for a Windows server" << std::endl;
+        return false;
+    }
+
+    std::cout << "  ✓ Server path style follows the server mount, not the build OS" << std::endl;
+    return true;
+}
+
 // ============================================================================
 // Main Test Runner
 // ============================================================================
@@ -437,7 +494,8 @@ int main() {
         {"workflow_json_structure", test_workflow_json_structure},
         {"dimension_mismatch_detection", test_dimension_mismatch_detection},
         {"bit_depth_conversion", test_bit_depth_conversion},
-        {"error_message_format", test_error_message_format}
+        {"error_message_format", test_error_message_format},
+        {"server_path_conversion", test_server_path_conversion}
     };
 
     for (const auto& test : tests) {

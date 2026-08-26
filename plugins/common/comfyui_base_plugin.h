@@ -11,6 +11,7 @@
 #include <nlohmann/json.hpp>
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
+#include <algorithm>
 #include <memory>
 #include <mutex>
 #include <map>
@@ -76,6 +77,63 @@ inline bool isAbsolutePath(const std::string& path)
     }
 #endif
     return false;
+}
+
+/**
+ * @brief Does this path use Windows conventions (UNC or drive letter)?
+ *
+ * Used to decide which separator the ComfyUI server expects. The decision is
+ * made from the configured server mount string, NOT from the OS this plugin
+ * was built for: the ComfyUI box can run Windows (UNC "\\\\server\\share" or
+ * "D:\\share") or POSIX ("/mnt/share"), independently of the host running the
+ * plugin. Anything that is not UNC/drive-letter is treated as POSIX.
+ */
+inline bool isWindowsStylePath(const std::string& path)
+{
+    if (path.empty()) {
+        return false;
+    }
+    // UNC share, e.g. "\\\\server\\share".
+    if (path.size() >= 2 && path[0] == '\\' && path[1] == '\\') {
+        return true;
+    }
+    // Drive-letter path, e.g. "D:\\share" or "D:/share" (and bare "D:").
+    if (path.size() >= 2 && std::isalpha(static_cast<unsigned char>(path[0])) && path[1] == ':') {
+        return true;
+    }
+    return false;
+}
+
+/**
+ * @brief Normalise all separators in a path to the given server convention.
+ *
+ * Windows accepts forward slashes in most APIs but ComfyUI custom nodes hand
+ * the string straight to os.path / open(), so a POSIX server chokes on
+ * backslashes (they become literal filename characters) and a Windows server
+ * on a mixed UNC prefix. Convert wholesale, in whichever direction applies.
+ */
+inline std::string normalizeSeparators(const std::string& path, bool windowsStyle)
+{
+    std::string out = path;
+    std::replace(out.begin(), out.end(), windowsStyle ? '/' : '\\', windowsStyle ? '\\' : '/');
+    return out;
+}
+
+/**
+ * @brief Strip trailing '/' and '\\' separators from a mount path.
+ *
+ * Mount paths are spliced onto '/'-prefixed relative paths; a trailing
+ * separator on either mount yields a doubled separator ("//" or "\\\\") in the
+ * middle of the result, which a POSIX server tolerates but a Windows one
+ * rejects (and which turns a UNC prefix into nonsense).
+ */
+inline std::string stripTrailingSeparators(const std::string& path)
+{
+    size_t end = path.size();
+    while (end > 0 && (path[end - 1] == '/' || path[end - 1] == '\\')) {
+        --end;
+    }
+    return path.substr(0, end);
 }
 
 /**

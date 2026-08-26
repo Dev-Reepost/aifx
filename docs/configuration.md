@@ -116,9 +116,11 @@ this surfaces in the **Storage Mounts** group of the parameter panel as
 **Local Storage Mount** and **ComfyUI Server Mount**:
 
 - `serverMountPath` — the shared storage as mounted on the **ComfyUI
-  server** (typically a Windows box, so a UNC path). This is the path
-  written into the workflow sent to ComfyUI: its `LoadEXR` / `SaveEXR`
-  nodes read inputs and write outputs through it.
+  server**: a UNC path (`\\\\HOSTNAME\\share`) or drive letter (`Z:\\share`)
+  if ComfyUI runs on Windows, a POSIX path (`/mnt/share`) if it runs on
+  Linux or macOS. This is the path written into the workflow sent to
+  ComfyUI: its `LoadEXR` / `SaveEXR` nodes read inputs and write outputs
+  through it.
 - `localMountPath` — the shared storage as mounted on **this host**, used
   for the plugin's own EXR I/O. Because a plugin bundle only ever runs on
   the OS it was built for, this is given as an object keyed by OS
@@ -127,9 +129,13 @@ this surfaces in the **Storage Mounts** group of the parameter panel as
   field blank at runtime, the plugin falls back to `serverMountPath` (use
   this when the host reaches the storage at the same path as the server).
 
-At submit time the plugin rewrites the local path into the server view
-(swapping the local-mount prefix for the server-mount prefix, with
-backslashes) and that is what ComfyUI receives.
+At submit time the plugin rewrites the local path into the server view —
+swapping the local-mount prefix for the server-mount prefix — and that is
+what ComfyUI receives. The separator style is taken from
+`serverMountPath` itself: a UNC or drive-letter value yields backslashes,
+anything else yields forward slashes. A Linux ComfyUI treats `\` as an
+ordinary filename character, so getting this wrong makes every path
+unresolvable; set `serverMountPath` in the server's own convention.
 
 UNC paths use **doubled backslashes** in JSON (`\\\\HOSTNAME\\share`) —
 each `\` is escaped, so `\\\\` in the file becomes a literal `\\` on the
@@ -407,6 +413,40 @@ seeds its **Local Storage Mount** default from the matching entry.
 (`serverMountPath` is the path ComfyUI itself uses to read inputs and
 write outputs; the **Local Storage Mount** is what each client machine
 uses for its own local I/O.)
+
+### Studio with a Linux ComfyUI / storage server
+
+The Flare/Flame host and ComfyUI can share one Linux box (the fastest
+setup — no network hop for the EXRs), or clients can reach a Linux server
+over a mounted share. Either way `serverMountPath` is a POSIX path, and
+the plugin submits forward-slash paths to ComfyUI.
+
+```jsonc
+{
+  "server": {
+    "serverAddress":   "127.0.0.1",
+    "serverPort":      8188
+  },
+  "storage": {
+    "serverMountPath": "/mnt/comfy-share",
+    "localMountPath": {
+      "macos":         "/Volumes/comfy-share",
+      "windows":       "\\\\HOSTNAME\\comfy-share",
+      "linux":         "/mnt/comfy-share"
+    }
+  },
+  "controls": {
+    "enableProcessing": false,
+    "enableCache":      true,
+    "timeout":          600,
+    "asyncMode":        1,
+    "placeholderMode":  1
+  }
+}
+```
+
+If the plugin and ComfyUI run on the same Linux machine, set the two to
+the same path (or leave **Local Storage Mount** blank).
 
 ## What NOT to change
 

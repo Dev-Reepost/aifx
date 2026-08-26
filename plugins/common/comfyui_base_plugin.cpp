@@ -2084,18 +2084,30 @@ std::string BasePlugin::getLocalMountPath() const
 std::string BasePlugin::convertPathForComfyUI(const std::string& localPath)
 {
     // Rewrite a path from THIS machine's mount namespace into the ComfyUI
-    // server's namespace. The ComfyUI box is the Windows storage server, so the
-    // server mount is always the Windows view and the result uses backslashes.
-    // Example: /mnt/comfyui-share/in/x  ->  \\HOSTNAME\share\in\x
+    // server's namespace. The ComfyUI box is NOT necessarily Windows: it may be
+    // a Windows storage server (UNC / drive letter) or a Linux/macOS box — and
+    // the OFX host and ComfyUI can even be the same Linux machine. So the
+    // separator style must follow the configured server mount, never the platform
+    // this plugin was built for.
+    //   Windows server: /mnt/comfyui-share/in/x  ->  \\HOSTNAME\share\in\x
+    //   POSIX server:   /Volumes/silo2/in/x      ->  /mnt/silo2/in/x
 
     if (_logger) _logger->info("Converting path for ComfyUI: {}", localPath);
 
-    const std::string clientMount = getLocalMountPath();
-    const std::string serverMount = getTrimmedStringParam(_serverMountPath);
+    // A trailing separator on either mount splices into a doubled separator
+    // mid-path ("//" or "\\") — tolerated by POSIX, rejected by Windows, and it
+    // corrupts a UNC prefix. Normalise both mounts before splicing.
+    const std::string clientMount = stripTrailingSeparators(getLocalMountPath());
+    const std::string serverMount = stripTrailingSeparators(getTrimmedStringParam(_serverMountPath));
+
+    // The server mount string tells us which convention ComfyUI speaks.
+    const bool serverIsWindows = isWindowsStylePath(serverMount);
 
     if (_logger) {
         _logger->info("  Client mount (this host): {}", clientMount);
         _logger->info("  Server mount (ComfyUI):   {}", serverMount);
+        _logger->info("  Server path style:        {}",
+                      serverIsWindows ? "Windows (backslashes)" : "POSIX (forward slashes)");
     }
 
     // No server mount configured: assume ComfyUI sees the very same path this
@@ -2103,7 +2115,7 @@ std::string BasePlugin::convertPathForComfyUI(const std::string& localPath)
     // unchanged rather than stripping the client mount and emitting a rootless
     // "\in\..." path — that produced empty server paths and crashed jobs.
     if (serverMount.empty()) {
-        if (_logger) _logger->warn("  No Windows/server mount set — leaving path unchanged");
+        if (_logger) _logger->warn("  No server mount set — leaving path unchanged");
         return localPath;
     }
 
@@ -2122,8 +2134,11 @@ std::string BasePlugin::convertPathForComfyUI(const std::string& localPath)
         if (_logger) _logger->warn("  Path does not start with the client mount '{}' — leaving as-is", clientMount);
     }
 
-    // The server is Windows: normalise to backslashes.
-    std::replace(serverPath.begin(), serverPath.end(), '/', '\\');
+    // Normalise separators to whatever the ComfyUI server expects. Converting
+    // unconditionally to backslashes broke every POSIX ComfyUI server, where a
+    // backslash is an ordinary filename character rather than a separator
+    // ("Path not found: \\Volumes\\silo2\\002_COMFYUI\\in\\...").
+    serverPath = normalizeSeparators(serverPath, serverIsWindows);
 
     if (_logger) _logger->info("  Server path: {}", serverPath);
 
@@ -2633,8 +2648,9 @@ json BasePlugin::customizeWorkflow(const json& baseWorkflow, int frame, const st
     std::string workflowStr = baseWorkflow.dump();
 
     // Helper: escape backslashes for insertion into raw JSON text.
-    // convertPathForComfyUI() returns a raw Windows path; when substituting into
-    // a JSON string (obtained via dump()), backslashes must be doubled manually.
+    // convertPathForComfyUI() returns a raw server path; when it is a Windows path
+    // and it is substituted into a JSON string (obtained via dump()), backslashes
+    // must be doubled manually. A no-op for POSIX server paths.
     auto jsonEscape = [](const std::string& path) {
         std::string escaped;
         escaped.reserve(path.size() * 2);
@@ -2667,7 +2683,7 @@ json BasePlugin::customizeWorkflow(const json& baseWorkflow, int frame, const st
     // ${INPUT_PATH_A} - InputA (Source clip)
     // ${INPUT_PATH_B} - InputB (Source2 clip)
     // ${INPUT_PATH_C} - InputC (Source3 clip)
-    // ${OUTPUT_PREFIX} - output file prefix (Windows format for ComfyUI)
+    // ${OUTPUT_PREFIX} - output file prefix (in the ComfyUI server's path style)
     // ${FRAME} - current frame number
 
     size_t pos = 0;
@@ -2873,16 +2889,21 @@ void BasePlugin::renderBlocking(const OFX::RenderArguments &args)
         if (_logger) {
             _logger->info("Successfully created and verified directory: {}", outputDir);
 
-            // Log what the server-side path will be
+            // Log what the server-side path will be. Mirrors
+            // convertPathForComfyUI(): trailing separators stripped, and the
+            // separator style taken from the server mount (the ComfyUI box may
+            // be Windows or POSIX).
+            const std::string clientMountTrimmed = stripTrailingSeparators(mountPath);
+            const std::string serverMountTrimmed = stripTrailingSeparators(serverMount);
             std::string serverPath = outputDir;
-            if (!mountPath.empty() && serverPath.find(mountPath) == 0) {
-                serverPath.replace(0, mountPath.length(), serverMount);
+            if (!clientMountTrimmed.empty() && serverPath.rfind(clientMountTrimmed, 0) == 0) {
+                serverPath.replace(0, clientMountTrimmed.length(), serverMountTrimmed);
             }
-            std::replace(serverPath.begin(), serverPath.end(), '/', '\\');
+            serverPath = normalizeSeparators(serverPath, isWindowsStylePath(serverMountTrimmed));
             _logger->info("Server-side path should be: {}", serverPath);
             _logger->info("");
             _logger->info("IMPORTANT: If ComfyUI fails with 'path not found' error,");
-            _logger->info("manually verify that this directory exists on the Windows server:");
+            _logger->info("manually verify that this directory exists on the ComfyUI server:");
             _logger->info("  {}", serverPath);
             _logger->info("========================================");
         }
@@ -4486,9 +4507,12 @@ void BasePlugin::describeCommonParameters(OFX::ImageEffectDescriptor &desc,
 
     OFX::StringParamDescriptor *serverMount = desc.defineStringParam("serverMountPath");
     serverMount->setLabel("ComfyUI Server Mount");
-    serverMount->setHint("The same shared storage as mounted on the ComfyUI server (UNC: \\\\server\\share). "
-                         "This is the path written into the workflow sent to ComfyUI — the server reads inputs "
-                         "and writes outputs through it.");
+    serverMount->setHint("The same shared storage as mounted on the ComfyUI server — a UNC path "
+                         "(\\\\server\\share) or drive letter (Z:\\share) if ComfyUI runs on Windows, a POSIX path "
+                         "(/mnt/share) if it runs on Linux/macOS. This is the path written into the workflow sent "
+                         "to ComfyUI — the server reads inputs and writes outputs through it, and its style decides "
+                         "which separator the workflow uses. Set it to the same value as the local mount when the "
+                         "OFX host and ComfyUI are the same machine.");
     serverMount->setDefault(serverMountDefault.c_str());
     serverMount->setParent(*mountGroup);
     page->addChild(*serverMount);
