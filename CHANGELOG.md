@@ -10,10 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2.4] - 2026-08-27
 
 Two plugin fixes reported from the field, plus the install-scope default
-inverted everywhere. macOS and Linux binaries — Windows still ships the 0.2.2
-build. Neither fix is platform-specific: a Windows workstation keeps hitting the
-MatAnyone2 naming bug until the next Windows build, and the install-scope change
-lands there with it.
+inverted everywhere. All three platforms ship this version — neither fix is
+platform-specific, and Windows caught up with a rebuild on 2026-08-27.
 
 ### Fixed
 
