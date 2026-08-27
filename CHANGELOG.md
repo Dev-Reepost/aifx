@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.4] - 2026-08-27
+
+Two plugin fixes reported from the field, plus the install-scope default
+inverted everywhere. **macOS artifacts only** — the Linux and Windows binaries
+are unchanged since 0.2.2 and the 0.2.2 archives remain the current download for
+those platforms, but the installer-default change below applies to all three and
+ships with their next build.
+
+### Fixed
+
+- **MatAnyone2 rendered every frame and re-imported none.** Its workflow was the
+  only one of the seven whose `SaveEXR` node carried `version: 0` instead of
+  `-1`, so ComfyUI wrote `<basename>_v000.0056.exr` while
+  `constructExpectedOutputPath()` — which deliberately emits no version suffix,
+  the version already being the output directory's name — looked for
+  `<basename>.0056.exr`. The job completed, the EXRs landed on the share, and
+  the host got nothing back, with no error anywhere to explain it. Affected
+  macOS and Linux alike. Outputs already rendered under the old `_v000` names
+  will not be found by the cache and need re-rendering.
+
+### Changed
+
+- **Video MaMa's *Max Resolution* control is gone from the panel and now fixed
+  at 1024.** The VideoMaMa sampler misbehaves on Linux for values that are not
+  multiples of 1024, and the control bought no useful tuning in exchange for
+  that failure mode. The parameter is retained but hidden, so existing projects
+  still load and the workflow substitution is unchanged; the default moves from
+  1080 to 1024.
+- **The POSIX installer script now defaults to a system-wide install**
+  (`/Library/OFX/Plugins`, `/usr/OFX/Plugins`); `--user` opts back out for
+  machines without sudo. The Windows installer likewise defaults to all-users
+  (`PrivilegesRequired=admin`) and spells out the consequence on its directory
+  page. Autodesk Flame and Flare only scan the machine-wide OFX directory, so
+  an operator who accepted the old per-user default got a clean "installed" and
+  an empty effects browser. Nuke, Resolve and Fusion read both locations, which
+  makes system-wide the only default that works everywhere. The tarball READMEs
+  and [docs/installation.md](docs/installation.md) were updated to match.
+
 ## [0.2.3] - 2026-08-26
 
 A terminal installer for macOS, so no Apple Developer ID is needed to deploy.

@@ -26,8 +26,8 @@
 # arguments and it installs the sibling bundles.
 #
 # Usage:
-#   ./install.sh                       # interactive, per-user install
-#   ./install.sh --system              # interactive, system-wide (sudo)
+#   ./install.sh                       # interactive, system-wide (sudo)
+#   ./install.sh --user                # interactive, per-user (no sudo)
 #   ./install.sh --yes \                # fully non-interactive
 #       --server comfyui.example.local --port 8188 \
 #       --local-mount /mnt/silo/AIFX \
@@ -45,7 +45,12 @@
 set -euo pipefail
 
 # --- Defaults (match the macOS wizard's SiteConfig where they overlap) -------
-SCOPE="user"                 # user | system
+# System-wide by default. Autodesk Flame and Flare only scan the machine-wide
+# OFX directory, so a per-user install leaves them blind to the plugins -- the
+# operator gets a clean "installed" and an empty effects browser. Nuke, Resolve
+# and Fusion read both, so system is the only default that works everywhere.
+# --user opts out for machines where sudo is not available.
+SCOPE="system"               # user | system
 PREFIX=""                    # explicit override of the install dir
 SERVER_ADDRESS="127.0.0.1"
 SERVER_PORT=8188
@@ -194,12 +199,13 @@ prompt() {  # prompt VAR "Label" "current"
 
 if ! $ASSUME_YES; then
     step "Install location"
-    printf '    1) Per-user    %s%s%s   (no sudo)\n' "$c_dim" "$USER_DIR" "$c_off"
-    printf '    2) System-wide %s%s%s   (needs sudo)\n' "$c_dim" "$SYSTEM_DIR" "$c_off"
+    printf '    1) System-wide %s%s%s   (needs sudo -- required for Flame / Flare)\n' "$c_dim" "$SYSTEM_DIR" "$c_off"
+    printf '    2) Per-user    %s%s%s   (no sudo -- Nuke, Resolve, Fusion only:\n' "$c_dim" "$USER_DIR" "$c_off"
+    printf '       %sAutodesk hosts do not scan this path%s)\n' "$c_dim" "$c_off"
     [[ -n "$PREFIX" ]] && printf '    (overridden by --prefix %s)\n' "$PREFIX"
     if [[ -z "$PREFIX" ]]; then
         read -rp "    Choose [1]: " loc || true
-        if [[ "${loc:-1}" == "2" ]]; then SCOPE="system"; DEST="$SYSTEM_DIR"; else SCOPE="user"; DEST="$USER_DIR"; fi
+        if [[ "${loc:-1}" == "2" ]]; then SCOPE="user"; DEST="$USER_DIR"; else SCOPE="system"; DEST="$SYSTEM_DIR"; fi
     fi
 
     if ! $KEEP_DEFAULTS; then

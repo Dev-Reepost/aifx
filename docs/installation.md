@@ -92,8 +92,8 @@ is:
 ```bash
 tar xzf aifx-<version>-macos-universal.tar.gz
 cd AIFX-<version>-macos-universal
-./install.sh --system      # /Library/OFX/Plugins — required for Flame / Flare
-./install.sh               # ~/Library/OFX/Plugins — Nuke, Resolve, Fusion
+./install.sh               # /Library/OFX/Plugins — the default; required for Flame / Flare
+./install.sh --user        # ~/Library/OFX/Plugins — no sudo; Nuke, Resolve, Fusion only
 ```
 
 Run `./install.sh --help` for the non-interactive flags used in fleet
@@ -108,9 +108,10 @@ per the [Configuration & defaults](configuration.md) guide.
 1. Download `aifx-<version>-windows-setup.exe` from the latest release and
    run it.
 2. The wizard walks you through:
-   - Install location: per-user `%LOCALAPPDATA%\OFX\Plugins\` (default — no
-     admin) or, if you choose "install for all users", system-wide
-     `%COMMONPROGRAMFILES%\OFX\Plugins\`.
+   - Install location: system-wide `%COMMONPROGRAMFILES%\OFX\Plugins\`
+     (default — needs admin; the only path Flame and Flare scan) or, if you
+     pick "install for me only", per-user `%LOCALAPPDATA%\OFX\Plugins\`,
+     which Nuke, Resolve and Fusion read but Autodesk hosts ignore.
    - **Site configuration**: ComfyUI server address + port, this PC's view of
      the shared folder (**Local Storage Mount** — leave blank to reuse the
      server view), and the **ComfyUI server's view** of the same shared folder

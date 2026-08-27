@@ -570,13 +570,17 @@ void MatteMaMaPlugin::describeInContext(OFX::ImageEffectDescriptor &desc,
     samplerGroup->setOpen(true);
     page->addChild(*samplerGroup);
 
+    // Max resolution is fixed at 1024: the VideoMaMa sampler misbehaves for values
+    // that are not multiples of 1024, and the control brings no useful tuning.
+    // Kept as a hidden param so the workflow substitution still has a value.
     OFX::IntParamDescriptor *maxResolution = desc.defineIntParam("maxResolution");
     maxResolution->setLabel("Max Resolution");
     maxResolution->setHint("Maximum resolution of the longer side. Frames are resized to fit.");
-    maxResolution->setDefault(1080);
+    maxResolution->setDefault(1024);
     maxResolution->setRange(64, 4096);
     maxResolution->setDisplayRange(256, 2048);
     maxResolution->setAnimates(false);
+    maxResolution->setIsSecret(true);  // Hidden from UI
     maxResolution->setParent(*samplerGroup);
     page->addChild(*maxResolution);
 

@@ -117,8 +117,10 @@ universal binaries (Apple Silicon + Intel).
 
 Recommended -- run the installer script:
 
-  ./install.sh              (per-user)
-  ./install.sh --system     (all users -- required for Flame and Flare)
+  ./install.sh              (all users, /Library/OFX/Plugins -- needs sudo;
+                             the only path Flame and Flare scan)
+  ./install.sh --user       (this user only, ~/Library/OFX/Plugins -- no sudo,
+                             Nuke / Resolve / Fusion only)
 
   It asks for your ComfyUI site config (server URL, mount paths), writes it
   into each plugin, copies the bundles into place and clears the macOS

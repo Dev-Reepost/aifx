@@ -39,7 +39,7 @@
     "inputs": {
       "filename_prefix": "${OUTPUT_PREFIX}",
       "tonemap": "linear",
-      "version": 0,
+      "version": -1,
       "start_frame": "${FRAME}",
       "frame_pad": 4,
       "save_workflow": "none",
