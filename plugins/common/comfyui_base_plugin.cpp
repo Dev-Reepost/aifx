@@ -14,6 +14,7 @@
 #include <filesystem>
 #include <system_error>
 #include <algorithm>
+#include <cmath>
 
 #ifdef _WIN32
     #ifndef WIN32_LEAN_AND_MEAN
@@ -491,9 +492,23 @@ BasePlugin::BasePlugin(OfxImageEffectHandle handle)
         } catch (...) { _logger->warn("Supports Tiles: NOT AVAILABLE"); }
 
         try {
-            int supportsMultiRes = getPropertySet().propGetInt(kOfxImageEffectPropSupportsMultiResolution, false);
-            _logger->info("Supports Multi-Resolution: {}", supportsMultiRes ? "YES" : "NO");
-        } catch (...) { _logger->warn("Supports Multi-Resolution: NOT AVAILABLE"); }
+            // Two distinct values, and only the second one matters when a plugin
+            // changes resolution. The instance property set echoes what WE
+            // declared via setSupportsMultiResolution(); the host descriptor is
+            // the host's own capability. A host reporting NO ignores the RoD we
+            // return and always hands us an input-sized buffer.
+            int pluginMultiRes = getPropertySet().propGetInt(kOfxImageEffectPropSupportsMultiResolution, false);
+            _logger->info("Supports Multi-Resolution (plugin declares): {}", pluginMultiRes ? "YES" : "NO");
+        } catch (...) { _logger->warn("Supports Multi-Resolution (plugin declares): NOT AVAILABLE"); }
+
+        try {
+            _logger->info("Supports Multi-Resolution (HOST capability): {}{}",
+                          hostSupportsMultiResolution() ? "YES" : "NO",
+                          hostSupportsMultiResolution()
+                              ? ""
+                              : "  <-- host is fixed-format: output RoD is forced to the input clip size, "
+                                "resolution-changing plugins cannot widen the canvas");
+        } catch (...) { _logger->warn("Supports Multi-Resolution (HOST capability): NOT AVAILABLE"); }
 
         try {
             int temporalAccess = getPropertySet().propGetInt(kOfxImageEffectPropTemporalClipAccess, false);
@@ -1466,6 +1481,25 @@ void BasePlugin::executeWorkflow(const OFX::RenderArguments &args)
         if (!dstPixelData) {
             if (_logger) _logger->error("CRITICAL: Destination pixel data pointer is NULL (cached path)!");
             throw std::runtime_error("Failed to allocate destination image buffer for cached result");
+        }
+
+        // toOFXBuffer walks outputImageData.height rows at dst->getRowBytes()
+        // each, so a result larger than the buffer the host allocated writes
+        // past its end. Every other cached path goes through loadCachedResult(),
+        // which classifies the mismatch; this one is raw, so guard it. Currently
+        // unreachable — executeWorkflow() is only called from renderBlocking(),
+        // and render() hard-codes async mode — but it is one flag away from live.
+        const OfxRectI dstBounds = dst->getBounds();
+        const int dstWidth  = dstBounds.x2 - dstBounds.x1;
+        const int dstHeight = dstBounds.y2 - dstBounds.y1;
+        if (outputImageData.width != dstWidth || outputImageData.height != dstHeight) {
+            std::ostringstream err;
+            err << "Cached output is " << outputImageData.width << "x" << outputImageData.height
+                << " but the host allocated a " << dstWidth << "x" << dstHeight << " buffer. "
+                << "Writing it would overrun the buffer.";
+            if (_logger) _logger->error("Frame {}: {}", frame, err.str());
+            setPersistentMessage(OFX::Message::eMessageError, "", err.str().c_str());
+            throw std::runtime_error(err.str());
         }
 
         ImageIO::toOFXBuffer(outputImageData, dstPixelData, dst->getRowBytes(), dstPixelComponents, dstBitDepthInt, shouldFlipYForOFX());
@@ -3570,12 +3604,21 @@ void BasePlugin::loadCachedResult(const OFX::RenderArguments &args, const std::s
     int renderWidth = renderWindow.x2 - renderWindow.x1;
     int renderHeight = renderWindow.y2 - renderWindow.y1;
 
-    // Check if output dimensions match the render window
-    // Note: We compare against OUTPUT dimensions, not INPUT dimensions,
-    // because workflows can resize images
-    bool isFullFrameRender = (renderWindow.x1 == 0 && renderWindow.y1 == 0 &&
-                             renderWidth == outputImageData.width &&
-                             renderHeight == outputImageData.height);
+    // dst->getRegionOfDefinition() is the canvas the HOST allocated for the
+    // output image (kOfxImagePropRegionOfDefinition), as opposed to
+    // dst->getBounds() above which is only the addressable part of it. If the
+    // two differ from our output, the host ignored what BasePlugin::
+    // getRegionOfDefinition() reported — it is fixed-format (Autodesk Flame /
+    // Flare) and there is nowhere to put an upscaled frame.
+    const OfxRectI dstRod = dst->getRegionOfDefinition();
+    const int dstRodWidth  = dstRod.x2 - dstRod.x1;
+    const int dstRodHeight = dstRod.y2 - dstRod.y1;
+
+    // Compare against OUTPUT dimensions, not INPUT dimensions, because
+    // workflows can resize images.
+    const OutputFitMode fitMode = classifyOutputFit(outputImageData.width, outputImageData.height,
+                                                    dstRodWidth, dstRodHeight, renderWindow);
+    const bool isFullFrameRender = (fitMode == OutputFitMode::FullFrame);
 
     if (_logger) {
         _logger->debug("Frame {}: Cached image={}x{}, Render request={}x{}, Full frame={}",
@@ -3595,22 +3638,52 @@ void BasePlugin::loadCachedResult(const OFX::RenderArguments &args, const std::s
 
     // If render window doesn't match output dimensions, we need to handle it
     if (!isFullFrameRender) {
-        // Check if this is a sub-region render or a resolution mismatch
-        bool isSubRegion = (renderWidth <= outputImageData.width &&
-                           renderHeight <= outputImageData.height &&
-                           renderWindow.x1 >= 0 && renderWindow.y1 >= 0 &&
-                           renderWindow.x2 <= outputImageData.width &&
-                           renderWindow.y2 <= outputImageData.height);
-
         if (_logger) {
-            _logger->info("Frame {}: loadCachedResult branch = {} | output={}x{} render=({},{})-({},{}) ({}x{})",
-                          frame, isSubRegion ? "SUB-REGION" : "RESOLUTION-MISMATCH",
+            const char* branch = (fitMode == OutputFitMode::HostRefusedRoD) ? "HOST-REFUSED-ROD"
+                               : (fitMode == OutputFitMode::SubRegion)      ? "SUB-REGION"
+                                                                           : "RESOLUTION-MISMATCH";
+            _logger->info("Frame {}: loadCachedResult branch = {} | output={}x{} dstRoD={}x{} render=({},{})-({},{}) ({}x{})",
+                          frame, branch,
                           outputImageData.width, outputImageData.height,
+                          dstRodWidth, dstRodHeight,
                           renderWindow.x1, renderWindow.y1, renderWindow.x2, renderWindow.y2,
                           renderWidth, renderHeight);
         }
 
-        if (isSubRegion) {
+        if (fitMode == OutputFitMode::HostRefusedRoD) {
+            // Fail loudly rather than deliver something that looks plausible.
+            //
+            // The tempting alternative is to scale the result down to fit the
+            // canvas. Don't: for an upscaler that produces a full frame with
+            // correct framing that is merely soft — exactly the kind of shot
+            // that survives review and ships. A crop is at least obviously
+            // wrong, but it says nothing about why. An explicit error is
+            // equally impossible to miss AND tells the artist how to fix it.
+            std::ostringstream msg;
+            msg << "The host allocated a " << dstRodWidth << "x" << dstRodHeight
+                << " output canvas for a " << outputImageData.width << "x" << outputImageData.height
+                << " result, ignoring the region of definition this plugin reported.";
+            if (!hostSupportsMultiResolution()) {
+                msg << "\n\nThis host does not support multi-resolution (Autodesk Flame / Flare): "
+                       "an OFX node's output resolution is always its input clip's, and no setting "
+                       "in this plugin can change that.";
+            }
+            msg << "\n\nFix: establish the target resolution UPSTREAM of this plugin."
+                   "\n1. Add a Resize node before this one and set its Destination output format to "
+                << outputImageData.width << "x" << outputImageData.height << "."
+                   "\n2. Set this plugin's target resolution to the same value."
+                   "\n\nThe rendered EXR on disk is correct at "
+                << outputImageData.width << "x" << outputImageData.height
+                << " — only the host cannot receive it at that size.";
+
+            if (_logger) _logger->error("Frame {}: {}", frame, msg.str());
+            try { if (_jobStatus)      _jobStatus->setValue("Host canvas too small - resize upstream"); } catch (...) {}
+            try { if (_jobStatusColor) _jobStatusColor->setValue(1.0, 0.0, 0.0); } catch (...) {}  // red
+            setPersistentMessage(OFX::Message::eMessageError, "", msg.str().c_str());
+            throw std::runtime_error(msg.str());
+        }
+
+        if (fitMode == OutputFitMode::SubRegion) {
             // Extract the render window region from the full cached image.
             // regionData is built in top-left (EXR) layout — the final
             // toOFXBuffer(..., shouldFlipYForOFX()) call below is the single
@@ -3644,57 +3717,77 @@ void BasePlugin::loadCachedResult(const OFX::RenderArguments &args, const std::s
                               renderWindow.x2, renderWindow.y2);
             }
         } else {
-            // Resolution mismatch - output from workflow has different size than render window
-            // This can happen when the workflow includes resize operations
+            // Benign mismatch: the host DID honour our RoD (hostRefusedRoD is
+            // false by now — that case threw above), but the render window still
+            // isn't the output size. This is the host asking for a window that
+            // sits partly outside the frame ComfyUI produced, or a workflow whose
+            // output is smaller than the canvas — e.g. DepthCrafter / NormalCrafter
+            // with Force Size on, whose model emits a fixed resolution.
+            //
+            // Fit: uniform scale into the window, centred, letterboxed where the
+            // aspect ratios differ. The previous code pinned the offsets to 0 and
+            // copied a corner when the output was larger, and left a small frame
+            // stranded in black when it was smaller; neither was ever right.
+            //
+            // Everything below stays in top-left (EXR) layout. Y-orientation for
+            // the OFX dst buffer is handled exclusively by the
+            // toOFXBuffer(..., shouldFlipYForOFX()) call further down; flipping
+            // here too would double-flip on hosts where the flag is true.
             if (_logger) {
                 _logger->info("Frame {}: Output resolution ({}x{}) differs from render window ({}x{}). "
-                             "Handling resolution mismatch...",
+                             "Fitting output into the render window...",
                              frame, outputImageData.width, outputImageData.height,
                              renderWidth, renderHeight);
             }
 
-            // Strategy: crop or pad to fit the render window in top-left (EXR) layout.
-            // Y-orientation for the OFX dst buffer is handled exclusively by the
-            // toOFXBuffer(..., shouldFlipYForOFX()) call below — flipping here too
-            // would double-flip on hosts where the flag is true (Resolve, Flame, Nuke).
-            regionData.width = renderWidth;
+            // Uniform scale-to-fit — preserves aspect ratio in both directions
+            // (downscale when the host refused a larger RoD, upscale when the
+            // workflow produced a smaller frame than the window).
+            const double fitScale = std::min(
+                static_cast<double>(renderWidth)  / static_cast<double>(outputImageData.width),
+                static_cast<double>(renderHeight) / static_cast<double>(outputImageData.height));
+
+            int fitWidth  = static_cast<int>(std::lround(outputImageData.width  * fitScale));
+            int fitHeight = static_cast<int>(std::lround(outputImageData.height * fitScale));
+            fitWidth  = std::max(1, std::min(fitWidth,  renderWidth));
+            fitHeight = std::max(1, std::min(fitHeight, renderHeight));
+
+            // ImageIO::resize is a no-op returning a copy when the dimensions
+            // already match, so this covers the pure-letterbox case too.
+            ImageData fitted = ImageIO::resize(outputImageData, fitWidth, fitHeight);
+
+            regionData.width  = renderWidth;
             regionData.height = renderHeight;
 
-            std::vector<float> resizedPixels(renderWidth * renderHeight * outputImageData.channels, 0.0f);
+            const int channels = outputImageData.channels;
+            std::vector<float> fittedPixels(
+                static_cast<size_t>(renderWidth) * static_cast<size_t>(renderHeight) * channels, 0.0f);
 
-            // Calculate copy dimensions (intersection of output and render window)
-            int copyWidth = std::min(outputImageData.width, renderWidth);
-            int copyHeight = std::min(outputImageData.height, renderHeight);
+            // Centre the fitted image in the render window; the remaining border
+            // stays at zero (transparent black letterbox / pillarbox).
+            const int offsetX = (renderWidth  - fitWidth)  / 2;
+            const int offsetY = (renderHeight - fitHeight) / 2;
 
-            // Center the output in the render window if sizes differ
-            int offsetX = (renderWidth - outputImageData.width) / 2;
-            int offsetY = (renderHeight - outputImageData.height) / 2;
-            offsetX = std::max(0, offsetX);
-            offsetY = std::max(0, offsetY);
-
-            // Copy pixels from output (top-left) to centered position in render window (top-left).
-            // No Y-flip here — toOFXBuffer below applies the host-appropriate flip.
-            for (int y = 0; y < copyHeight; ++y) {
-                for (int x = 0; x < copyWidth; ++x) {
-                    int srcIdx = (y * outputImageData.width + x) * outputImageData.channels;
-                    int dstY = y + offsetY;
-                    int dstX = x + offsetX;
-                    int dstIdx = (dstY * renderWidth + dstX) * outputImageData.channels;
-
-                    if (dstIdx >= 0 && dstIdx + outputImageData.channels <= static_cast<int>(resizedPixels.size())) {
-                        for (int c = 0; c < outputImageData.channels; ++c) {
-                            resizedPixels[dstIdx + c] = outputImageData.pixels[srcIdx + c];
-                        }
+            for (int y = 0; y < fitHeight; ++y) {
+                for (int x = 0; x < fitWidth; ++x) {
+                    const size_t srcIdx = (static_cast<size_t>(y) * fitWidth + x) * channels;
+                    const size_t dstIdx = (static_cast<size_t>(y + offsetY) * renderWidth
+                                           + (x + offsetX)) * channels;
+                    for (int c = 0; c < channels; ++c) {
+                        fittedPixels[dstIdx + c] = fitted.pixels[srcIdx + c];
                     }
                 }
             }
 
-            regionData.pixels = std::move(resizedPixels);
+            regionData.pixels = std::move(fittedPixels);
 
             if (_logger) {
-                _logger->info("Frame {}: Fitted output ({}x{}) into render window ({}x{}) at offset ({},{}) — top-left layout, OFX flip deferred to toOFXBuffer",
-                             frame, copyWidth, copyHeight, renderWidth, renderHeight, offsetX, offsetY);
+                _logger->info("Frame {}: Fitted output ({}x{}) to {}x{} at offset ({},{}) in render window ({}x{}) "
+                              "— top-left layout, OFX flip deferred to toOFXBuffer",
+                             frame, outputImageData.width, outputImageData.height,
+                             fitWidth, fitHeight, offsetX, offsetY, renderWidth, renderHeight);
             }
+
         }
     }
 
@@ -4131,6 +4224,62 @@ int BasePlugin::findLastValidFrame(double currentTime)
     }
 
     return -1;  // No valid frame found
+}
+
+BasePlugin::OutputFitMode BasePlugin::classifyOutputFit(int outputWidth, int outputHeight,
+                                                        int dstRodWidth, int dstRodHeight,
+                                                        const OfxRectI& renderWindow)
+{
+    const int renderWidth  = renderWindow.x2 - renderWindow.x1;
+    const int renderHeight = renderWindow.y2 - renderWindow.y1;
+
+    if (renderWindow.x1 == 0 && renderWindow.y1 == 0 &&
+        renderWidth == outputWidth && renderHeight == outputHeight) {
+        return OutputFitMode::FullFrame;
+    }
+
+    // The host's own canvas, checked first — see the header for why the order
+    // is load-bearing.
+    //
+    // A refusal is specifically a canvas MATERIALLY SMALLER than our result:
+    // the frame cannot be delivered without destroying pixels, which is the
+    // case worth failing a render over. Any other difference is handled by Fit
+    // and loses nothing:
+    //   - Canvas larger than the result is the normal shape of a fixed-size
+    //     model (DepthCrafter / NormalCrafter run with Force Size on, whose
+    //     node emits its own internal resolution). Scaling that up to the
+    //     canvas is exactly right — it is a full-frame map computed at lower
+    //     resolution — and it rendered before this check existed.
+    //   - A couple of pixels either way is the model rounding its target to a
+    //     multiple of 8 or 16 where our predicted RoD did not. Failing a render
+    //     over a sub-percent rescale would be absurd, so allow 1% slack.
+    const bool dstRodKnown = (dstRodWidth > 0 && dstRodHeight > 0);
+    const int slackWidth  = std::max(2, outputWidth  / 100);
+    const int slackHeight = std::max(2, outputHeight / 100);
+    if (dstRodKnown && (outputWidth  - dstRodWidth  > slackWidth ||
+                        outputHeight - dstRodHeight > slackHeight)) {
+        return OutputFitMode::HostRefusedRoD;
+    }
+
+    const bool isSubRegion = (renderWidth  <= outputWidth &&
+                              renderHeight <= outputHeight &&
+                              renderWindow.x1 >= 0 && renderWindow.y1 >= 0 &&
+                              renderWindow.x2 <= outputWidth &&
+                              renderWindow.y2 <= outputHeight);
+
+    return isSubRegion ? OutputFitMode::SubRegion : OutputFitMode::Fit;
+}
+
+bool BasePlugin::hostSupportsMultiResolution() const
+{
+    OFX::ImageEffectHostDescription* hd = OFX::getImageEffectHostDescription();
+    if (!hd) {
+        // Unknown host: assume it does support it. Being optimistic here only
+        // costs us the warning below; assuming the opposite would fire a
+        // misleading "fixed format" message on every host we can't identify.
+        return true;
+    }
+    return hd->supportsMultiResolution;
 }
 
 bool BasePlugin::shouldFlipYForOFX() const

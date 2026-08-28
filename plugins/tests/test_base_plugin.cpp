@@ -28,6 +28,16 @@
 using json = nlohmann::json;
 using namespace ComfyUI;
 
+// Calling into BasePlugin pulls the OFX Support library's ImageEffect
+// translation unit into the link, and its init() references the plugin
+// registration entry point every real bundle defines. A test executable has no
+// factories to register, so provide the empty definition the linker wants.
+namespace OFX {
+namespace Plugin {
+void getPluginIDs(OFX::PluginFactoryArray& /*ids*/) {}
+}  // namespace Plugin
+}  // namespace OFX
+
 // ============================================================================
 // Test Functions
 // ============================================================================
@@ -329,6 +339,81 @@ bool test_dimension_mismatch_detection() {
     }
 }
 
+bool test_output_fit_classification() {
+    std::cout << "\n[TEST] output_fit_classification" << std::endl;
+
+    using Mode = BasePlugin::OutputFitMode;
+
+    struct Case {
+        const char* name;
+        int outW, outH;          // frame ComfyUI produced
+        int rodW, rodH;          // canvas the host allocated (0 = not reported)
+        OfxRectI window;         // render window (dst->getBounds())
+        Mode expected;
+    };
+
+    const Case cases[] = {
+        // Host honoured the RoD and asked for the whole frame.
+        {"full frame",              1920, 1080, 1920, 1080, {0, 0, 1920, 1080}, Mode::FullFrame},
+
+        // The Flame regression: a fixed-format host allocates a 1280x720 canvas
+        // for a 1920x1080 upscale and asks for all of it. Geometrically this is
+        // indistinguishable from a tile — every sub-region condition holds — so
+        // before the dstRoD check it classified as SubRegion and delivered the
+        // 1280x720 corner of the upscale.
+        {"fixed-format host",       1920, 1080, 1280,  720, {0, 0, 1280,  720}, Mode::HostRefusedRoD},
+        {"fixed-format host, tiled request",
+                                    1920, 1080, 1280,  720, {0, 0,  512,  512}, Mode::HostRefusedRoD},
+
+        // Genuine tiled render: the canvas IS our output, the window is a piece.
+        {"tile, bottom-left",       1920, 1080, 1920, 1080, {0, 0,  512,  512}, Mode::SubRegion},
+        {"tile, offset",            1920, 1080, 1920, 1080, {256, 128, 768, 640}, Mode::SubRegion},
+
+        // Host did not report a RoD: a refusal cannot be told from a tile, so we
+        // keep the old behaviour rather than erroring on a guess.
+        {"no dstRoD reported",      1920, 1080,    0,    0, {0, 0, 1280,  720}, Mode::SubRegion},
+
+        // Regression guard: a fixed-size model (DepthCrafter / NormalCrafter with
+        // Force Size on) emits its own internal resolution, so the host canvas
+        // is LARGER than the result. Nothing has to be destroyed — scale it up
+        // to the canvas. Erroring here would break those plugins, which
+        // rendered fine before the refusal check existed.
+        {"fixed-size model, canvas larger",
+                                    1024,  576, 1920, 1080, {0, 0, 1920, 1080}, Mode::Fit},
+
+        // Same, on a canvas whose aspect ratio differs — still a fit, not a refusal.
+        {"fixed-size model, other aspect",
+                                     768,  768, 1920, 1080, {0, 0, 1920, 1080}, Mode::Fit},
+
+        // The model rounded its target to a multiple of 16 where our predicted
+        // RoD did not. Within the slack this is not a refusal; the window is
+        // then exactly inside the result, so it is trimmed by the sub-region
+        // path rather than resampled — lossless, and no render is failed over
+        // two columns.
+        {"rounding slack, output 2px larger",
+                                    1922, 1080, 1920, 1080, {0, 0, 1920, 1080}, Mode::SubRegion},
+
+        // ...but a materially smaller canvas still is a refusal.
+        {"canvas materially smaller",
+                                    1920, 1080, 1600,  900, {0, 0, 1600,  900}, Mode::HostRefusedRoD},
+    };
+
+    bool ok = true;
+    for (const auto& c : cases) {
+        Mode got = BasePlugin::classifyOutputFit(c.outW, c.outH, c.rodW, c.rodH, c.window);
+        if (got != c.expected) {
+            std::cerr << "  ✗ " << c.name << ": expected mode " << static_cast<int>(c.expected)
+                      << ", got " << static_cast<int>(got) << std::endl;
+            ok = false;
+        }
+    }
+
+    if (!ok) return false;
+    std::cout << "  ✓ All " << (sizeof(cases) / sizeof(cases[0]))
+              << " output-fit cases classified correctly" << std::endl;
+    return true;
+}
+
 bool test_bit_depth_conversion() {
     std::cout << "\n[TEST] bit_depth_conversion" << std::endl;
 
@@ -493,6 +578,7 @@ int main() {
         {"image_workflow_roundtrip", test_image_workflow_roundtrip},
         {"workflow_json_structure", test_workflow_json_structure},
         {"dimension_mismatch_detection", test_dimension_mismatch_detection},
+        {"output_fit_classification", test_output_fit_classification},
         {"bit_depth_conversion", test_bit_depth_conversion},
         {"error_message_format", test_error_message_format},
         {"server_path_conversion", test_server_path_conversion}

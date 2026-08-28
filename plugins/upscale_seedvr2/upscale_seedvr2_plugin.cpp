@@ -501,7 +501,12 @@ void UpscaleSeedVR2Plugin::describeInContext(OFX::ImageEffectDescriptor &desc,
     OFX::IntParamDescriptor *resolution = desc.defineIntParam("resolution");
     resolution->setLabel("Resolution");
     resolution->setHint("Target output resolution for the shorter side (e.g. 1080 upscales to 1080p). "
-                        "The model will upscale the input to this resolution.");
+                        "The model will upscale the input to this resolution.\n\n"
+                        "Fixed-format hosts (Autodesk Flame / Flare) cannot enlarge a node's output "
+                        "canvas and will hand this plugin an input-sized buffer whatever is set here. "
+                        "On those hosts, put a Resize node upstream that already establishes the target "
+                        "resolution, then set this parameter to the same value. Otherwise the render "
+                        "fails with an explicit error rather than returning a misleading frame.");
     resolution->setDefault(1080);
     resolution->setRange(256, 8192);
     resolution->setDisplayRange(512, 4096);
