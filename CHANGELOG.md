@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`setup-env.sh` hijacked `OFX_PLUGIN_PATH` for the whole machine.** Setting up
+  a *build* environment exported `OFX_PLUGIN_PATH` into the developer's shell
+  profile, pinning every OFX host on that workstation to one per-user directory
+  permanently — `~/Library/OFX/Plugins` on macOS, `~/OFX/Plugins` on Linux. The
+  variable overrides the standard OFX search locations, so an operator who later
+  installed system-wide into `/Library/OFX/Plugins` (the only path Flame and
+  Flare scan) still got the old bundles out of the per-user path, with no error
+  and nothing in the host to point at it. Changing the installer's default scope
+  in 0.2.4 could not fix this, because the installer was never the thing
+  choosing the directory. `setup-env.sh` no longer sets the variable; it exports
+  `AIFX_USER_PLUGIN_DIR` instead, which no host reads.
+
+  **Existing workstations keep the export until it is removed by hand** — see
+  [Troubleshooting → the host keeps loading plugins from `~/OFX/Plugins`](docs/troubleshooting.md#ofx-plugin-path-override).
+
+### Added
+
+- `install.sh` now warns when `OFX_PLUGIN_PATH` is set and does not cover the
+  directory it just installed into — the one case where a fully successful
+  install still leaves the host with no plugins.
+
+### Changed
+
+- `setup-env.sh` no longer invents a `$HOME/OFX/Plugins` "development" directory
+  on macOS and Windows, where it is not an OFX location and no host scans it. It
+  creates the per-user directory for the running OS and names the system-wide
+  one. The same dead variable is gone from `build-plugin.sh`, whose macOS branch
+  set it to the *Linux* path (unused, but a trap for the next reader).
+
 ## [0.2.4] - 2026-08-27
 
 Two plugin fixes reported from the field, plus the install-scope default

@@ -329,5 +329,28 @@ printf '    The plugins appear under the %sAIFX%s category.\n' "$c_bold" "$c_off
 if [[ "$DEST" != "$SYSTEM_DIR" && "$DEST" != "$USER_DIR" ]]; then
     printf '    %sNote:%s a non-standard path — make sure OFX_PLUGIN_PATH includes %s.\n' "$c_yellow" "$c_off" "$DEST"
 fi
+
+# OFX_PLUGIN_PATH overrides where hosts look. If it is set and does not cover
+# the directory we just wrote to, the install is silently useless: the operator
+# gets a clean success here and an empty effects browser in the host, and
+# nothing connects the two. This is exactly how a workstation whose shell RC
+# still exported the old developer path kept loading stale bundles from
+# ~/OFX/Plugins no matter which installer scope was chosen.
+if [[ -n "${OFX_PLUGIN_PATH:-}" ]]; then
+    _covered=false
+    _ifs_save="$IFS"; IFS=':'
+    for _p in $OFX_PLUGIN_PATH; do
+        [[ -n "$_p" && "${_p%/}" == "${DEST%/}" ]] && _covered=true
+    done
+    IFS="$_ifs_save"
+    if ! $_covered; then
+        echo
+        printf '    %sWARNING:%s OFX_PLUGIN_PATH is set to %s\n' "$c_yellow" "$c_off" "$OFX_PLUGIN_PATH"
+        printf '    and does not include %s. Your OFX hosts will read that path,\n' "$DEST"
+        printf '    not the one above, and will not see these plugins.\n'
+        printf '    Either unset it in your shell profile (~/.zshrc, ~/.bashrc), or\n'
+        printf '    re-run with:  ./install.sh --prefix %s\n' "${OFX_PLUGIN_PATH%%:*}"
+    fi
+fi
 $KEEP_DEFAULTS && printf '    Configure each plugin (server URL, mount paths) in your host UI on first use.\n'
 echo

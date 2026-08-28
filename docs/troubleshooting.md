@@ -95,8 +95,49 @@ sudo mv ~/Library/OFX/Plugins/*.ofx.bundle /Library/OFX/Plugins/
 sudo chmod -R go+rX /Library/OFX/Plugins
 ```
 
-Then restart the host. The macOS installer defaults to system-wide from v0.2.2;
-earlier versions defaulted to per-user.
+Then restart the host. The macOS installer defaults to system-wide from v0.2.2,
+the `install.sh` script from v0.2.4; earlier versions defaulted to per-user.
+
+If you have already installed system-wide and Flame still does not see them,
+the next section is the usual culprit: an `OFX_PLUGIN_PATH` left over in your
+shell profile overrides the standard directories entirely.
+
+## The host keeps loading plugins from `~/OFX/Plugins`, whatever I install
+{: #ofx-plugin-path-override }
+
+Symptom: you install system-wide, the installer reports success, and the host
+still shows the old plugins — or none at all. Checking the disk shows the new
+bundles sitting exactly where you put them.
+
+The cause is almost always the **`OFX_PLUGIN_PATH`** environment variable. It is
+a machine-wide switch that tells every OFX host where to look for plugins, and
+while it is set the host reads that path *instead of* the standard locations. No
+installer can work around it, and nothing in the host reports it.
+
+AIFX's own `tools/setup-env.sh` used to export it into your shell profile —
+`~/Library/OFX/Plugins` on macOS, `~/OFX/Plugins` on Linux — as a side effect of
+setting up a build environment. Any workstation where that script was run before
+v0.2.5 still carries the export. Check for it:
+
+```bash
+echo "${OFX_PLUGIN_PATH:-<unset>}"
+grep -n OFX_PLUGIN_PATH ~/.zshrc ~/.bashrc ~/.bash_profile 2>/dev/null
+```
+
+If it is set and does not name the directory you installed into, remove the
+`export OFX_PLUGIN_PATH=…` line from the shell profile it came from, open a new
+terminal, and **relaunch the host from that terminal** (a host started from the
+Dock or a desktop launcher inherits the environment from its own login session,
+so log out and back in to be sure).
+
+To keep the override instead, install straight into it:
+
+```bash
+./install.sh --prefix "$OFX_PLUGIN_PATH"
+```
+
+From v0.2.5 `install.sh` detects this case and warns when `OFX_PLUGIN_PATH` does
+not cover the destination, and `setup-env.sh` no longer sets the variable at all.
 
 ## "Connection refused" or "Cannot reach ComfyUI server"
 

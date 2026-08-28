@@ -52,17 +52,14 @@ get_plugin_paths() {
         macos)
             SYSTEM_PLUGIN_DIR="/Library/OFX/Plugins"
             USER_INSTALL_DIR="$HOME/Library/OFX/Plugins"
-            DEV_PLUGIN_DIR="$HOME/OFX/Plugins"
             ;;
         linux)
             SYSTEM_PLUGIN_DIR="/usr/OFX/Plugins"
             USER_INSTALL_DIR="$HOME/OFX/Plugins"
-            DEV_PLUGIN_DIR="$HOME/OFX/Plugins"
             ;;
         windows)
             SYSTEM_PLUGIN_DIR="/c/Program Files/Common Files/OFX/Plugins"
             USER_INSTALL_DIR="$HOME/AppData/Local/OFX/Plugins"
-            DEV_PLUGIN_DIR="$HOME/OFX/Plugins"
             ;;
     esac
 
@@ -103,7 +100,7 @@ INSTALL_DIR=""
 VERBOSE=""
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="${REPO_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
-# Initialize platform-specific path variables (SYSTEM_PLUGIN_DIR, USER_INSTALL_DIR, DEV_PLUGIN_DIR)
+# Initialize platform-specific path variables (SYSTEM_PLUGIN_DIR, USER_INSTALL_DIR)
 get_plugin_paths
 
 # Parse command line arguments

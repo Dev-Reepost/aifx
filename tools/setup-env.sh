@@ -232,18 +232,22 @@ setup_conan() {
 
 # Get platform-specific plugin paths
 get_plugin_paths() {
+    # Only the two directories the OFX spec defines for this OS. There used to be
+    # a third, "development" directory at $HOME/OFX/Plugins, created and exported
+    # on every platform -- but that path is an OFX location on Linux only, and on
+    # macOS and Windows it was a private invention no host ever scans.
     case "$PLATFORM" in
         macos)
+            SYSTEM_PLUGIN_DIR="/Library/OFX/Plugins"
             USER_PLUGIN_DIR="$HOME/Library/OFX/Plugins"
-            DEV_PLUGIN_DIR="$HOME/OFX/Plugins"
             ;;
         linux)
+            SYSTEM_PLUGIN_DIR="/usr/OFX/Plugins"
             USER_PLUGIN_DIR="$HOME/OFX/Plugins"
-            DEV_PLUGIN_DIR="$HOME/OFX/Plugins"
             ;;
         windows)
+            SYSTEM_PLUGIN_DIR="$PROGRAMFILES/Common Files/OFX/Plugins"
             USER_PLUGIN_DIR="$HOME/AppData/Local/OFX/Plugins"
-            DEV_PLUGIN_DIR="$HOME/OFX/Plugins"
             ;;
     esac
 }
@@ -254,13 +258,11 @@ setup_directories() {
 
     get_plugin_paths
 
-    # Create user and development plugin directories
     mkdir -p "$USER_PLUGIN_DIR"
-    mkdir -p "$DEV_PLUGIN_DIR"
 
-    log_success "Plugin directories created:"
-    log_info "  User: $USER_PLUGIN_DIR"
-    log_info "  Development: $DEV_PLUGIN_DIR"
+    log_success "Plugin directory ready:"
+    log_info "  User:        $USER_PLUGIN_DIR"
+    log_info "  System-wide: $SYSTEM_PLUGIN_DIR  (created by the installer; Flame and Flare scan this one only)"
 }
 
 # Setup environment variables
@@ -290,14 +292,23 @@ setup_env_vars() {
 
 # AIFX Development Environment
 export REPO_ROOT="$(pwd)"
-export OFX_PLUGIN_PATH="$USER_PLUGIN_DIR"
-export OFX_DEV_PLUGIN_PATH="$DEV_PLUGIN_DIR"
+export AIFX_USER_PLUGIN_DIR="$USER_PLUGIN_DIR"
+
+# NOTE: this deliberately does NOT export OFX_PLUGIN_PATH.
+#
+# OFX_PLUGIN_PATH is a machine-wide switch that tells every OFX host where to
+# look for plugins. Setting it from a build-environment script pinned every host
+# on the workstation to one per-user directory for good -- so an operator who
+# later installed system-wide into /Library/OFX/Plugins (the only path Autodesk
+# Flame and Flare scan) still got the old bundles out of the per-user path, with
+# no error and nothing to point at. Export it by hand if you actually want to
+# override the host search path.
 
 # Add Conan to PATH
 export PATH="\$PATH:\$(python3 -c 'import sys; import os; print(os.path.join(sys.prefix, "bin"))')"
 
 # Helper aliases
-alias ofx-plugins="find \$OFX_PLUGIN_PATH -maxdepth 1 -name '*.ofx.bundle' -type d -exec ls -ld {} + 2>/dev/null || echo 'No plugins found'"
+alias ofx-plugins="find \$AIFX_USER_PLUGIN_DIR -maxdepth 1 -name '*.ofx.bundle' -type d -exec ls -ld {} + 2>/dev/null || echo 'No plugins found'"
 alias ofx-dev-build="\$REPO_ROOT/tools/build-plugin.sh"
 
 EOF
