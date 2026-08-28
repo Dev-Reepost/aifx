@@ -231,6 +231,19 @@ final class InstallerEngine: ObservableObject {
         }
         append("  Source:      \(src.path)")
 
+        // App Translocation: macOS runs a still-quarantined .app from a random
+        // read-only mount under /private/var/folders/.../AppTranslocation/,
+        // with its own confined temp directory. Nothing here fails because of
+        // it any more, but it means the operator launched straight from the DMG
+        // and the app is not where they think it is -- worth saying out loud,
+        // because it makes every path in this log look wrong.
+        if src.path.contains("/AppTranslocation/") {
+            append("  Note:        running translocated (launched from the DMG, still quarantined).")
+            append("               To run it from a normal path, copy it out first:")
+            append("                 cp -R '/Volumes/AIFX <version>/AIFX Installer.app' /Applications/")
+            append("                 find '/Applications/AIFX Installer.app' -exec xattr -d com.apple.quarantine {} \\; 2>/dev/null")
+        }
+
         // 2. Make sure all 7 are actually present (the installer is broken if not).
         for name in Self.expectedBundles {
             let path = src.appendingPathComponent(name)
@@ -241,21 +254,43 @@ final class InstallerEngine: ObservableObject {
             }
         }
 
-        // 3. Stage into a temp directory.
-        let staging: URL
+        // 3. Stage into /tmp -- NOT the app's own temp directory.
+        //
+        // This used to use FileManager's .itemReplacementDirectory, which lands
+        // in $TMPDIR/TemporaryItems/NSIRD_<app>_<random>/: the per-user, per-app
+        // confined temp directory. Staging runs as the operator and wrote there
+        // happily; the install then runs as root, through AppleScript's `with
+        // administrator privileges`, in a different security context -- and
+        // reading back out of that directory is refused:
+        //
+        //   ditto: .../NSIRD_AIFX Installer_Ttv8NB/AIFX-staging/
+        //          DepthAnything3.ofx.bundle: Operation not permitted
+        //
+        // EPERM, not EACCES: this is the sandbox refusing the path, not file
+        // modes, so being root does not help. App Translocation compounds it --
+        // a quarantined .app launched from the DMG runs from a random read-only
+        // mount with its own confined $TMPDIR, which is what the operator's log
+        // showed.
+        //
+        // /tmp is world-traversable, outside every app container and every
+        // translocation mount, and readable by root whichever context created
+        // it. The directory is a fresh UUID created with
+        // withIntermediateDirectories:false, so an existing path (or a planted
+        // symlink) makes this fail rather than being silently reused.
+        let stagingRoot = URL(fileURLWithPath: "/tmp", isDirectory: true)
+            .appendingPathComponent("aifx-install-\(UUID().uuidString)", isDirectory: true)
+        let staging = stagingRoot.appendingPathComponent("AIFX-staging", isDirectory: true)
         do {
-            staging = try fm.url(for: .itemReplacementDirectory,
-                                 in: .userDomainMask,
-                                 appropriateFor: target.deletingLastPathComponent(),
-                                 create: true)
-                .appendingPathComponent("AIFX-staging", isDirectory: true)
-            try fm.createDirectory(at: staging, withIntermediateDirectories: true)
+            try fm.createDirectory(at: stagingRoot, withIntermediateDirectories: false,
+                                   attributes: [.posixPermissions: 0o755])
+            try fm.createDirectory(at: staging, withIntermediateDirectories: false,
+                                   attributes: [.posixPermissions: 0o755])
         } catch {
             append("✗ Could not create a staging directory: \(error.localizedDescription)")
             failed = true
             return
         }
-        defer { try? FileManager.default.removeItem(at: staging) }
+        defer { try? FileManager.default.removeItem(at: stagingRoot) }
 
         let bundles = Self.expectedBundles
         let total = Double(bundles.count)
@@ -304,8 +339,9 @@ final class InstallerEngine: ObservableObject {
             append("✗ Install failed: \(error.localizedDescription)")
             if scope.requiresAdmin {
                 append("  If you cancelled the password prompt, re-run the installer.")
-                append("  Otherwise install per-user and move the bundles yourself:")
-                append("    sudo mv ~/Library/OFX/Plugins/*.ofx.bundle \(target.path)/")
+                append("  Otherwise copy the bundles yourself, from a terminal:")
+                append("    sudo mkdir -p \(target.path)")
+                append("    sudo ditto <this app>/Contents/Resources/Bundles/ \(target.path)/")
             }
             failed = true
             return

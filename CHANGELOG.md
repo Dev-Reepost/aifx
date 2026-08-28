@@ -9,6 +9,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The macOS wizard failed at the last step with `Operation not permitted`.**
+  It staged the seven bundles into `FileManager`'s `.itemReplacementDirectory` —
+  `$TMPDIR/TemporaryItems/NSIRD_<app>_<random>/`, the per-user, per-app confined
+  temp directory. Staging runs as the operator and wrote there fine; the install
+  then runs as root through AppleScript's `with administrator privileges`, in a
+  different security context, and reading back out of that directory is refused:
+
+  ```
+  x Install failed: Privileged install failed: ditto: .../TemporaryItems/
+    NSIRD_AIFX Installer_GREYj/AIFX-staging/DepthAnything3.ofx.bundle:
+    Operation not permitted
+  ```
+
+  `EPERM`, not `EACCES` — the sandbox refusing the path, so being root does not
+  help. App Translocation compounds it: a quarantined `.app` launched straight
+  from the DMG runs from a random read-only mount with its own confined
+  `$TMPDIR`. Staging now happens in `/tmp`, outside every app container and
+  every translocation mount, readable by root whichever context created it.
+  **The terminal installer (`install.sh`) was never affected** — it stages in
+  `mktemp -d` and copies with plain `sudo`.
+- The wizard's failure message told the operator to "install per-user and move
+  the bundles yourself" from `~/Library/OFX/Plugins` — a directory nothing had
+  written to. It now prints a `ditto` from the app's own bundle payload.
+- The wizard now says when it is running translocated, which makes every path in
+  its log look wrong and is worth naming rather than leaving to be decoded.
+
 - **`setup-env.sh` hijacked `OFX_PLUGIN_PATH` for the whole machine.** Setting up
   a *build* environment exported `OFX_PLUGIN_PATH` into the developer's shell
   profile, pinning every OFX host on that workstation to one per-user directory
