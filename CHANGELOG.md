@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.5] - 2026-08-28
+
+The macOS wizard could not complete an install at all, and a workstation could
+be told to ignore whatever it installed. All three platforms ship this version —
+the SeedVR2 crop fix below is not platform-specific, and Linux and Windows
+caught up with rebuilds on 2026-08-28.
+
 ### Fixed
 
 - **The macOS wizard's progress bar froze at 80% for the whole install.**
@@ -22,14 +29,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   which reads as still-running. The bar is now hidden once the install has
   failed.
 
-## [0.2.5] - 2026-08-28
-
-The macOS wizard could not complete an install at all, and a workstation could
-be told to ignore whatever it installed. All three platforms ship this version —
-the SeedVR2 crop fix below is not platform-specific, and Linux and Windows
-caught up with rebuilds on 2026-08-28.
-
-### Fixed
+  These two shipped as an in-place replacement of the `0.2.5` `.dmg` rather
+  than a `0.2.6`, to keep all three platforms on one version number. No
+  plugin code changed, so the `.tar.gz` artifacts were left untouched and the
+  `v0.2.5` tag still marks the original release commit.
 
 - **SeedVR2 upscaling 1280x720 → 1920x1080 in Flame delivered a 1280x720 crop
   of the result.** The EXR on disk was correct; only what came back into the
