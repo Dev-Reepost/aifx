@@ -10,9 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2.5] - 2026-08-28
 
 The macOS wizard could not complete an install at all, and a workstation could
-be told to ignore whatever it installed. macOS and Linux artifacts — Windows
-still ships the 0.2.4 build, so a Windows workstation keeps hitting the SeedVR2
-crop below until the next Windows build.
+be told to ignore whatever it installed. All three platforms ship this version —
+the SeedVR2 crop fix below is not platform-specific, and Linux and Windows
+caught up with rebuilds on 2026-08-28.
 
 ### Fixed
 
