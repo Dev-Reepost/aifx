@@ -482,6 +482,51 @@ protected:
     bool shouldFlipYForOFX() const;
 
 public:
+    /** @brief How a rendered frame has to be mapped onto the buffer the host gave us. */
+    enum class OutputFitMode {
+        FullFrame,       ///< Render window is exactly our output — copy straight through.
+        SubRegion,       ///< Genuine tile inside a canvas that IS our output size.
+        HostRefusedRoD,  ///< Host allocated a canvas that is not the size we reported.
+        Fit              ///< Benign mismatch — scale to fit the window and centre.
+    };
+
+    /** @brief Decide which of the four cases above applies. Pure function, no OFX state.
+     *
+     *  The order matters. A fixed-format host's full-frame request is
+     *  indistinguishable from a tile by geometry alone — a (0,0)-(1280,720)
+     *  window IS "inside" a 1920x1080 result — so the host's own canvas
+     *  (kOfxImagePropRegionOfDefinition on the output image) has to be checked
+     *  before the sub-region test, or an upscale gets silently corner-cropped.
+     *
+     *  A refusal is a canvas materially SMALLER than the result — the only case
+     *  where pixels would have to be destroyed. A canvas that is larger (a
+     *  fixed-size model such as DepthCrafter with Force Size) or off by a
+     *  rounding pixel or two falls through to Fit and loses nothing.
+     *
+     *  @param dstRodWidth/dstRodHeight The canvas the host allocated. Pass 0 when
+     *         the host did not report one: the refusal check is then skipped,
+     *         since a refusal cannot be told apart from a tile without it.
+     */
+    static OutputFitMode classifyOutputFit(int outputWidth, int outputHeight,
+                                           int dstRodWidth, int dstRodHeight,
+                                           const OfxRectI& renderWindow);
+
+protected:
+
+    // Returns true if the HOST supports multi-resolution — i.e. it accepts an
+    // output image whose region of definition differs from the input clip's.
+    //
+    // Read from the host descriptor, NOT from our own property set: we declare
+    // kOfxImageEffectPropSupportsMultiResolution on the plugin descriptor, so
+    // querying the instance property set only tells us what *we* said, never
+    // what the host can do. Hosts that report 0 here (Autodesk Flame / Flare)
+    // are spec-compliant and are entitled to ignore the RoD we return from
+    // getRegionOfDefinition(), handing us a buffer that is always the size of
+    // the input clip. Resolution-changing plugins (SeedVR2) cannot widen the
+    // canvas on such a host — see loadCachedResult()'s mismatch handling.
+    bool hostSupportsMultiResolution() const;
+
+public:
     // Static methods for parameter definition (called by derived plugin factories)
     static void describeCommonParameters(OFX::ImageEffectDescriptor &desc,
                                          OFX::ContextEnum context,
