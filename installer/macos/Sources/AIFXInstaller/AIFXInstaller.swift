@@ -116,6 +116,13 @@ final class InstallerEngine: ObservableObject {
     @Published var failed: Bool = false
     @Published var finished: Bool = false
 
+    /// True while the privileged copy runs. That phase is a single osascript
+    /// invocation -- one authorisation prompt for the whole set, deliberately --
+    /// so there is nothing to count and no honest fraction to show. The bar goes
+    /// indeterminate instead of freezing at the 80% staging left it at, which
+    /// read as a hung installer for the entire time the password dialog was up.
+    @Published var copying: Bool = false
+
     /// Hardcoded list of bundles the installer expects to find in its own
     /// Resources/Bundles/ directory. If any are missing the build is broken.
     static let expectedBundles: [String] = [
@@ -327,6 +334,8 @@ final class InstallerEngine: ObservableObject {
             append("  macOS will ask for an administrator password.")
         }
 
+        copying = true
+        defer { copying = false }
         do {
             let staged = staging
             let dest = target
@@ -337,6 +346,7 @@ final class InstallerEngine: ObservableObject {
             }.value
         } catch {
             append("✗ Install failed: \(error.localizedDescription)")
+            progress = 0
             if scope.requiresAdmin {
                 append("  If you cancelled the password prompt, re-run the installer.")
                 append("  Otherwise copy the bundles yourself, from a terminal:")
@@ -685,8 +695,20 @@ struct InstallingView: View {
                  : state.engine.failed ? "Install failed"
                  : "Installing…")
                 .font(.title2.bold())
-            ProgressView(value: state.engine.progress, total: 1)
-                .progressViewStyle(.linear)
+            // Three distinct states, because one bar cannot honestly show all
+            // of them: a measured fraction while staging, an indeterminate bar
+            // while the privileged copy runs, and no bar at all once it failed
+            // (a bar frozen at 80% under the words "Install failed" reads as
+            // still-running).
+            if state.engine.failed {
+                EmptyView()
+            } else if state.engine.copying {
+                ProgressView()
+                    .progressViewStyle(.linear)
+            } else {
+                ProgressView(value: state.engine.progress, total: 1)
+                    .progressViewStyle(.linear)
+            }
             ScrollViewReader { scroll in
                 ScrollView {
                     VStack(alignment: .leading, spacing: 2) {

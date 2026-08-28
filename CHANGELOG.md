@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **The macOS wizard's progress bar froze at 80% for the whole install.**
+  Staging drives the bar from 0 to 0.8, one step per bundle; the copy into place
+  then runs as a single `osascript` invocation — one authorisation prompt for the
+  whole set, deliberately — with nothing to count and no progress updates at all.
+  So the bar filled quickly, stopped dead at 80%, and stayed there through the
+  password dialog and the entire copy, which reads as a hung installer. It now
+  goes indeterminate for that phase instead of showing a fraction it cannot
+  honestly measure. `a4ea3a3` had fixed the same symptom for the staging phase
+  (the bar used to sit at 0% throughout); this is the half that was left.
+- A failed install left the bar frozen at 80% under the words "Install failed",
+  which reads as still-running. The bar is now hidden once the install has
+  failed.
+
 ## [0.2.5] - 2026-08-28
 
 The macOS wizard could not complete an install at all, and a workstation could
