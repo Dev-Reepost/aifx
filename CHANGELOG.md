@@ -7,7 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.5] - 2026-08-28
+
+The macOS wizard could not complete an install at all, and a workstation could
+be told to ignore whatever it installed. **macOS artifacts only** — Linux and
+Windows still ship 0.2.4 and need their own builds for the SeedVR2 fix below.
+
 ### Fixed
+
+- **SeedVR2 upscaling 1280x720 → 1920x1080 in Flame delivered a 1280x720 crop
+  of the result.** The EXR on disk was correct; only what came back into the
+  host was wrong. Flame reports
+  `kOfxImageEffectPropSupportsMultiResolution == 0` — a fixed-format host,
+  spec-compliant when it ignores `getRegionOfDefinition()` and allocates an
+  input-sized buffer. `loadCachedResult()` could not tell that apart from a
+  tiled render: a `(0,0)-(1280,720)` window *is* "inside" a 1920x1080 result,
+  so the sub-region test matched and extracted the corner. A new pure
+  classifier `classifyOutputFit()` now checks the canvas the host actually
+  allocated before the sub-region test. Covered by new cases in
+  `plugins/tests/test_base_plugin.cpp`.
 
 - **The macOS wizard failed at the last step with `Operation not permitted`.**
   It staged the seven bundles into `FileManager`'s `.itemReplacementDirectory` —
