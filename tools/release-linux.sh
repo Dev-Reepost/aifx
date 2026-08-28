@@ -185,10 +185,10 @@ This archive contains seven OpenFX plugin bundles built for Linux ${ARCH}.
 
 Recommended -- run the installer:
 
-  ./install.sh              (all users, /usr/OFX/Plugins -- needs sudo;
-                             the only path Flame and Flare scan)
-  ./install.sh --user       (this user only, ~/OFX/Plugins -- no sudo,
-                             Nuke / Resolve / Fusion only)
+  ./install.sh              Installs into /usr/OFX/Plugins for all users.
+                            That is the only OFX directory Flame scans, so it
+                            is the only location offered; sudo is requested
+                            once. Use --prefix <dir> to override.
 
   It walks you through the install location and your ComfyUI site config
   (server URL, mount paths), writes that config into each plugin, and copies

@@ -25,6 +25,14 @@ which is required for the plugins to do useful work.
 The host application reads from these directories at startup. Restart the host
 after installing or updating plugins.
 
+**AIFX installs into the system-wide column only.** Autodesk Flame and Flare do
+not scan the per-user directories at all, so an install there is
+indistinguishable from a working one until you open the host and find nothing.
+The per-user column is listed because other vendors' plugins use it, and because
+a host that fails to see AIFX is often reading one of these paths via
+`OFX_PLUGIN_PATH` — see
+[Troubleshooting](troubleshooting.md#ofx-plugin-path-override).
+
 ## Installing prebuilt bundles
 
 Prebuilt binaries are published on the
@@ -58,11 +66,10 @@ organized per operating system.
    first is required because the mounted volume is read-only. See
    [Troubleshooting](troubleshooting.md#macos-installer-blocked).
 3. The wizard walks you through:
-   - **Install location**: system-wide `/Library/OFX/Plugins/` (default) or
-     per-user `~/Library/OFX/Plugins/`. **Autodesk Flame and Flare only scan
-     the system-wide directory** — a per-user install leaves the plugins
-     invisible to them. System-wide asks for an administrator password once;
-     per-user needs none and works with Nuke, Resolve and Fusion.
+   - **Install location**: system-wide `/Library/OFX/Plugins/`, and nothing
+     else — **Autodesk Flame and Flare scan no other directory**, so a per-user
+     install left the plugins invisible to them while reporting success. macOS
+     asks for an administrator password once.
    - **Site configuration**: ComfyUI server URL + port, this Mac's view of
      the shared folder (typically `/Volumes/<share>/<root>`), and the
      **ComfyUI server's view** of the same shared folder (typically a
@@ -92,8 +99,7 @@ is:
 ```bash
 tar xzf aifx-<version>-macos-universal.tar.gz
 cd AIFX-<version>-macos-universal
-./install.sh               # /Library/OFX/Plugins — the default; required for Flame / Flare
-./install.sh --user        # ~/Library/OFX/Plugins — no sudo; Nuke, Resolve, Fusion only
+./install.sh               # /Library/OFX/Plugins — the only location offered
 ```
 
 Run `./install.sh --help` for the non-interactive flags used in fleet
@@ -108,10 +114,10 @@ per the [Configuration & defaults](configuration.md) guide.
 1. Download `aifx-<version>-windows-setup.exe` from the latest release and
    run it.
 2. The wizard walks you through:
-   - Install location: system-wide `%COMMONPROGRAMFILES%\OFX\Plugins\`
-     (default — needs admin; the only path Flame and Flare scan) or, if you
-     pick "install for me only", per-user `%LOCALAPPDATA%\OFX\Plugins\`,
-     which Nuke, Resolve and Fusion read but Autodesk hosts ignore.
+   - Install location: system-wide `%COMMONPROGRAMFILES%\OFX\Plugins\`. Setup
+     always runs elevated and there is no per-user mode — that is the only OFX
+     directory Flame and Flare scan. You can still type a different path on the
+     directory page if your hosts are configured to look elsewhere.
    - **Site configuration**: ComfyUI server address + port, this PC's view of
      the shared folder (**Local Storage Mount** — leave blank to reuse the
      server view), and the **ComfyUI server's view** of the same shared folder

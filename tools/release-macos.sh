@@ -117,10 +117,10 @@ universal binaries (Apple Silicon + Intel).
 
 Recommended -- run the installer script:
 
-  ./install.sh              (all users, /Library/OFX/Plugins -- needs sudo;
-                             the only path Flame and Flare scan)
-  ./install.sh --user       (this user only, ~/Library/OFX/Plugins -- no sudo,
-                             Nuke / Resolve / Fusion only)
+  ./install.sh              Installs into /Library/OFX/Plugins for all users.
+                            That is the only OFX directory Flame and Flare
+                            scan, so it is the only location offered; sudo is
+                            requested once. Use --prefix <dir> to override.
 
   It asks for your ComfyUI site config (server URL, mount paths), writes it
   into each plugin, copies the bundles into place and clears the macOS

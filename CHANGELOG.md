@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **There is no per-user install mode any more, in any of the three
+  installers.** The machine-wide OFX directory is the only location they offer:
+  `/Library/OFX/Plugins`, `/usr/OFX/Plugins`,
+  `%COMMONPROGRAMFILES%\OFX\Plugins`. Autodesk Flame and Flare scan no other
+  directory, so a per-user install reported success and then showed no plugins
+  in the host — and nothing in either the installer or the host connected the
+  two. Nuke, Resolve and Fusion read both locations, so the choice never had a
+  right answer worth offering. Concretely:
+  - `install.sh` no longer asks where to install and no longer accepts
+    `--user`; it always targets the machine-wide directory and requests sudo.
+    `--system` is still accepted and ignored so existing rollout scripts do not
+    break. `--prefix <dir>` remains the explicit escape hatch for a machine
+    without sudo, and now says out loud that hosts may not scan that path.
+  - The macOS wizard drops the location radio group; `InstallScope` has one
+    case left.
+  - The Windows installer drops `PrivilegesRequiredOverridesAllowed`, so Setup
+    elevates or does not run — there is no "install for me only" mode to pick.
+
 ### Fixed
 
 - **`setup-env.sh` hijacked `OFX_PLUGIN_PATH` for the whole machine.** Setting up
