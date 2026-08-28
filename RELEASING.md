@@ -230,13 +230,17 @@ for t in DepthAnything3 DepthCrafter NormalCrafter SegmentationSAM3 \
          MatteMaMa MatteMA2 UpscaleSeedVR2; do
   ofx="build/linux/${t}.ofx.bundle/Contents/Linux-x86-64/${t}.ofx"
   echo "== $t =="
-  readelf -d  "$ofx" | grep -i 'libstdc++\|libgcc_s' && echo "  !! dynamic C++ runtime (BAD)" || echo "  ok: no dynamic C++ runtime"
+  readelf -d  "$ofx" | grep -i 'libstdc++' && echo "  !! dynamic C++ runtime (BAD)" || echo "  ok: no dynamic libstdc++"
   readelf -sW "$ofx" | grep -i '_M_split_cmptsEv$'   # want LOCAL + a real address, never UND
 done
 ```
 
-A correct build shows **no** `libstdc++.so.6`/`libgcc_s` in `NEEDED` and
-`_M_split_cmpts` as a `LOCAL` defined symbol (not `UND`).
+A correct build shows **no** `libstdc++.so.6` in `NEEDED` and `_M_split_cmpts`
+as a `LOCAL` defined symbol (not `UND`). `libgcc_s.so.1` **is** expected in
+`NEEDED` — libgcc is deliberately left dynamic (see the comment above
+`aifx_harden_ofx_exports` in `plugins/CMakeLists.txt`): a static libgcc bakes in
+`_dl_find_object@GLIBC_2.35`, which Rocky 9's glibc 2.34 cannot satisfy, and the
+plugin then fails to load in Flame.
 
 ## Update the changelog and landing page
 
