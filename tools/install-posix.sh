@@ -27,6 +27,7 @@
 #
 # Usage:
 #   ./install.sh                       # interactive, system-wide (sudo)
+#   ./install.sh --user                # interactive, per-user (no sudo)
 #   ./install.sh --yes \                # fully non-interactive
 #       --server comfyui.example.local --port 8188 \
 #       --local-mount /mnt/silo/AIFX \
@@ -34,12 +35,6 @@
 #       --timeout 600
 #   ./install.sh --keep-defaults --yes # copy only, leave bundled config
 #   ./install.sh --prefix /opt/OFX/Plugins   # explicit target dir
-#
-# There is no per-user mode. Autodesk Flame and Flare scan the machine-wide OFX
-# directory only, and a per-user install is indistinguishable from a working one
-# until an operator opens the host and finds nothing. --prefix remains for the
-# rare machine with no sudo, and says out loud that you are choosing a path the
-# hosts may not scan.
 #
 # The defaults.json keys written here mirror exactly what the current plugin
 # code reads (plugins/common/comfyui_base_plugin.cpp): server.serverAddress,
@@ -50,13 +45,12 @@
 set -euo pipefail
 
 # --- Defaults (match the macOS wizard's SiteConfig where they overlap) -------
-# System-wide, always. Autodesk Flame and Flare only scan the machine-wide OFX
-# directory, so a per-user install leaves them blind to the plugins -- the
-# operator gets a clean "installed" and an empty effects browser, with nothing
-# connecting the two. Nuke, Resolve and Fusion read both locations, so the
-# machine-wide path is the only one that works for every host, and offering the
-# other one only ever produced silently broken installs. --prefix is the escape
-# hatch for a machine with no sudo, and it is explicit about what it is doing.
+# System-wide by default. Autodesk Flame and Flare only scan the machine-wide
+# OFX directory, so a per-user install leaves them blind to the plugins -- the
+# operator gets a clean "installed" and an empty effects browser. Nuke, Resolve
+# and Fusion read both, so system is the only default that works everywhere.
+# --user opts out for machines where sudo is not available.
+SCOPE="system"               # user | system
 PREFIX=""                    # explicit override of the install dir
 SERVER_ADDRESS="127.0.0.1"
 SERVER_PORT=8188
@@ -119,8 +113,8 @@ usage() {
 # --- Arg parsing -------------------------------------------------------------
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --system)        shift ;;   # accepted and ignored: system-wide is the only mode
-        --user)          die "--user is gone: Flame and Flare do not scan the per-user OFX directory, so that install looks fine and shows no plugins. Use --prefix $USER_DIR if you really mean it." ;;
+        --system)        SCOPE="system"; shift ;;
+        --user)          SCOPE="user"; shift ;;
         --prefix)        PREFIX="${2:?--prefix needs a directory}"; shift 2 ;;
         --server)        SERVER_ADDRESS="${2:?}"; shift 2 ;;
         --port)          SERVER_PORT="${2:?}"; shift 2 ;;
@@ -190,8 +184,10 @@ fi
 # --- Resolve the install directory -------------------------------------------
 if [[ -n "$PREFIX" ]]; then
     DEST="$PREFIX"
-else
+elif [[ "$SCOPE" == "system" ]]; then
     DEST="$SYSTEM_DIR"
+else
+    DEST="$USER_DIR"
 fi
 
 # --- Interactive prompts -----------------------------------------------------
@@ -203,12 +199,13 @@ prompt() {  # prompt VAR "Label" "current"
 
 if ! $ASSUME_YES; then
     step "Install location"
-    printf '    %s%s%s\n' "$c_bold" "$DEST" "$c_off"
-    if [[ -n "$PREFIX" ]]; then
-        printf '    %s(--prefix override -- make sure your hosts scan this path)%s\n' "$c_yellow" "$c_off"
-    else
-        printf '    %sThe machine-wide OFX directory: the only one every host scans,%s\n' "$c_dim" "$c_off"
-        printf '    %sincluding Flame and Flare. sudo will be requested.%s\n' "$c_dim" "$c_off"
+    printf '    1) System-wide %s%s%s   (needs sudo -- required for Flame / Flare)\n' "$c_dim" "$SYSTEM_DIR" "$c_off"
+    printf '    2) Per-user    %s%s%s   (no sudo -- Nuke, Resolve, Fusion only:\n' "$c_dim" "$USER_DIR" "$c_off"
+    printf '       %sAutodesk hosts do not scan this path%s)\n' "$c_dim" "$c_off"
+    [[ -n "$PREFIX" ]] && printf '    (overridden by --prefix %s)\n' "$PREFIX"
+    if [[ -z "$PREFIX" ]]; then
+        read -rp "    Choose [1]: " loc || true
+        if [[ "${loc:-1}" == "2" ]]; then SCOPE="user"; DEST="$USER_DIR"; else SCOPE="system"; DEST="$SYSTEM_DIR"; fi
     fi
 
     if ! $KEEP_DEFAULTS; then
@@ -247,7 +244,7 @@ fi
 
 # --- sudo wrapper for system-wide installs -----------------------------------
 SUDO=""
-if [[ -z "$PREFIX" || ! -w "$(dirname "$DEST")" ]]; then
+if [[ "$SCOPE" == "system" || ! -w "$(dirname "$DEST")" ]]; then
     if [[ "$(id -u)" -ne 0 ]]; then
         command -v sudo >/dev/null 2>&1 || die "Need root to write $DEST and sudo is not available. Re-run as root."
         SUDO="sudo"
@@ -329,7 +326,7 @@ step "Done"
 printf '    Installed %d plugin(s) into %s\n' "${#BUNDLES[@]}" "$DEST"
 printf '    %sRestart your OFX host%s (Resolve, Nuke, Fusion, Natron, Flame).\n' "$c_bold" "$c_off"
 printf '    The plugins appear under the %sAIFX%s category.\n' "$c_bold" "$c_off"
-if [[ "$DEST" != "$SYSTEM_DIR" ]]; then
+if [[ "$DEST" != "$SYSTEM_DIR" && "$DEST" != "$USER_DIR" ]]; then
     printf '    %sNote:%s a non-standard path — make sure OFX_PLUGIN_PATH includes %s.\n' "$c_yellow" "$c_off" "$DEST"
 fi
 

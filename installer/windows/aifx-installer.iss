@@ -45,18 +45,18 @@ WizardStyle=modern
 ; C:\Program Files\Common Files (not the WOW64 redirect).
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
-; ALL-USERS ONLY. No "install mode" dialog, no per-user fallback.
+; Default to an ALL-USERS install, with the standard "install mode" dialog still
+; offering per-user.
 ;
 ; This used to default to per-user (PrivilegesRequired=lowest) so nobody had to
-; type a password, then briefly offered both. But Autodesk Flame and Flare only
-; scan the machine-wide OFX directory -- %COMMONPROGRAMFILES%\OFX\Plugins here,
-; /Library/OFX/Plugins on macOS -- so an operator who chose per-user got a
-; successful install and no plugins in the host, with nothing to connect the
-; two. Nuke, Resolve and Fusion read both locations, so the machine-wide path is
-; the only one that works for every host and the choice never had a right
-; answer. Omitting PrivilegesRequiredOverridesAllowed suppresses the dialog
-; entirely: Setup elevates, or it does not run.
+; type a password. But Autodesk Flame and Flare only scan the machine-wide OFX
+; directory -- %COMMONPROGRAMFILES%\OFX\Plugins here, /Library/OFX/Plugins on
+; macOS -- so an operator who accepted the default got a successful install and
+; no plugins in the host. The macOS wizard had the same defect; see the 0.2.2
+; changelog. Nuke, Resolve and Fusion read both locations, so all-users is the
+; only default that works everywhere.
 PrivilegesRequired=admin
+PrivilegesRequiredOverridesAllowed=dialog
 DefaultDirName={code:GetDefaultDirName}
 ; This is a shared plugin directory, not a dedicated app folder - no Start menu
 ; group, and don't refuse to install into a non-empty directory.
@@ -75,9 +75,9 @@ SetupIconFile=app\AppIcon.ico
 #endif
 
 [Messages]
-; The directory page still lets an operator type any path, so say what the
-; default one is for.
-SelectDirLabel3=Setup will install the AIFX plugin bundles into the following folder.%n%nThis is the machine-wide OFX directory: the only one every host scans, including Autodesk Flame and Flare, which scan no other. Change it only if you know your hosts are configured to look elsewhere.
+; Spell out the consequence on the directory page. Operators pick a path here
+; without knowing that Autodesk hosts ignore the per-user one.
+SelectDirLabel3=Setup will install the AIFX plugin bundles into the following folder.%n%nAutodesk Flame and Flare only scan the machine-wide OFX directory. If you install for the current user only, they will not see the plugins. Nuke, Resolve and Fusion read both locations.
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -109,11 +109,12 @@ const
 { Default install directory: all-users -> Common Files\OFX\Plugins,
   per-user -> %LOCALAPPDATA%\OFX\Plugins. Mirrors the table in
   docs/installation.md. }
-{ Setup runs in admin install mode unconditionally (PrivilegesRequired=admin
-  with no override allowed), so there is only ever one default. }
 function GetDefaultDirName(Param: String): String;
 begin
-  Result := ExpandConstant('{commoncf}\OFX\Plugins');
+  if IsAdminInstallMode then
+    Result := ExpandConstant('{commoncf}\OFX\Plugins')
+  else
+    Result := ExpandConstant('{localappdata}\OFX\Plugins');
 end;
 
 { Enable/disable the site-config edits when the "keep bundled defaults"

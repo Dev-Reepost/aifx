@@ -62,34 +62,45 @@ struct SiteConfig {
 // =============================================================================
 // MARK: - Install location
 
-/// There is exactly one install location, and it is the machine-wide one.
-///
-/// This used to be a two-way choice. Autodesk Flame and Flare scan
-/// /Library/OFX/Plugins only, so picking per-user produced an install that
-/// reported success and then showed no plugins in the host, with nothing
-/// anywhere to connect the two. Nuke, Resolve and Fusion read both locations,
-/// so the machine-wide directory is the only one that works for every host and
-/// the choice never had a right answer worth offering.
 enum InstallScope: String, CaseIterable, Identifiable {
+    case perUser
     case systemWide
     var id: String { rawValue }
 
-    var displayName: String { "System-wide (/Library/OFX/Plugins/)" }
+    var displayName: String {
+        switch self {
+        case .perUser:    return "Per-user (~/Library/OFX/Plugins/)"
+        case .systemWide: return "System-wide (/Library/OFX/Plugins/) — required for Flame / Flare"
+        }
+    }
 
-    /// One-line explanation shown under the target directory.
+    /// One-line explanation shown under the picker.
     var rationale: String {
-        "Every OFX host scans this directory, including Flame and Flare, which "
-      + "scan no other. macOS will ask for an administrator password once."
+        switch self {
+        case .perUser:
+            return "No admin password needed. Works with Nuke, Resolve, Fusion — but "
+                 + "Autodesk Flame and Flare do NOT scan this directory and will not "
+                 + "see the plugins."
+        case .systemWide:
+            return "Every OFX host scans this directory, including Flame and Flare. "
+                 + "macOS will ask for an administrator password once."
+        }
     }
 
     var targetURL: URL {
-        URL(fileURLWithPath: "/Library/OFX/Plugins", isDirectory: true)
+        switch self {
+        case .perUser:
+            let home = FileManager.default.homeDirectoryForCurrentUser
+            return home.appendingPathComponent("Library/OFX/Plugins", isDirectory: true)
+        case .systemWide:
+            return URL(fileURLWithPath: "/Library/OFX/Plugins", isDirectory: true)
+        }
     }
 
-    /// True iff writing here needs elevated privileges. The installer handles
-    /// this itself (one authorisation prompt, see installPrivileged), rather
-    /// than refusing and telling the operator to run mkdir by hand.
-    var requiresAdmin: Bool { true }
+    /// True iff writing here needs elevated privileges. The installer now
+    /// handles this itself (one authorisation prompt, see installPrivileged),
+    /// rather than refusing and telling the operator to run mkdir by hand.
+    var requiresAdmin: Bool { self == .systemWide }
 }
 
 // =============================================================================
@@ -293,9 +304,8 @@ final class InstallerEngine: ObservableObject {
             append("✗ Install failed: \(error.localizedDescription)")
             if scope.requiresAdmin {
                 append("  If you cancelled the password prompt, re-run the installer.")
-                append("  Otherwise copy the bundles yourself, from a terminal:")
-                append("    sudo mkdir -p \(target.path)")
-                append("    sudo cp -R *.ofx.bundle \(target.path)/")
+                append("  Otherwise install per-user and move the bundles yourself:")
+                append("    sudo mv ~/Library/OFX/Plugins/*.ofx.bundle \(target.path)/")
             }
             failed = true
             return
@@ -510,8 +520,13 @@ struct LocationView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Install location").font(.title2.bold())
-            Text("The plugin bundles are installed for all users on this Mac.")
+            Text("Where should the plugin bundles be installed?")
                 .foregroundStyle(.secondary)
+            Picker("", selection: $state.scope) {
+                ForEach(InstallScope.allCases) { s in Text(s.displayName).tag(s) }
+            }
+            .pickerStyle(.radioGroup)
+            .labelsHidden()
 
             GroupBox {
                 VStack(alignment: .leading, spacing: 6) {

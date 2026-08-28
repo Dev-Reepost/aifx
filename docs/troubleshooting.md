@@ -95,11 +95,8 @@ sudo mv ~/Library/OFX/Plugins/*.ofx.bundle /Library/OFX/Plugins/
 sudo chmod -R go+rX /Library/OFX/Plugins
 ```
 
-Then restart the host. From v0.2.5 there is no per-user mode left in any of the
-three installers — the machine-wide directory is the only location they offer,
-and `--prefix` is the explicit escape hatch. The macOS wizard defaulted to
-system-wide from v0.2.2 and `install.sh` from v0.2.4; anything installed by an
-earlier version may still be sitting in the per-user path.
+Then restart the host. The macOS installer defaults to system-wide from v0.2.2,
+the `install.sh` script from v0.2.4; earlier versions defaulted to per-user.
 
 If you have already installed system-wide and Flame still does not see them,
 the next section is the usual culprit: an `OFX_PLUGIN_PATH` left over in your
@@ -223,53 +220,6 @@ not cover the destination, and `setup-env.sh` no longer sets the variable at all
 - **Direction:** `forward` propagates the mask forward in time only; if the
   subject enters the frame mid-clip, try `both`.
 
-## The upscaled output is cropped back to the source resolution (SeedVR2)
-{: #fixed-format-host-crops-upscale }
-
-**Symptom:** SeedVR2 is set to upscale 1280×720 → 1920×1080. The EXR files in
-the shared output folder are correctly 1920×1080, but the node errors out with
-*"The host allocated a 1280x720 output canvas…"*. On versions before this check
-existed the node did not error — it silently delivered a 1280×720 **crop** of
-the upscaled frame.
-
-**Cause:** the host is *fixed-format* — it does not support multi-resolution.
-The plugin reports its upscaled size through the standard OFX
-`getRegionOfDefinition` action, but a host that reports
-`kOfxImageEffectPropSupportsMultiResolution = 0` is entitled by the spec to
-ignore it and always allocate an output buffer the size of the input clip.
-**Autodesk Flame and Flare are in this group.** Nuke, Natron, Fusion Studio and
-Resolve Studio's Fusion/Color pages are not, which is why the same setup
-resizes the canvas correctly there.
-
-**Confirm it** in `~/comfyui_plugin_<YYYYMMDD>.log`:
-
-```text
-Supports Multi-Resolution (HOST capability): NO  <-- host is fixed-format: ...
-Frame 1: loadCachedResult branch = HOST-REFUSED-ROD | output=1920x1080 dstRoD=1280x720 ...
-```
-
-Note the log distinguishes *"plugin declares"* from *"HOST capability"* — only
-the second one matters here.
-
-**Fix — establish the target format upstream of the plugin.** In Flame Batch:
-
-1. Add a **Resize** node (FX / Format tab) before the AIFX node and set its
-   **Destination** output format to the target resolution (1920×1080). Its
-   default `Centre/Crop` behaviour is what you want.
-2. Apply the **SeedVR2** node after it, and set its **Resolution** parameter to
-   the same target short side (1080).
-
-The node's own format is then already 1080p, ComfyUI receives and returns
-1920×1080, and nothing is refused. SeedVR2 still does its restoration pass at
-the target resolution — the upstream Resize only establishes the canvas.
-
-Without that upstream Resize the plugin refuses to render rather than deliver
-something misleading. Scaling the upscale back down to fit would produce a
-full frame with correct framing that is merely soft — the kind of shot that
-passes review and ships. So the node raises a persistent error naming the two
-resolutions and the fix, and **Job Status** turns red. The EXR already written
-to the output folder is untouched and correct.
-
 ## Stale output: I changed a parameter and got the same result
 
 - The plugin caches outputs by workflow hash. Most parameter changes
@@ -298,10 +248,6 @@ them. In practice hosts have small deviations. The one caveat worth calling out:
   link the C++ runtime statically. A dynamically-linked plugin binds to
   Resolve's own `libstdc++` and crashes on `std::filesystem` calls — this is
   exactly why the release binaries are built static (see the 0.1.8 changelog).
-- **Autodesk Flame / Flare:** fixed-format host — an OFX node's output
-  resolution is always the input clip's. Only affects the resolution-changing
-  plugin, SeedVR2; see
-  [the upscale is cropped back to source resolution](#fixed-format-host-crops-upscale).
 
 No other host-specific quirks have been catalogued yet. If you hit one, please
 [report it](#reporting-bugs--getting-help) with the host name and version so we
