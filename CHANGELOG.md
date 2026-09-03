@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **MatAnyone2 no longer depends on the custom `Frame Select` node.** The
+  reference frame handed to SAM3 is now picked with ComfyUI's native
+  `ImageFromBatch` (node `197`, `batch_index` + `length: 1`) instead of the
+  custom `Frame Select` node (node `179`, `select`) — one less custom node that
+  can go missing or break on a server update. The `Reference Frame` parameter is
+  unchanged, and `matte_mama` and `segmentation_sam3` already used
+  `ImageFromBatch`, so all three now pick their reference frame the same way.
+  Both code paths were updated: the built-in workflow in `buildWorkflow()` and
+  the bundled `resources/workflow/matte_ma2.json` template.
+
 ## [0.2.5] - 2026-08-28
 
 The macOS wizard could not complete an install at all, and a workstation could

@@ -170,14 +170,18 @@ json MatteMA2Plugin::buildHardcodedWorkflow(int frame, const std::string& inputP
             {"_meta", {{"title", "Load EXR"}}}
         }},
 
-        // Node 179: Frame Select — picks integer reference frame
-        {"179", {
+        // Node 197: ImageFromBatch — picks the reference frame out of the
+        // loaded batch. Native ComfyUI node, deliberately preferred over the
+        // custom "Frame Select" node it replaces (one less custom-node
+        // dependency to break on the server).
+        {"197", {
             {"inputs", {
-                {"select", frameSelect},
-                {"frames", json::array({"171", 0})}
+                {"batch_index", frameSelect},
+                {"length", 1},
+                {"image", json::array({"171", 0})}
             }},
-            {"class_type", "Frame Select"},
-            {"_meta", {{"title", "Frame Select"}}}
+            {"class_type", "ImageFromBatch"},
+            {"_meta", {{"title", "Get Image from Batch"}}}
         }},
 
         // Node 183: CheckpointLoaderSimple (SAM3 checkpoint)
@@ -206,7 +210,7 @@ json MatteMA2Plugin::buildHardcodedWorkflow(int frame, const std::string& inputP
                 {"refine_iterations", refineIterations},
                 {"individual_masks", individualMasks},
                 {"model",        json::array({"183", 0})},
-                {"image",        json::array({"179", 0})},
+                {"image",        json::array({"197", 0})},
                 {"conditioning", json::array({"184", 0})}
             }},
             {"class_type", "SAM3_Detect"},
@@ -214,7 +218,7 @@ json MatteMA2Plugin::buildHardcodedWorkflow(int frame, const std::string& inputP
         }},
 
         // Node 186: SAM3_VideoTrack — track on the single reference frame
-        // from Frame Select (179), NOT the full sequence. MatAnyone2 then
+        // from ImageFromBatch (197), NOT the full sequence. MatAnyone2 then
         // takes the resulting single-frame mask as its propagation seed.
         // Wiring images to ["171",0] (the full video) would feed MatAnyone2
         // a T-frame mask instead of a seed and trigger a 5-vs-6-dim
@@ -224,7 +228,7 @@ json MatteMA2Plugin::buildHardcodedWorkflow(int frame, const std::string& inputP
                 {"detection_threshold", detectionThreshold},
                 {"max_objects", maxObjects},
                 {"detect_interval", detectInterval},
-                {"images",       json::array({"179", 0})},
+                {"images",       json::array({"197", 0})},
                 {"model",        json::array({"183", 0})},
                 {"initial_mask", json::array({"187", 0})},
                 {"conditioning", json::array({"184", 0})}

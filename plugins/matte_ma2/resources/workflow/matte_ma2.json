@@ -54,17 +54,18 @@
       "title": "SAVE_MATTE"
     }
   },
-  "179": {
+  "197": {
     "inputs": {
-      "select": "${FRAME_SELECT}",
-      "frames": [
+      "batch_index": "${FRAME_SELECT}",
+      "length": 1,
+      "image": [
         "171",
         0
       ]
     },
-    "class_type": "Frame Select",
+    "class_type": "ImageFromBatch",
     "_meta": {
-      "title": "Frame Select"
+      "title": "Get Image from Batch"
     }
   },
   "183": {
@@ -108,7 +109,7 @@
       "max_objects": "${MAX_OBJECTS}",
       "detect_interval": "${DETECT_INTERVAL}",
       "images": [
-        "179",
+        "197",
         0
       ],
       "model": [
@@ -139,7 +140,7 @@
         0
       ],
       "image": [
-        "179",
+        "197",
         0
       ],
       "conditioning": [

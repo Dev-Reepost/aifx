@@ -19,7 +19,7 @@ namespace ComfyUI {
  *
  * Pipeline:
  * 1. Load full sequence                       (node 171)
- * 2. Pick reference frame                     (node 179 - Frame Select)
+ * 2. Pick reference frame                     (node 197 - ImageFromBatch)
  * 3. CheckpointLoaderSimple + CLIPTextEncode  (nodes 183, 184)
  * 4. SAM3 detect on reference frame           (node 187)
  * 5. SAM3 video track over full sequence      (node 186)
