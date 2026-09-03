@@ -7,17 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.6] - 2026-09-03
+
+One less custom ComfyUI node in the MatAnyone2 pipeline. macOS ships this
+version first; Linux and Windows follow with their own rebuilds — the change is
+not platform-specific.
+
 ### Changed
 
 - **MatAnyone2 no longer depends on the custom `Frame Select` node.** The
   reference frame handed to SAM3 is now picked with ComfyUI's native
   `ImageFromBatch` (node `197`, `batch_index` + `length: 1`) instead of the
   custom `Frame Select` node (node `179`, `select`) — one less custom node that
-  can go missing or break on a server update. The `Reference Frame` parameter is
-  unchanged, and `matte_mama` and `segmentation_sam3` already used
-  `ImageFromBatch`, so all three now pick their reference frame the same way.
-  Both code paths were updated: the built-in workflow in `buildWorkflow()` and
-  the bundled `resources/workflow/matte_ma2.json` template.
+  can go missing or break on a server update, which is the whole reason for the
+  swap. The `Reference Frame` parameter is unchanged, and `matte_mama` and
+  `segmentation_sam3` already used `ImageFromBatch`, so all three plugins now
+  pick their reference frame the same way. Both code paths were updated: the
+  built-in workflow in `buildWorkflow()` and the bundled
+  `resources/workflow/matte_ma2.json` template.
+
+  One behavioural caveat: `ImageFromBatch.batch_index` is 0-indexed. If the
+  custom `Frame Select` node's `select` input was 1-indexed, the same
+  `Reference Frame` value now selects the frame before the one it used to.
 
 ## [0.2.5] - 2026-08-28
 
