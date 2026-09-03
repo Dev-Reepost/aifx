@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.2.6] - 2026-09-03
 
-One less custom ComfyUI node in the MatAnyone2 pipeline. macOS ships this
-version first; Linux and Windows follow with their own rebuilds — the change is
-not platform-specific.
+One less custom ComfyUI node in the MatAnyone2 pipeline. macOS and Linux ship
+this version; Windows follows with its own rebuild — the change is not
+platform-specific.
 
 ### Changed
 
